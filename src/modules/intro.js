@@ -496,6 +496,10 @@ export function createIntro({ onProgress } = {}) {
       consultZero.classList.toggle("note-focus", consultLocal > 0.913);
       if (portalOn && portalState === "off") {
         const skyLive = starIn > 0.01;
+        if (skyLive && portalWrap.style.opacity) {
+          portalWrap.style.transition = "";
+          portalWrap.style.opacity = "";
+        }
         portalWrap.classList.toggle("bg", skyLive);
         portalWrap.classList.toggle("gone", !skyLive);
         if (skyLive) mountPortalModule();                // no-op after entering
@@ -761,13 +765,25 @@ export function createIntro({ onProgress } = {}) {
       else scrollTo(0, y);
     }, 260));
 
-    // The collapsed sky is HELD (holdOnEnter) until this instant removal —
-    // no re-grow, no fade-out of the plain starfield underneath.
+    /* The held canvas is fully collapsed — pure black + the dying flare, no
+       starfield left in it — so it can safely CROSS-FADE into the growing
+       Gargantua instead of cutting (Yash 20:46: the flare "paused"). */
+    /* Fade the WRAPPER, never the canvas alone: the wrap carries the CSS
+       starfield behind the canvas, so fading only the canvas uncovers the
+       full undistorted nebula (measured at 600ms — the same "stars open up
+       again" leak wearing a new hat). The held canvas is opaque black, so
+       fading the group hands straight over to the growing Gargantua. */
+    portalTimers.push(setTimeout(() => {
+      portalWrap.style.transition = "opacity 700ms ease-out";
+      portalWrap.style.opacity = "0";
+    }, 320));
     portalTimers.push(setTimeout(() => {
       portalWrap.classList.add("gone");
+      portalWrap.style.transition = "";
+      portalWrap.style.opacity = "";
       teardownPortalModule();
       portalState = "done";
-    }, 900));
+    }, 1120));
   }
 
   const onBhEnter = (e) => { e.preventDefault(); ridePortal(); };

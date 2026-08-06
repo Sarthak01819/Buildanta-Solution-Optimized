@@ -55,7 +55,7 @@ export async function createBlackholeGateBeat(container, opts = {}) {
 
   function stateAt(p, tSec) {
     // Emergence: far + dark → settled framing. Swallow: exposure white-out.
-    const emerge = smooth(clamp01(p / 0.35));
+    const emerge = smooth(clamp01(p / 0.22));   // meets the fading flare
     const swallow = smooth(clamp01((p - 0.75) / 0.25));
     const breath = 0.5 - 0.5 * Math.cos((2 * Math.PI * tSec) / CONFIG.breathing.period);
     return {

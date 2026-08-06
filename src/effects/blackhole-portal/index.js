@@ -497,7 +497,10 @@ export class BlackholePortal {
         } else if (hold.phase === 'entering') {
           hold.enterT += dt;
           hold.c = 1; hold.arm = Math.max(1 - hold.enterT * 2.5, 0);
-          hold.flash = Math.min(hold.enterT / 0.18, 1) * 1.25;
+          hold.flash = Math.min(hold.enterT / 0.18, 1) * 1.25
+            * (opts.holdOnEnter                       // peak .18s → dark by .73s
+                ? Math.max(1 - (hold.enterT - 0.18) / 0.55, 0)
+                : 1);
           if (hold.enterT >= 0.22 && hold.goHref) { const h = hold.goHref; hold.goHref = null; location.href = h; }
           // Host-ride mode: the module's SPA hand-back (re-grow the universe
           // from the button) is exactly the "stars open up again" bug — with
