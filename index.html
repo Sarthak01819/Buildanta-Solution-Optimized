@@ -1,0 +1,422 @@
+<!doctype html>
+<!-- Franklin access gate WE CONSULT ke end par JS se activate hota hai. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buildanta Solutions — We build the systems businesses run on.</title>
+  <meta name="description" content="Buildanta Solutions — engineering studio. Field IoT to boardroom dashboards. Five deployed systems, one engineering standard." />
+  <meta name="theme-color" content="#04060a" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preload" as="image" href="/assets/entry-franklin-macro.png" fetchpriority="high" />
+  <!-- Instrument Serif for editorial type + DM Mono for interface text -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=JetBrains+Mono:wght@300;400;500&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles/main.css" />
+  <!--
+    CRITICAL: intro ki height yahan inline hai.
+    Module script deferred hota hai aur DOMContentLoaded par chalta hai — wo
+    stylesheets ka intezaar NAHI karta. Isliye main.css apply hone se pehle
+    ScrollTrigger `#intro` ko naap leta tha, 0×0 milta tha, aur pin ki lambai
+    0.01px record ho jaati thi (intro turant khatam). Ye do lines us race ko
+    poori tarah khatam kar deti hain.
+  -->
+  <style>html,body,body *{cursor:none!important}#intro{height:100svh;overflow:hidden}.intro__gl{display:block;width:100%;height:100%}</style>
+</head>
+<body>
+
+  <section class="entry-gate" data-entry-gate role="dialog" aria-modal="true" aria-labelledby="entry-gate-label" aria-describedby="entry-gate-status" aria-hidden="true" tabindex="-1">
+    <span class="sr-only" id="entry-gate-label">Buildanta automatic entry</span>
+    <div class="entry-gate__macro" aria-hidden="true">
+      <img class="entry-gate__macro-base" src="/assets/entry-franklin-macro.png" alt="" fetchpriority="high" decoding="async" draggable="false" />
+    </div>
+    <div class="entry-gate__tone" aria-hidden="true"></div>
+    <div class="entry-gate__scan" aria-hidden="true"></div>
+    <div class="entry-gate__axis" aria-hidden="true"><i></i><i></i></div>
+
+    <div class="entry-gate__top" aria-hidden="true">
+      <span>BUILDANTA / ACCESS PROTOCOL</span>
+      <span>FRANKLIN SIGNAL · VERIFIED</span>
+    </div>
+
+    <div class="entry-gate__foot" aria-hidden="true">
+      <span>PRIVATE OPERATING SYSTEM</span>
+      <span>AUTO ENTRY / ARMED</span>
+    </div>
+    <span class="entry-gate__status sr-only" id="entry-gate-status" data-entry-status aria-live="polite">Portrait verification ready</span>
+  </section>
+
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <div class="blueprint" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="scan" aria-hidden="true"></div>
+  <div class="sweep" aria-hidden="true"></div>
+
+  <div id="cursor" aria-hidden="true"></div>
+  <div id="cursor-ring" aria-hidden="true"></div>
+  <div id="progress" aria-hidden="true"></div>
+
+  <!-- ══ HUD telemetry ══ -->
+  <div class="hud hud--bl" aria-hidden="true">
+    <span>LAT <b data-hud-x>000.0</b> · LON <b data-hud-y>000.0</b></span>
+    <span>NODE <b data-designation></b></span>
+  </div>
+  <div class="hud hud--br" aria-hidden="true">
+    <span>RENDER <b data-hud-fps>00</b> FPS</span>
+    <span>DEPTH <b data-hud-scroll>000</b>%</span>
+  </div>
+
+  <!-- JS band ho to intro (jo scroll par nirbhar hai) raaste se hat jaye -->
+  <noscript><style>.entry-gate,#intro{display:none!important}html.entry-pending,html.entry-pending body{overflow:auto!important}.nav{opacity:1!important}</style></noscript>
+
+  <!--
+    ══ pre-home sequence — SCROLL SE CHALTA HAI ══
+    Ye ab overlay nahi, page ka pehla section hai. ScrollTrigger ise pin
+    karke rakhta hai aur scroll camera ko corridor mein aage badhata hai.
+    Poora reversible hai: upar scroll karne par acts ulte chalte hain.
+    Isliye na ENTER button hai, na paper wipe columns — site khud hi
+    intro ke neeche se aati hai.
+  -->
+  <section id="intro" aria-label="Introduction">
+    <canvas class="intro__gl" aria-hidden="true"></canvas>
+    <div class="market-experience" aria-hidden="true">
+      <div class="market-space">
+        <div class="market-orbit market-orbit--outer"></div>
+        <div class="market-orbit market-orbit--mid"></div>
+        <div class="market-orbit market-orbit--inner"></div>
+        <div class="market-planet market-planet--blue"></div>
+        <div class="market-planet market-planet--coral"></div>
+        <div class="market-planet market-planet--small"></div>
+        <div class="market-signal-core"><i></i><b></b></div>
+      </div>
+      <div class="market-transition">
+        <div class="market-transition__core"><i></i><i></i><i></i></div>
+        <div class="market-transition__stream"></div>
+      </div>
+      <div class="market-editorial">
+        <p>GROWTH MARKETING STUDIO · SEO / PAID / SALES</p>
+        <h2 class="market-editorial__title"><span>We market</span></h2>
+        <div class="market-editorial__foot">
+          <p>We connect search strategy, paid acquisition, persuasive creative, and sales systems to turn demand into predictable revenue.</p>
+          <span>SCROLL INTO THIS SIGNAL CORE ↓</span>
+        </div>
+      </div>
+      <div class="market-film">
+        <article class="market-frame market-frame--seo"><small>01 · SEARCH</small><strong>SEO authority</strong><span>+420% organic traffic</span></article>
+        <article class="market-frame market-frame--paid"><small>02 · DEMAND</small><strong>Paid acquisition</strong><span>$14M+ ad spend</span></article>
+        <article class="market-frame market-frame--sales"><small>03 · REVENUE</small><strong>Sales systems</strong><span>3.8× conversion rate</span></article>
+        <article class="market-frame market-frame--cro"><small>04 · CONVERSION</small><strong>CRO &amp; creative</strong><span>+185% ROAS uplift</span></article>
+        <article class="market-frame market-frame--life"><small>05 · RETENTION</small><strong>Lifecycle growth</strong><span>92% net retention</span></article>
+        <article class="market-frame market-frame--brand"><small>06 · CREATIVE</small><strong>Brand momentum</strong><span>8.5M impressions/mo</span></article>
+        <article class="market-frame market-frame--data"><small>07 · INTELLIGENCE</small><strong>Growth analytics</strong><span>100% data precision</span></article>
+      </div>
+      <div class="market-pusher">
+        <span class="market-camera__reel market-camera__reel--a"></span>
+        <span class="market-camera__reel market-camera__reel--b"></span>
+        <span class="market-camera__drive market-camera__drive--a"></span>
+        <span class="market-camera__drive market-camera__drive--b"></span>
+        <span class="market-camera__crank"></span>
+        <span class="market-camera__lens"></span>
+        <span class="market-camera__portal"></span>
+        <span class="market-camera__consult">WE<br />CONSULT</span>
+        <img src="/market-cinema-camera-front.png" alt="" />
+      </div>
+    </div>
+    <div class="consult-zero" aria-hidden="true">
+      <div class="consult-zero__world">
+        <div class="consult-zero__grid"></div>
+        <div class="consult-zero__word" data-word="CONSULT">CONSULT</div>
+        <div class="consult-zero__system">
+          <span class="consult-node consult-node--strategy"><b>01</b>STRATEGY</span>
+          <span class="consult-node consult-node--acquisition"><b>02</b>ACQUISITION</span>
+          <span class="consult-node consult-node--conversion"><b>03</b>CONVERSION</span>
+          <span class="consult-node consult-node--retention"><b>04</b>RETENTION</span>
+          <i class="consult-link consult-link--a"></i>
+          <i class="consult-link consult-link--b"></i>
+          <i class="consult-link consult-link--c"></i>
+          <i class="consult-link consult-link--d"></i>
+          <div class="consult-zero__core"><em>GROWTH</em><strong>SYSTEM</strong></div>
+        </div>
+        <div class="consult-zero__intro">
+          <small>ACT 04 / SYSTEM INTERVENTION</small>
+          <strong>WE <em>CONSULT</em></strong>
+        </div>
+        <div class="consult-zero__updates">
+          <div class="consult-update consult-update--1"><b>01</b><span>DIAGNOSE</span><em>SIGNAL FOUND</em></div>
+          <div class="consult-update consult-update--2"><b>02</b><span>DESIGN</span><em>SYSTEM MAPPED</em></div>
+          <div class="consult-update consult-update--3"><b>03</b><span>DEPLOY</span><em>ENGINE LIVE</em></div>
+          <div class="consult-update consult-update--4"><b>04</b><span>COMPOUND</span><em>GROWTH LOOP ACTIVE</em></div>
+        </div>
+        <div class="consult-zero__statement">
+          <small>THE OPERATING PRINCIPLE</small>
+          <p>Advice is cheap.<br><em>Execution compounds.</em></p>
+        </div>
+      </div>
+      <div class="consult-zero__hand-stage">
+        <img class="consult-zero__editorial-scene consult-film__shot consult-film__shot--establish" src="/assets/consult-reference-matched.webp" alt="" />
+        <div class="consult-film__laptop-portal" aria-hidden="true">
+          <div class="consult-film__earth">
+            <i class="consult-film__earth-halo"></i>
+            <svg class="consult-film__earth-globe" viewBox="0 0 240 240" focusable="false" aria-hidden="true">
+              <defs>
+                <mask id="consult-earth-break">
+                  <rect width="240" height="240" fill="#fff" />
+                  <path d="M120 120 220 47A108 108 0 0 1 224 153Z" fill="#000" />
+                </mask>
+              </defs>
+              <g class="consult-film__earth-body" mask="url(#consult-earth-break)">
+                <circle cx="120" cy="120" r="91" />
+                <ellipse cx="120" cy="120" rx="91" ry="29" />
+                <ellipse cx="120" cy="120" rx="91" ry="58" />
+                <ellipse cx="120" cy="120" rx="34" ry="91" />
+                <ellipse cx="120" cy="120" rx="65" ry="91" />
+                <path d="M30 120h180M38 82h164M38 158h164M120 29v182" />
+                <path class="consult-film__earth-land" d="M66 61 82 49l22 4 9 15-7 15-18 8-14 19-20-4-8-19Zm70 43 17-15 22 5 7 15 19 12-10 17-21 3-8 20-18 14-13-12 7-21-10-18Zm-55 43 20-9 15 12-4 23-17 17-17-7-7-19Z" />
+              </g>
+              <g class="consult-film__earth-fragments">
+                <path class="consult-film__earth-fragment consult-film__earth-fragment--a" d="M185 47a98 98 0 0 1 27 24" />
+                <path class="consult-film__earth-fragment consult-film__earth-fragment--b" d="M216 86a98 98 0 0 1 7 27" />
+                <path class="consult-film__earth-fragment consult-film__earth-fragment--c" d="M207 129a98 98 0 0 1-14 29" />
+                <path class="consult-film__earth-fragment consult-film__earth-fragment--d" d="m187 77 15 11-9 15-14-7Z" />
+              </g>
+            </svg>
+            <span class="consult-film__earth-core"></span>
+          </div>
+          <div class="consult-film__portal-label"><b>GROWTH NETWORK</b><span>LIVE MODEL</span></div>
+        </div>
+        <div class="consult-film__lens-bridge" aria-hidden="true"><i></i><i></i><i></i><span></span></div>
+        <img class="consult-film__shot consult-film__shot--think" src="/assets/consult-shot-think.webp" alt="" />
+        <img class="consult-film__shot consult-film__shot--profile" src="/assets/consult-shot-profile.webp" alt="" />
+        <div class="consult-film__copy consult-film__copy--hours"><span>Stop wasting</span><strong>growth hours.</strong></div>
+        <div class="consult-film__copy consult-film__copy--waiting"><span>while revenue</span><strong>is waiting.</strong></div>
+
+        <div class="consult-film__web-scene">
+          <img src="/assets/consult-reference-matched.webp" alt="" />
+          <div class="consult-film__web-wall">
+            <small>WE FOUND THE SIGNAL</small>
+            <strong>Growth<br />systems.</strong>
+            <div class="consult-film__web-metrics"><span><b>340%</b> ARR</span><span><b>4.2×</b> PIPELINE</span><span><b>185%</b> ROAS</span></div>
+          </div>
+          <div class="consult-film__web-cards">
+            <i>ACQUISITION</i><i>CONVERSION</i><i>RETENTION</i>
+          </div>
+        </div>
+
+        <div class="consult-film__file-scene">
+          <div class="consult-film__file-icon"><b>G</b><span>OS</span></div>
+          <small>REAL GROWTH SYSTEM FILES</small>
+        </div>
+
+        <div class="consult-film__editor-scene">
+          <div class="consult-editor__bar"><i></i><i></i><i></i><span>BUILDANTA / GROWTH COMPOSITOR</span></div>
+          <div class="consult-editor__assets"><b>CHANNELS</b><span>SEO Authority</span><span>Paid Acquisition</span><span>Sales Systems</span><span>CRO &amp; Creative</span></div>
+          <div class="consult-editor__preview"><small>ACTIVE COMPOSITION</small><strong>Every</strong><em>channel.</em><i></i></div>
+          <div class="consult-editor__controls"><b>PROPERTIES</b><span>Signal strength</span><span>Revenue velocity</span><span>Conversion depth</span></div>
+          <div class="consult-editor__timeline">
+            <b><i></i><i></i><i></i><i></i><i></i><i></i></b>
+            <span style="--row:0;--start:5%;--size:72%"></span>
+            <span style="--row:1;--start:14%;--size:58%"></span>
+            <span style="--row:2;--start:2%;--size:81%"></span>
+            <span style="--row:3;--start:27%;--size:49%"></span>
+            <span style="--row:4;--start:10%;--size:66%"></span>
+          </div>
+        </div>
+
+        <div class="consult-film__market-scene">
+          <small>PROVEN GROWTH PLAYS</small>
+          <strong>Less<br />guesswork.</strong>
+          <div class="consult-film__market-grid">
+            <article><b>SEO ENGINE</b><i></i><span>+420% TRAFFIC</span></article>
+            <article><b>PAID SCALE</b><i></i><span>4.6× ROAS</span></article>
+            <article><b>SALES OS</b><i></i><span>+38% CLOSE</span></article>
+            <article><b>CRO SYSTEM</b><i></i><span>+185% ROAS</span></article>
+            <article><b>LIFECYCLE</b><i></i><span>92% NRR</span></article>
+            <article><b>ANALYTICS</b><i></i><span>100% SIGNAL</span></article>
+          </div>
+        </div>
+
+        <div class="consult-film__final-scene">
+          <img src="/assets/consult-shot-cta.webp" alt="" />
+          <div class="consult-film__idea">Just<br /><strong>re-edit</strong><br />proven systems.</div>
+          <div class="consult-film__cta"><strong>BOOK A GROWTH CALL ↗</strong><span>and we’ll send the plan.</span></div>
+        </div>
+        <canvas class="consult-zero__hand-canvas" aria-hidden="true"></canvas>
+        <img class="consult-zero__cash-bundle consult-zero__cash-bundle--top" src="/assets/cash-bundle-premium.webp" alt="" />
+        <img class="consult-zero__cash-bundle consult-zero__cash-bundle--bottom" src="/assets/cash-bundle-premium.webp" alt="" />
+        <div class="consult-zero__opening-copy">
+          <span>WE</span>
+          <strong>SCALE.</strong>
+        </div>
+        <div class="consult-zero__capital-line" aria-hidden="true">
+          <div><span>CAPITAL STRATEGY</span><span>ACQUISITION</span><span>CONVERSION</span><span>RETENTION</span><span>REVENUE INTELLIGENCE</span><span>CAPITAL STRATEGY</span><span>ACQUISITION</span><span>CONVERSION</span><span>RETENTION</span><span>REVENUE INTELLIGENCE</span></div>
+        </div>
+      </div>
+      <div class="consult-zero__hud"><span>BUILDANTA / GROWTH SYSTEMS</span><b>SCROLL TO ADVANCE</b></div>
+    </div>
+    <div class="consult-zero__light-frame" aria-hidden="true"></div>
+    <div class="consult-zero__portal-feather" aria-hidden="true"></div>
+    <div class="intro__ideaTransfer" aria-hidden="true">
+      <i class="intro__ideaDrop"></i>
+      <i class="intro__ideaCore"></i>
+      <i class="intro__ideaRipple"></i>
+      <i class="intro__ideaSparkle"></i>
+      <i class="intro__bigBang"></i>
+      <span class="intro__codeBridge">
+        <i class="intro__catchDrop"></i>
+        <i class="intro__catchDrop"></i>
+        <i class="intro__catchDrop"></i>
+      </span>
+    </div>
+
+    <!-- WE SCALE exit beat: the burned note's ember dilates into a black
+         hole; the site emerges from its light. Sits above every act layer,
+         below the intro chrome and the Franklin gate. -->
+    <div class="intro__blackhole" aria-hidden="true"></div>
+
+    <div class="intro__inner">
+      <div class="intro__top">
+        <span class="intro__mark" data-brand></span>
+        <span class="intro__eyebrow" data-intro-eyebrow></span>
+      </div>
+
+      <div class="intro__center">
+        <!-- wordmark: p=0 par dikhta hai, pehle scroll par corridor mein uth jaata hai -->
+        <div class="intro__title">
+          <span class="intro__titleKicker" data-intro-eyebrow2></span>
+          <h2 class="intro__titleMark"><span data-title-split data-split-host></span></h2>
+        </div>
+
+        <!-- acts JS se inject hote hain -->
+        <div class="intro__stage"></div>
+      </div>
+
+      <div class="intro__foot">
+        <div class="intro__footL">
+          <button class="intro__skip" data-skip>Skip intro</button>
+          <button class="intro__sound" data-sound aria-pressed="false" aria-label="Toggle sound">
+            <span class="intro__eq"><i></i><i></i><i></i><i></i></span>
+            <span data-sound-label>Sound</span>
+          </button>
+        </div>
+        <!-- idle hint: jab tak scroll se progress na badle, ye pulse karta hai -->
+        <span class="intro__hint" data-intro-hint aria-hidden="true">
+          <span>Scroll</span><i></i>
+        </span>
+        <span class="intro__count"><b data-intro-count>01</b><span>/</span><span data-intro-total>04</span></span>
+      </div>
+
+      <div class="intro__bar"><i></i></div>
+    </div>
+  </section>
+
+  <header class="nav">
+    <a class="nav__brand" href="#top">
+      <b data-brand></b><span data-designation></span>
+    </a>
+    <nav class="nav__links">
+      <a href="#systems">Systems</a>
+      <a href="#modules">Modules</a>
+      <a href="#infra">Infra</a>
+      <a href="#sequence">Sequence</a>
+    </nav>
+    <div class="nav__status"><i class="nav__dot"></i><span>ALL SYSTEMS NOMINAL</span></div>
+  </header>
+
+  <main id="top">
+
+    <!-- ══════════ HERO ══════════ -->
+    <section class="hero">
+      <p class="kicker" data-reveal>Engineering Studio — Operational since <span data-since></span></p>
+      <h1 class="hero__title">
+        <span class="line"><span data-split>We build the</span></span>
+        <span class="line"><span data-split><em>systems</em> businesses</span></span>
+        <span class="line"><span data-split>run on.</span></span>
+      </h1>
+      <p class="lede" data-reveal data-intro></p>
+      <div class="hero__meta" data-reveal>
+        <span>UNITS DEPLOYED <b>05</b></span>
+        <span>FLEET UPTIME <b>99.9%</b></span>
+        <span>STACK <b>IOT → CLOUD → UI</b></span>
+        <span>SECTOR <b data-location></b></span>
+      </div>
+      <div class="hero__foot">
+        <a href="#systems" class="btn" data-magnetic><span>Access systems</span><i></i></a>
+      </div>
+    </section>
+
+    <!-- ══════════ STATS ══════════ -->
+    <section class="stats" data-stats></section>
+
+    <!-- ══════════ DEPLOYED SYSTEMS ══════════ -->
+    <section class="section" id="systems">
+      <div class="section__head">
+        <p class="kicker" data-reveal>01 / Deployed Systems</p>
+        <h2 class="h2"><span data-split>Five units.</span><br /><span data-split>One standard.</span></h2>
+        <p class="lede" data-reveal>
+          Har unit field ki problem se shuru hua — client brief se nahi. Isi liye ye asli haalat
+          mein chalte hain: kharaab network, sasta hardware, aur woh log jinke paas manual
+          padhne ka time nahi hai.
+        </p>
+      </div>
+      <div class="products" data-products></div>
+    </section>
+
+    <!-- ══════════ CORE MODULES ══════════ -->
+    <section class="section" id="modules">
+      <div class="section__head">
+        <p class="kicker" data-reveal>02 / Core Modules</p>
+        <h2 class="h2"><span data-split>Sensor to</span><br /><span data-split>dashboard.</span></h2>
+      </div>
+      <div class="caps" data-capabilities></div>
+    </section>
+
+    <!-- ══════════ INFRASTRUCTURE ══════════ -->
+    <section class="section" id="infra">
+      <div class="section__head">
+        <p class="kicker" data-reveal>03 / Infrastructure</p>
+        <h2 class="h2"><span data-split>Request path.</span></h2>
+        <p class="lede" data-reveal>
+          Ek request device se data tak kaise pahunchti hai. Har layer alag se monitor hoti hai,
+          aur har layer ka apna budget hai.
+        </p>
+      </div>
+      <div class="infra" data-infra></div>
+    </section>
+
+    <!-- ══════════ SEQUENCE ══════════ -->
+    <section class="section" id="sequence">
+      <div class="section__head">
+        <p class="kicker" data-reveal>04 / Operational Sequence</p>
+        <h2 class="h2"><span data-split>Four steps.</span><br /><span data-split>No surprises.</span></h2>
+      </div>
+      <ol class="process" data-process></ol>
+    </section>
+
+    <!-- ══════════ CONTACT ══════════ -->
+    <section class="section" id="contact">
+      <p class="kicker" data-reveal>05 / Establish Link</p>
+      <h2 class="contact__title"><span class="line"><span data-split>Kuch banana hai?</span></span></h2>
+      <a class="contact__mail" data-email-link data-magnetic><span data-email></span></a>
+      <p class="lede" data-reveal>
+        Ek line likh do — kya problem solve karni hai. Hum 48 ghante mein reply karte hain,
+        aur pehli call par hi bata dete hain ki ye humse banega ya nahi.
+      </p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__col">
+      <span class="footer__brand" data-brand></span>
+      <span data-tagline></span>
+    </div>
+    <div class="footer__col" data-socials></div>
+    <div class="footer__col">
+      <span data-location></span>
+      <span data-phone></span>
+      <span>© <span data-year></span> — <span data-designation></span></span>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

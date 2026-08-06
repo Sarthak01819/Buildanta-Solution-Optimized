@@ -1,0 +1,1256 @@
+import {
+  AdditiveBlending,
+  AmbientLight,
+  BoxGeometry,
+  CanvasTexture,
+  CircleGeometry,
+  Color,
+  DirectionalLight,
+  DoubleSide,
+  EdgesGeometry,
+  Euler,
+  Group,
+  LineBasicMaterial,
+  LineSegments,
+  Mesh,
+  MeshBasicMaterial,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  PerspectiveCamera,
+  PlaneGeometry,
+  PointLight,
+  Quaternion,
+  RingGeometry,
+  Scene,
+  ShaderMaterial,
+  SRGBColorSpace,
+  Vector3,
+} from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+
+const FLOOR_Y = -3.05;
+const BASE = new Vector3(0, FLOOR_Y + 0.04, 0.65);
+const LANDINGS = [0.244, 0.256, 0.268];
+
+const clamp01 = (value) => Math.max(0, Math.min(1, value));
+const smoother = (value) => {
+  const t = clamp01(value);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
+const range = (start, end, value) => smoother((value - start) / (end - start));
+
+/* Mulberry32 — dissolve fragments har load par bilkul wahi jagah se niklein.
+   Random layout badalne se visual QA aur reverse-scroll dono unreliable hote. */
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state += 0x6d2b79f5;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function createCircuitTexture(seed = 1) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+  const random = seededRandom(seed);
+
+  ctx.fillStyle = "#020814";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  /* Fine blueprint lattice. Texture sirf inset face-plates par lagegi,
+     shell par nahi, isliye modules graphite hardware ki tarah padhenge. */
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(70, 176, 234, 0.10)";
+  for (let i = 0; i <= 16; i++) {
+    const p = (i / 16) * canvas.width;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, canvas.height);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(canvas.width, p);
+    ctx.stroke();
+  }
+
+  /* Ek primary bus aur kuch seeded orthogonal branches. Macro shot mein
+     yeh readable rehta hai; fake hex/code rows wala noisy texture hata diya. */
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(22, canvas.height * 0.52);
+  ctx.lineTo(canvas.width - 22, canvas.height * 0.52);
+  ctx.strokeStyle = "rgba(176, 246, 255, 0.88)";
+  ctx.lineWidth = 5;
+  ctx.shadowColor = "#4dd4ff";
+  ctx.shadowBlur = 18;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  for (let trace = 0; trace < 9; trace++) {
+    let x = Math.round(random() * 16) * 32;
+    let y = Math.round(random() * 16) * 32;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    const segments = 3 + Math.floor(random() * 3);
+    for (let s = 0; s < segments; s++) {
+      if ((trace + s) % 2 === 0) x = Math.round(random() * 16) * 32;
+      else y = Math.round(random() * 16) * 32;
+      ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = trace % 4 === 0
+      ? "rgba(172, 244, 250, 0.92)"
+      : "rgba(65, 198, 255, 0.62)";
+    ctx.lineWidth = trace % 4 === 0 ? 4 : 2;
+    ctx.shadowColor = "#40c9ff";
+    ctx.shadowBlur = trace % 4 === 0 ? 13 : 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = trace % 4 === 0 ? "#f5ffff" : "#5bcfff";
+    ctx.beginPath();
+    ctx.arc(x, y, trace % 4 === 0 ? 5 : 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
+
+function roundedRectPath(path, x, y, width, height, radius) {
+  const r = Math.min(radius, width * 0.5, height * 0.5);
+  path.moveTo(x + r, y);
+  path.lineTo(x + width - r, y);
+  path.quadraticCurveTo(x + width, y, x + width, y + r);
+  path.lineTo(x + width, y + height - r);
+  path.quadraticCurveTo(
+    x + width,
+    y + height,
+    x + width - r,
+    y + height,
+  );
+  path.lineTo(x + r, y + height);
+  path.quadraticCurveTo(x, y + height, x, y + height - r);
+  path.lineTo(x, y + r);
+  path.quadraticCurveTo(x, y, x + r, y);
+  path.closePath();
+}
+
+/* Final hold par alag-alag panels nahi dikhte. Ye 1024px transparent canvas
+   ek continuous PCB silhouette banata hai: top-heavy substrate, dense traces,
+   right-side circuitry, bottom processor foot aur asli transparent centre.
+   Texture runtime par banti hai, isliye supplied 152px thumbnail ko stretch
+   karne wali blur/pixelation bilkul nahi. */
+function createBoardTexture(seed = 0x6dc9ff) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 2048;
+  canvas.height = 2048;
+  const ctx = canvas.getContext("2d", { alpha: true });
+  ctx.scale(2, 2);
+  const random = seededRandom(seed);
+
+  const board = new Path2D();
+  board.moveTo(186, 196);
+  board.quadraticCurveTo(196, 118, 292, 82);
+  board.quadraticCurveTo(430, 42, 713, 78);
+  board.quadraticCurveTo(816, 91, 844, 168);
+  board.lineTo(879, 224);
+  board.lineTo(879, 640);
+  board.lineTo(841, 688);
+  board.quadraticCurveTo(823, 746, 752, 774);
+  board.lineTo(679, 790);
+  board.lineTo(670, 827);
+  board.lineTo(290, 827);
+  board.lineTo(283, 780);
+  board.lineTo(197, 750);
+  board.quadraticCurveTo(153, 719, 151, 650);
+  board.lineTo(151, 279);
+  board.quadraticCurveTo(155, 224, 186, 196);
+  board.closePath();
+
+  // Reference ke off-grid PCB appendages.
+  board.rect(876, 294, 50, 310);
+  board.rect(276, 816, 402, 73);
+  board.rect(109, 356, 42, 42);
+  board.rect(820, 132, 78, 82);
+
+  const substrate = ctx.createLinearGradient(160, 70, 840, 880);
+  substrate.addColorStop(0, "rgba(7, 20, 34, 0.99)");
+  substrate.addColorStop(0.46, "rgba(2, 9, 17, 0.995)");
+  substrate.addColorStop(1, "rgba(3, 17, 29, 0.99)");
+  ctx.fillStyle = substrate;
+  ctx.shadowColor = "rgba(58, 172, 226, 0.28)";
+  ctx.shadowBlur = 24;
+  ctx.fill(board);
+  ctx.shadowBlur = 0;
+
+  ctx.save();
+  ctx.clip(board);
+
+  // Barely-visible solder-mask lattice unifies the whole board.
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(73, 165, 210, 0.075)";
+  for (let i = 0; i <= 32; i++) {
+    const p = i * 32;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, 1024);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(1024, p);
+    ctx.stroke();
+  }
+
+  const zones = [
+    [178, 94, 838, 316],   // dense crown
+    [706, 164, 905, 758],  // right fan
+    [180, 646, 828, 875],  // lower processor mass
+    [130, 236, 330, 720],  // broken left wall
+  ];
+
+  const drawTrace = (index) => {
+    const zone = zones[index % zones.length];
+    const [x0, y0, x1, y1] = zone;
+    let x = Math.round((x0 + random() * (x1 - x0)) / 8) * 8;
+    let y = Math.round((y0 + random() * (y1 - y0)) / 8) * 8;
+    const startX = x;
+    const startY = y;
+    const steps = 3 + Math.floor(random() * 5);
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    for (let step = 0; step < steps; step++) {
+      if ((index + step) % 2 === 0) {
+        x = Math.round((x0 + random() * (x1 - x0)) / 8) * 8;
+      } else {
+        y = Math.round((y0 + random() * (y1 - y0)) / 8) * 8;
+      }
+      ctx.lineTo(x, y);
+    }
+    const bright = index % 11 === 0;
+    ctx.strokeStyle = bright
+      ? "rgba(188, 239, 255, 0.72)"
+      : index % 3 === 0
+        ? "rgba(82, 196, 244, 0.42)"
+        : "rgba(45, 133, 181, 0.31)";
+    ctx.lineWidth = bright ? 2.4 : index % 3 === 0 ? 1.7 : 1.15;
+    ctx.shadowColor = "rgba(69, 194, 247, 0.72)";
+    ctx.shadowBlur = bright ? 8 : 2;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    [startX, startY, x, y].forEach((value, padIndex, coords) => {
+      if (padIndex % 2 !== 0) return;
+      const px = coords[padIndex];
+      const py = coords[padIndex + 1];
+      ctx.fillStyle = bright
+        ? "rgba(224, 250, 255, 0.84)"
+        : "rgba(78, 188, 232, 0.54)";
+      ctx.beginPath();
+      ctx.arc(px, py, bright ? 3.2 : 2.1, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  };
+
+  for (let trace = 0; trace < 84; trace++) drawTrace(trace);
+
+  // Fine pins make the upper and right edges read as a real PCB, not a frame.
+  ctx.strokeStyle = "rgba(182, 232, 249, 0.46)";
+  ctx.lineWidth = 1.25;
+  for (let x = 226; x <= 790; x += 14) {
+    const length = 20 + (x % 5) * 5;
+    ctx.beginPath();
+    ctx.moveTo(x, 82);
+    ctx.lineTo(x, 82 + length);
+    ctx.stroke();
+  }
+  for (let y = 252; y <= 694; y += 15) {
+    const length = 18 + (y % 4) * 5;
+    ctx.beginPath();
+    ctx.moveTo(879 - length, y);
+    ctx.lineTo(923, y);
+    ctx.stroke();
+  }
+
+  // Raised packages are painted into one continuous surface; no monitor tiles.
+  const chips = [
+    [238, 147, 74, 43], [350, 116, 58, 36], [522, 126, 84, 46],
+    [692, 150, 66, 39], [755, 246, 48, 62], [783, 522, 62, 49],
+    [224, 654, 82, 51], [356, 724, 58, 42], [552, 695, 88, 52],
+    [680, 736, 70, 38], [170, 402, 56, 45], [174, 540, 48, 62],
+  ];
+  chips.forEach(([x, y, width, height], index) => {
+    ctx.fillStyle = index % 4 === 0
+      ? "rgba(0, 4, 9, 0.96)"
+      : "rgba(4, 14, 24, 0.94)";
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeStyle = index % 4 === 0
+      ? "rgba(128, 218, 250, 0.52)"
+      : "rgba(48, 135, 179, 0.38)";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x + 0.75, y + 0.75, width - 1.5, height - 1.5);
+
+    ctx.strokeStyle = "rgba(96, 198, 236, 0.36)";
+    ctx.lineWidth = 1;
+    for (let pin = 8; pin < width - 5; pin += 10) {
+      ctx.beginPath();
+      ctx.moveTo(x + pin, y - 5);
+      ctx.lineTo(x + pin, y);
+      ctx.moveTo(x + pin, y + height);
+      ctx.lineTo(x + pin, y + height + 5);
+      ctx.stroke();
+    }
+  });
+  ctx.restore();
+
+  // The actual headline window: pixels are removed, not covered in navy.
+  const windowPath = new Path2D();
+  roundedRectPath(windowPath, 267, 327, 488, 296, 27);
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.fillStyle = "#000";
+  ctx.fill(windowPath);
+  ctx.globalCompositeOperation = "source-over";
+
+  // Hairline only—no bright portal loop around the void.
+  ctx.strokeStyle = "rgba(86, 180, 221, 0.22)";
+  ctx.lineWidth = 2;
+  ctx.stroke(board);
+  ctx.strokeStyle = "rgba(105, 202, 238, 0.20)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke(windowPath);
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 8;
+  texture.generateMipmaps = true;
+  return texture;
+}
+
+/**
+ * ACT 02 — NATIVE WEBGL CODE BUILD
+ *
+ * Reference MP4 sirf motion language ke liye hai. Final scene footage nahi:
+ * grid, impact rings, assembling circuit frame, light aur exit sab Three.js
+ * geometry hai. Isliye retina/high-resolution screen par bhi crisp rehta hai,
+ * corridor ke palette mein hi render hota hai aur scroll par exact reverse.
+ */
+export function createCodeBuild({ accent = "#6dc9ff" } = {}) {
+  const scene = new Scene();
+  const camera = new PerspectiveCamera(48, 1, 0.1, 80);
+  const accentColour = new Color(accent);
+  const paleBlue = accentColour.clone().lerp(new Color("#ffffff"), 0.28);
+  const circuitTextures = Array.from(
+    { length: 3 },
+    (_, index) => createCircuitTexture(0x6dc9 + index * 0x1f3),
+  );
+  const boardTexture = createBoardTexture();
+  const boardGeometry = new PlaneGeometry(6.45, 5.72);
+  const boardMaterial = new ShaderMaterial({
+    uniforms: {
+      uMap: { value: boardTexture },
+      uMerge: { value: 0 },
+      uAlpha: { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position =
+          projectionMatrix *
+          modelViewMatrix *
+          vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uMap;
+      uniform float uMerge;
+      uniform float uAlpha;
+      varying vec2 vUv;
+
+      float assemblyOrder(vec2 uv) {
+        // Splash se bottom centre-out, phir left, top aur right close hote hain.
+        if (uv.y < 0.34) return 0.03 + abs(uv.x - 0.5) * 0.20;
+        if (uv.x < 0.37) {
+          float rise = clamp((uv.y - 0.24) / 0.60, 0.0, 1.0);
+          return 0.20 + rise * 0.25;
+        }
+        if (uv.y > 0.63) return 0.43 + uv.x * 0.19;
+        if (uv.x > 0.64) return 0.64 + (1.0 - uv.y) * 0.24;
+        return 0.95;
+      }
+
+      void main() {
+        vec4 texel = texture2D(uMap, vUv);
+        if (texel.a < 0.003) discard;
+        float order = assemblyOrder(vUv);
+        float reveal = smoothstep(order - 0.045, order + 0.035, uMerge);
+        if (reveal < 0.002) discard;
+        gl_FragColor = vec4(texel.rgb, texel.a * reveal * uAlpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    side: DoubleSide,
+    toneMapped: false,
+  });
+  const board = new Mesh(boardGeometry, boardMaterial);
+  board.position.set(0, -0.46, 0.57);
+  board.renderOrder = 7;
+  board.visible = false;
+  scene.add(board);
+
+  let cameraBaseZ = 16.5;
+  let cameraBaseY = 2.8;
+  let cameraBaseX = 0.10;
+  let cameraLookX = 0;
+  let cameraMacroZ = 12.4;
+  let cameraPullZ = 18;
+  let cameraBaseFov = 44;
+  let cameraMacroFov = 38;
+  let cameraPullFov = 46;
+  let compactDetails = false;
+
+  /* Soft photographic backlight: footage nahi, ek radial shader. Transparent
+     edge corridor ke navy fog mein bina rectangle seam ke ghul jaata hai. */
+  const auraGeometry = new PlaneGeometry(17, 10);
+  const auraMaterial = new ShaderMaterial({
+    uniforms: {
+      uColour: { value: new Color("#168bc9") },
+      uAlpha: { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColour;
+      uniform float uAlpha;
+      varying vec2 vUv;
+      void main() {
+        vec2 p = (vUv - 0.5) * vec2(1.0, 1.42);
+        float glow = 1.0 - smoothstep(0.08, 0.72, length(p));
+        glow *= glow;
+        gl_FragColor = vec4(uColour, glow * uAlpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const aura = new Mesh(auraGeometry, auraMaterial);
+  aura.position.set(0, -0.7, -3.1);
+  aura.renderOrder = -1;
+  scene.add(aura);
+
+  /* ── floor grid ──
+     Shader ki radial reveal native resolution par draw hoti hai. CSS grid ya
+     thick line textures ki tarah scale hone par blur nahi hoti. */
+  const floorGeometry = new PlaneGeometry(18, 12);
+  const floorMaterial = new ShaderMaterial({
+    uniforms: {
+      uColour: { value: accentColour.clone() },
+      uDraw: { value: 0 },
+      uAlpha: { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColour;
+      uniform float uDraw;
+      uniform float uAlpha;
+      varying vec2 vUv;
+
+      float gridLine(float value, float density) {
+        float cell = fract(value * density);
+        float edge = min(cell, 1.0 - cell);
+        return 1.0 - smoothstep(0.0, 0.055, edge);
+      }
+
+      void main() {
+        vec2 centred = (vUv - vec2(0.5, 0.56)) * vec2(1.0, 0.76);
+        float radius = length(centred);
+        float reveal = 1.0 - smoothstep(uDraw, uDraw + 0.09, radius);
+        float gx = gridLine(vUv.x, 18.0);
+        float gy = gridLine(vUv.y, 12.0);
+        float grid = max(gx, gy);
+        float edge =
+          smoothstep(0.0, 0.12, vUv.x) *
+          smoothstep(0.0, 0.12, 1.0 - vUv.x) *
+          smoothstep(0.0, 0.12, vUv.y) *
+          smoothstep(0.0, 0.12, 1.0 - vUv.y);
+        float centreGlow = 1.0 - smoothstep(0.0, 0.52, radius);
+        float alpha = (grid * 0.52 + centreGlow * 0.09) * reveal * edge * uAlpha;
+        gl_FragColor = vec4(uColour, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+    blending: AdditiveBlending,
+  });
+  const floor = new Mesh(floorGeometry, floorMaterial);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, FLOOR_Y, 0.35);
+  floor.renderOrder = 0;
+  scene.add(floor);
+
+  /* Reference ka signature floor: teen intersecting luminous rectangles.
+     Thin real meshes perspective mein one-pixel WebGL lines se zyada crisp aur
+     substantial rehte hain. Sab centre se grow karte hain—koi bounce nahi. */
+  const railGeometry = new BoxGeometry(1, 1, 1);
+  const railMaterial = new MeshBasicMaterial({
+    color: paleBlue,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const railGroups = [
+    { width: 8.8, depth: 5.8, rotation: 0 },
+    { width: 11.6, depth: 7.4, rotation: 0.27 },
+    { width: 11.6, depth: 7.4, rotation: -0.27 },
+  ].map((layout, groupIndex) => {
+    const group = new Group();
+    group.position.set(0, FLOOR_Y + 0.035 + groupIndex * 0.008, 0.45);
+    group.rotation.y = layout.rotation;
+    const bars = [];
+
+    for (const z of [-layout.depth * 0.5, layout.depth * 0.5]) {
+      const bar = new Mesh(railGeometry, railMaterial);
+      bar.position.z = z;
+      bar.scale.set(0.01, 0.035, 0.055);
+      bar.renderOrder = 1;
+      bar.userData.axis = "x";
+      bar.userData.length = layout.width;
+      group.add(bar);
+      bars.push(bar);
+    }
+    for (const x of [-layout.width * 0.5, layout.width * 0.5]) {
+      const bar = new Mesh(railGeometry, railMaterial);
+      bar.position.x = x;
+      bar.scale.set(0.055, 0.035, 0.01);
+      bar.renderOrder = 1;
+      bar.userData.axis = "z";
+      bar.userData.length = layout.depth;
+      group.add(bar);
+      bars.push(bar);
+    }
+    scene.add(group);
+    return { group, bars };
+  });
+
+  /* ── base energy pad + three landing rings ── */
+  const padMaterial = new MeshBasicMaterial({
+    color: paleBlue,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    side: DoubleSide,
+  });
+  const pad = new Mesh(new CircleGeometry(1.22, 64), padMaterial);
+  pad.rotation.x = -Math.PI / 2;
+  pad.position.copy(BASE);
+  pad.renderOrder = 1;
+  scene.add(pad);
+
+  const ringGeometry = new RingGeometry(0.94, 1.0, 96);
+  const rings = LANDINGS.map((landing, index) => {
+    const material = new MeshBasicMaterial({
+      color: accentColour,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: AdditiveBlending,
+      side: DoubleSide,
+    });
+    const mesh = new Mesh(ringGeometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.copy(BASE);
+    mesh.position.y += 0.012 + index * 0.006;
+    mesh.renderOrder = 4;
+    scene.add(mesh);
+    return { mesh, material, landing };
+  });
+
+  /* ── BUILDANTA PCB FRAME ──
+     Ye portal ya glass-cube ring nahi hai. Patle, almost coplanar circuit tiles
+     milkar supplied reference jaisa irregular rectangular PCB silhouette banate
+     hain. Splash bottom processor-foot ko charge karta hai; substrate, left
+     wall, top bus aur right wall uske baad clockwise close hote hain. Beech ka
+     measured rectangular void DOM headline ke liye bilkul khaali rehta hai. */
+  const blockLayout = [
+    // Wave 0 — processor toe catches the drop, then the lower PCB mass locks.
+    { p: [ 0.05, -2.68, 0.31], s: [1.45, 0.25, 0.18], rot: 0.000, kind: "armor", wave: 0, slot: 0, tabs: false },
+    { p: [ 0.38, -1.99, 0.32], s: [1.05, 1.24, 0.20], rot: 0.000, kind: "armor", wave: 0, slot: 1, tabs: false },
+    { p: [-0.70, -1.97, 0.32], s: [1.10, 1.20, 0.20], rot: 0.000, kind: "armor", wave: 0, slot: 2, tabs: false },
+    { p: [ 1.43, -1.93, 0.32], s: [1.10, 1.12, 0.20], rot: 0.000, kind: "armor", wave: 0, slot: 3, tabs: false },
+    { p: [-1.80, -1.91, 0.32], s: [1.15, 1.10, 0.20], rot: 0.000, kind: "armor", wave: 0, slot: 4, tabs: false },
+
+    // Wave 1 — irregular left wall, deliberately not mirrored.
+    { p: [-2.36, -1.41, 0.32], s: [1.02, 0.48, 0.20], rot: 0.000, kind: "armor", wave: 1, slot: 0, tabs: false },
+    { p: [-2.67, -0.96, 0.32], s: [0.70, 0.70, 0.20], rot: 0.000, kind: "armor", wave: 1, slot: 1, tabs: false },
+    { p: [-2.73, -0.28, 0.32], s: [0.58, 0.72, 0.18], rot: 0.000, kind: "armor", wave: 1, slot: 2, tabs: false },
+    { p: [-2.68,  0.40, 0.32], s: [0.62, 0.72, 0.20], rot: 0.000, kind: "armor", wave: 1, slot: 3, tabs: false },
+
+    // Wave 2 — broad, top-heavy PCB crown from the supplied reference.
+    { p: [-2.30, 1.18, 0.32], s: [1.20, 1.15, 0.20], rot: 0.000, kind: "armor", wave: 2, slot: 0, tabs: false },
+    { p: [-1.30, 1.31, 0.32], s: [1.00, 1.05, 0.20], rot: 0.000, kind: "armor", wave: 2, slot: 1, tabs: false },
+    { p: [-0.32, 1.35, 0.32], s: [0.95, 1.00, 0.20], rot: 0.000, kind: "armor", wave: 2, slot: 2, tabs: false },
+    { p: [ 0.65, 1.34, 0.32], s: [0.95, 1.02, 0.20], rot: 0.000, kind: "armor", wave: 2, slot: 3, tabs: false },
+    { p: [ 1.60, 1.27, 0.32], s: [0.95, 1.10, 0.20], rot: 0.000, kind: "armor", wave: 2, slot: 4, tabs: false },
+    { p: [ 2.35, 1.03, 0.32], s: [0.65, 1.15, 0.20], rot: 0.000, kind: "armor", wave: 2, slot: 5, tabs: false },
+
+    // Wave 3 — narrow right wall and its external circuit fan.
+    { p: [2.64,  0.32, 0.32], s: [0.62, 0.74, 0.20], rot: 0.000, kind: "armor", wave: 3, slot: 0, tabs: false },
+    { p: [2.75, -0.39, 0.32], s: [0.56, 0.72, 0.18], rot: 0.000, kind: "armor", wave: 3, slot: 1, tabs: false },
+    { p: [2.72, -1.04, 0.32], s: [0.64, 0.62, 0.20], rot: 0.000, kind: "armor", wave: 3, slot: 2, tabs: false },
+    { p: [2.42, -1.45, 0.32], s: [1.02, 0.48, 0.20], rot: 0.000, kind: "armor", wave: 3, slot: 3, tabs: false },
+    { p: [3.13, -0.70, 0.31], s: [0.28, 1.15, 0.18], rot: 0.015, kind: "armor", wave: 3, slot: 4, tabs: false },
+
+    // Wave 4 — raised chips read as components, never as glass display cubes.
+    { p: [-1.82,  1.28, 0.48], s: [0.38, 0.30, 0.16], rot: 0.000, kind: "armor", wave: 4, slot: 0, panel: false, tabs: false },
+    { p: [ 1.72,  1.26, 0.48], s: [0.42, 0.28, 0.16], rot: 0.000, kind: "armor", wave: 4, slot: 1, panel: false, tabs: false },
+    { p: [ 2.72, -0.70, 0.48], s: [0.32, 0.28, 0.16], rot: 0.000, kind: "armor", wave: 4, slot: 2, panel: false, tabs: false },
+    { p: [ 0.38, -1.98, 0.48], s: [0.46, 0.30, 0.16], rot: 0.000, kind: "armor", wave: 4, slot: 3, panel: false, tabs: false },
+  ];
+
+  const cubeGeometry = new RoundedBoxGeometry(1, 1, 1, 2, 0.024);
+  const unitBoxGeometry = new BoxGeometry(1, 1, 1);
+  // Rounded mesh par high threshold se zero visible edges mil rahe the.
+  // Clean unit-box outline sirf selected glass hero modules par use hota hai.
+  const edgeGeometry = new EdgesGeometry(unitBoxGeometry, 1);
+  const panelGeometry = new RoundedBoxGeometry(0.92, 0.86, 0.026, 2, 0.012);
+
+  const armorMaterial = new MeshPhysicalMaterial({
+    color: new Color("#020711"),
+    emissive: new Color("#031629"),
+    emissiveIntensity: 0.22,
+    metalness: 0.88,
+    roughness: 0.24,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.12,
+    transparent: true,
+    opacity: 0,
+    depthWrite: true,
+  });
+  const glassMaterial = new MeshPhysicalMaterial({
+    color: new Color("#0a2a42"),
+    emissive: new Color("#083d5f"),
+    emissiveIntensity: 0.45,
+    roughness: 0.12,
+    metalness: 0.12,
+    clearcoat: 1,
+    clearcoatRoughness: 0.06,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const edgeMaterial = new LineBasicMaterial({
+    color: new Color("#4c9ac2"),
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const coreMaterial = new MeshBasicMaterial({
+    color: accentColour,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: AdditiveBlending,
+  });
+  const tabMaterial = new MeshStandardMaterial({
+    color: new Color("#193e57"),
+    emissive: accentColour,
+    emissiveIntensity: 0.75,
+    metalness: 0.72,
+    roughness: 0.22,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const connectorMaterial = new MeshBasicMaterial({
+    color: paleBlue,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    depthTest: true,
+    blending: AdditiveBlending,
+  });
+  const waveStarts = [0.278, 0.290, 0.301, 0.316, 0.334];
+  const axisZ = new Vector3(0, 0, 1);
+
+  function createAssemblyPath(config, index) {
+    const final = new Vector3(...config.p);
+    const side = final.x < -0.05 ? -1 : final.x > 0.05 ? 1 : index % 2 ? -1 : 1;
+    const { wave, slot } = config;
+    let offset;
+
+    if (wave === 0) {
+      if (index === 0) offset = new Vector3(0, -4.8, -3.6);
+      else if (config.panel === false) offset = new Vector3(0, -3.8, -5.2);
+      else offset = new Vector3(side * 7.2, -0.6, 1.8);
+    } else if (wave === 1) {
+      offset = Math.abs(final.x) > 0.1
+        ? new Vector3(side * 6.0, 2.2, -3.8)
+        : new Vector3(side * 2.1, 5.2, -5.8);
+    } else if (wave === 2) {
+      offset = new Vector3(
+        side * 8.5,
+        1.4 + (slot % 3) * 0.52,
+        slot % 2 ? -2.5 : 2.5,
+      );
+    } else if (wave === 3) {
+      offset = Math.abs(final.x) < 0.1
+        ? new Vector3(0, 6.2, -3.5)
+        : new Vector3(side * 7.2, 4.6, slot % 2 ? 2.0 : -2.0);
+    } else {
+      offset = new Vector3(side * 2.4, 6.5, 5.2);
+    }
+
+    const origin = final.clone().add(offset);
+    let socketOffset;
+    if (wave === 0) socketOffset = new Vector3(0, -0.28, slot % 2 ? 0.18 : -0.18);
+    else if (wave === 1) socketOffset = new Vector3(side * 0.10, 0.18, -0.34);
+    else if (wave === 2) socketOffset = new Vector3(side * 0.34, 0, 0);
+    else if (wave === 3) {
+      socketOffset = Math.abs(final.x) < 0.1
+        ? new Vector3(0, 0.34, -0.14)
+        : new Vector3(side * 0.32, 0.18, 0);
+    } else socketOffset = new Vector3(0, 0.34, 0.18);
+
+    const preSocket = final.clone().add(socketOffset);
+    const control = origin.clone().lerp(preSocket, 0.54);
+    control.y += wave === 0 ? 1.2 : 1.5;
+    control.z += side * (wave === 2 ? 0.70 : 0.35);
+
+    const start = waveStarts[wave] + slot * 0.003;
+    const approachEnd = start + 0.024;
+    const joinEnd = approachEnd + 0.010;
+    const turn = side;
+    let startEuler;
+    if (wave === 0) startEuler = new Euler(turn * Math.PI * 0.5, config.rot + Math.PI, 0, "YXZ");
+    else if (wave === 1) startEuler = new Euler(0, config.rot + turn * Math.PI, turn * Math.PI * 0.5, "YXZ");
+    else if (wave === 2) startEuler = new Euler(turn * Math.PI * 0.5, config.rot + turn * Math.PI * 0.5, 0, "YXZ");
+    else if (wave === 3) startEuler = new Euler(Math.PI, config.rot + turn * Math.PI * 0.5, turn * Math.PI * 0.5, "YXZ");
+    else startEuler = new Euler(turn * Math.PI * 0.5, config.rot + Math.PI, Math.PI, "YXZ");
+
+    return {
+      final,
+      origin,
+      control,
+      preSocket,
+      start,
+      approachEnd,
+      joinEnd,
+      qStart: new Quaternion().setFromEuler(startEuler),
+      qPre: new Quaternion().setFromEuler(
+        new Euler(turn * 0.08, config.rot + turn * 0.11, -turn * 0.06, "YXZ"),
+      ),
+      qEnd: new Quaternion().setFromEuler(new Euler(0, config.rot, 0, "YXZ")),
+    };
+  }
+
+  // Flying construction pieces plain graphite hain. Circuit artwork sirf
+  // seamless final board par aata hai—warna har piece monitor tile lagta hai.
+  const tilePanelsEnabled = false;
+  const blocks = blockLayout.map((config, index) => {
+    const surfaceMaterial = (
+      config.kind === "glass" ? glassMaterial : armorMaterial
+    ).clone();
+    const circuitMap = circuitTextures[index % circuitTextures.length];
+    const group = new Group();
+    const shell = new Mesh(cubeGeometry, surfaceMaterial);
+    shell.scale.set(...config.s);
+    shell.renderOrder = config.kind === "glass" ? 3 : 2;
+    group.add(shell);
+
+    let core = null;
+    let localCoreMaterial = null;
+    let edges = null;
+    let localEdgeMaterial = null;
+    if (config.kind === "glass" && config.hero) {
+      localCoreMaterial = coreMaterial.clone();
+      core = new Mesh(unitBoxGeometry, localCoreMaterial);
+      core.scale.set(config.s[0] * 0.60, config.s[1] * 0.58, config.s[2] * 0.64);
+      core.renderOrder = 1;
+      localEdgeMaterial = edgeMaterial.clone();
+      edges = new LineSegments(edgeGeometry, localEdgeMaterial);
+      edges.scale.set(...config.s);
+      edges.renderOrder = 4;
+      group.add(core, edges);
+    }
+
+    let panel = null;
+    let panelMaterial = null;
+    if (tilePanelsEnabled && config.panel !== false) {
+      panelMaterial = new MeshStandardMaterial({
+        color: new Color("#071424"),
+        map: circuitMap,
+        emissive: accentColour,
+        emissiveMap: circuitMap,
+        emissiveIntensity: 0.18,
+        metalness: 0.45,
+        roughness: 0.26,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: AdditiveBlending,
+      });
+      panel = new Mesh(panelGeometry, panelMaterial);
+      panel.position.z = config.s[2] * 0.507;
+      panel.scale.set(config.s[0], config.s[1], 1);
+      panel.renderOrder = 5;
+      group.add(panel);
+    }
+
+    const tabs = config.tabs
+      ? [-1, 1].map((direction) => {
+        const tab = new Mesh(unitBoxGeometry, tabMaterial);
+        const isClaw = config.tabs === "claw";
+        const height = isClaw
+          ? 0.34
+          : Math.min(0.28, Math.max(0.18, config.s[1] * 0.25));
+        const openX = isClaw
+          ? direction * 0.20
+          : direction * config.s[0] * 0.50;
+        const closedX = isClaw
+          ? direction * 0.12
+          : direction * config.s[0] * 0.445;
+        tab.scale.set(isClaw ? 0.055 : 0.065, height, isClaw ? 0.085 : 0.065);
+        tab.position.set(
+          openX,
+          isClaw ? -config.s[1] * 0.56 : 0,
+          config.s[2] * 0.50 + 0.045,
+        );
+        tab.renderOrder = 6;
+        group.add(tab);
+        return {
+          mesh: tab,
+          direction,
+          isClaw,
+          width: isClaw ? 0.055 : 0.065,
+          height,
+          depth: isClaw ? 0.085 : 0.065,
+          openX,
+          closedX,
+        };
+      })
+      : [];
+
+    const path = createAssemblyPath(config, index);
+    group.position.copy(path.origin);
+    group.quaternion.copy(path.qStart);
+    group.visible = false;
+    scene.add(group);
+
+    return {
+      config,
+      index,
+      group,
+      shell,
+      core,
+      edges,
+      panel,
+      tabs,
+      surfaceMaterial,
+      localCoreMaterial,
+      localEdgeMaterial,
+      panelMaterial,
+      ...path,
+    };
+  });
+
+  /* Continuous perimeter wire ne frame ko glowing portal bana diya tha.
+     Circuit routing ab har tile ke printed face par hi rehti hai, jaise PCB
+     reference mein; centre void ke around koi artificial outline nahi. */
+  const connectorPairs = [];
+  const connectors = connectorPairs.map(([fromIndex, toIndex], index) => {
+    const fromBlock = blocks[fromIndex];
+    const toBlock = blocks[toIndex];
+    const from = new Vector3(
+      fromBlock.config.p[0],
+      fromBlock.config.p[1],
+      fromBlock.config.p[2] + fromBlock.config.s[2] * 0.52,
+    );
+    const to = new Vector3(
+      toBlock.config.p[0],
+      toBlock.config.p[1],
+      toBlock.config.p[2] + toBlock.config.s[2] * 0.52,
+    );
+    const direction = to.clone().sub(from);
+    const length = direction.length();
+    const quaternion = new Quaternion().setFromUnitVectors(
+      axisZ,
+      direction.clone().normalize(),
+    );
+    const mesh = new Mesh(unitBoxGeometry, connectorMaterial);
+    mesh.quaternion.copy(quaternion);
+    mesh.scale.set(0.045, 0.045, 0.001);
+    mesh.visible = false;
+    mesh.renderOrder = 5;
+    scene.add(mesh);
+    return {
+      mesh,
+      from,
+      to,
+      length,
+      start: Math.max(fromBlock.joinEnd, toBlock.joinEnd) + 0.003 + (index % 3) * 0.002,
+      compactEssential: index < 7 || index > 8,
+    };
+  });
+
+  /* ── physically lit glass ── */
+  const ambient = new AmbientLight(0x8bbbd2, 0);
+  const key = new DirectionalLight(0x68bddd, 0);
+  key.position.set(-4.5, 8, 7);
+  const baseLight = new PointLight(0x6dc9ff, 0, 24, 2);
+  baseLight.position.copy(BASE).add(new Vector3(0, 0.7, 0));
+  const rim = new PointLight(0xb9e9ff, 0, 28, 2);
+  rim.position.set(5.5, 2.8, 5);
+  scene.add(ambient, key, baseLight, rim);
+
+  function setCamera(progress) {
+    const macro = range(0.370, 0.419, progress);
+    const pullBack = range(0.442, 0.456, progress);
+    const settle = range(0.456, 0.482, progress);
+
+    let z = cameraBaseZ + (cameraMacroZ - cameraBaseZ) * macro;
+    let y = cameraBaseY + (1.0 - cameraBaseY) * macro;
+    let fov = cameraBaseFov + (cameraMacroFov - cameraBaseFov) * macro;
+    if (pullBack > 0) {
+      z = cameraMacroZ + (cameraPullZ - cameraMacroZ) * pullBack;
+      y = 1.0 + (3.0 - 1.0) * pullBack;
+      fov = cameraMacroFov + (cameraPullFov - cameraMacroFov) * pullBack;
+    }
+    if (settle > 0) {
+      z = cameraPullZ + (cameraBaseZ - cameraPullZ) * settle;
+      y = 3.0 + (cameraBaseY - 3.0) * settle;
+      fov = cameraPullFov + (cameraBaseFov - cameraPullFov) * settle;
+    }
+
+    camera.position.set(cameraBaseX, y, z);
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
+    // Macro ke dauraan bhi hollow window screen-centre par anchored rehta hai.
+    const lookY = -0.40 + macro * 0.08 - pullBack * 0.08;
+    camera.lookAt(cameraLookX, lookY, 0.52);
+    camera.updateMatrixWorld();
+  }
+
+  function resize(width, height) {
+    const aspect = Math.max(0.35, width / Math.max(1, height));
+    const portrait = clamp01((0.9 - aspect) / 0.48);
+    compactDetails = portrait > 0.42;
+    camera.aspect = aspect;
+    cameraBaseX = 0.10 - portrait * 0.05;
+    cameraLookX = -portrait * 0.02;
+    // Frame wide hai, isliye portrait mein purani asymmetric machine jitna
+    // door nahi jaana padta. Outer modules safe rehte hain aur inner line
+    // readable size par bani rehti hai.
+    cameraBaseZ = 16.0 + portrait * 6.0;
+    cameraBaseY = 2.55 + portrait * 0.25;
+    cameraBaseFov = 43 + portrait * 2;
+    cameraMacroFov = 38 + portrait * 4;
+    cameraPullFov = 46;
+    cameraMacroZ = 12.2 + portrait * 9.3;
+    cameraPullZ = Math.max(cameraBaseZ + 1.5, cameraMacroZ + 1.4);
+    camera.fov = cameraBaseFov;
+    camera.updateProjectionMatrix();
+    setCamera(0);
+  }
+
+  function update(progress) {
+    const enter = range(0.232, 0.252, progress);
+    const exit = 1 - range(0.495, 0.520, progress);
+    const sceneAlpha = enter * exit;
+    scene.visible = sceneAlpha > 0.001;
+    setCamera(progress);
+    if (!scene.visible) return;
+
+    const prelight = range(0.238, 0.268, progress);
+    const finalHit =
+      range(0.258, 0.268, progress) *
+      (1 - range(0.278, 0.306, progress));
+    const gridDraw = range(0.268, 0.318, progress);
+    const gridLife = 1 - range(0.486, 0.520, progress);
+    const dissolve = range(0.495, 0.520, progress);
+    const systemCharge = range(0.278, 0.370, progress);
+    const systemReady = range(0.350, 0.374, progress);
+    const pcbFocus = 1 - range(0.328, 0.360, progress);
+    const boardMerge = range(0.278, 0.382, progress);
+    const boardSettle = range(0.350, 0.382, progress);
+
+    boardMaterial.uniforms.uMerge.value = boardMerge;
+    boardMaterial.uniforms.uAlpha.value =
+      sceneAlpha * (1 - dissolve) * 0.98;
+    board.visible = boardMerge > 0.002 && sceneAlpha > 0.002;
+    board.scale.setScalar(0.992 + boardSettle * 0.008);
+
+    floorMaterial.uniforms.uDraw.value = 0.025 + gridDraw * 0.84;
+    floorMaterial.uniforms.uAlpha.value =
+      sceneAlpha *
+      gridLife *
+      (0.008 + gridDraw * (0.045 + pcbFocus * 0.055));
+    auraMaterial.uniforms.uAlpha.value =
+      sceneAlpha * (0.025 + gridDraw * 0.075) * (1 - dissolve);
+
+    // Landing rails sirf splash/early assembly guide hain. PCB close hone se
+    // pehle ye poori tarah ghul jaate hain, warna foreground ka bada X banta hai.
+    const railExit = 1 - range(0.300, 0.326, progress);
+    railMaterial.opacity =
+      sceneAlpha * gridLife * railExit * (0.025 + gridDraw * 0.42);
+    railGroups.forEach(({ group, bars }, groupIndex) => {
+      const localDraw = range(
+        0.268 + groupIndex * 0.006,
+        0.312 + groupIndex * 0.006,
+        progress,
+      );
+      group.visible = railMaterial.opacity > 0.001;
+      bars.forEach((bar) => {
+        if (bar.userData.axis === "x") {
+          bar.scale.x = bar.userData.length * (0.02 + localDraw * 0.98);
+        } else {
+          bar.scale.z = bar.userData.length * (0.02 + localDraw * 0.98);
+        }
+      });
+    });
+
+    padMaterial.opacity =
+      sceneAlpha *
+      (1 - range(0.296, 0.330, progress)) *
+      (0.025 + prelight * 0.16 + finalHit * 0.58);
+    pad.visible = padMaterial.opacity > 0.001;
+    const padScale = 0.32 + prelight * 0.34 + finalHit * 0.46;
+    pad.scale.setScalar(padScale);
+
+    rings.forEach(({ mesh, material, landing }, index) => {
+      const ringT = range(landing, landing + 0.055 + index * 0.004, progress);
+      const ringIn = range(landing, landing + 0.004, progress);
+      material.opacity =
+        sceneAlpha * ringIn * (1 - ringT) * (1 - ringT) * (index === 2 ? 0.92 : 0.58);
+      mesh.scale.setScalar(0.18 + ringT * (2.35 + index * 0.34));
+      mesh.visible = material.opacity > 0.001;
+    });
+
+    tabMaterial.opacity =
+      sceneAlpha * (1 - dissolve) * (0.18 + systemCharge * 0.68);
+    tabMaterial.emissiveIntensity = 0.55 + systemReady * 0.72;
+    blocks.forEach((block) => {
+      const flight = range(block.start, block.approachEnd, progress);
+      const lock = range(block.approachEnd, block.joinEnd, progress);
+      const presence = range(block.start - 0.006, block.start + 0.004, progress);
+      const activation = range(
+        block.approachEnd,
+        block.joinEnd + 0.014,
+        progress,
+      );
+      const flash =
+        range(block.approachEnd, block.approachEnd + 0.003, progress) *
+        (1 - range(block.joinEnd, block.joinEnd + 0.016, progress));
+      const tileMerge = range(
+        block.joinEnd + 0.004,
+        block.joinEnd + 0.022,
+        progress,
+      );
+      const tileLife = 1 - tileMerge;
+      const inverse = 1 - flight;
+      const flightSq = flight * flight;
+      const inverseSq = inverse * inverse;
+      const cross = 2 * inverse * flight;
+
+      let x =
+        block.origin.x * inverseSq +
+        block.control.x * cross +
+        block.preSocket.x * flightSq;
+      let y =
+        block.origin.y * inverseSq +
+        block.control.y * cross +
+        block.preSocket.y * flightSq;
+      let z =
+        block.origin.z * inverseSq +
+        block.control.z * cross +
+        block.preSocket.z * flightSq;
+      x += (block.final.x - x) * lock;
+      y += (block.final.y - y) * lock;
+      z += (block.final.z - z) * lock;
+
+      const visible =
+        presence > 0.002 &&
+        sceneAlpha > 0.002 &&
+        tileLife > 0.002;
+      block.group.visible = visible;
+      block.group.position.set(x, y, z);
+      block.group.quaternion.slerpQuaternions(block.qStart, block.qPre, flight);
+      block.group.quaternion.slerp(block.qEnd, lock);
+      block.group.scale.setScalar(0.72 + flight * 0.24 + lock * 0.04);
+
+      const isGlass = block.config.kind === "glass";
+      block.surfaceMaterial.opacity =
+        sceneAlpha *
+        (1 - dissolve) *
+        presence *
+        tileLife *
+        (isGlass ? 0.72 : 0.96);
+      block.surfaceMaterial.depthWrite =
+        !isGlass &&
+        presence > 0.55 &&
+        tileLife > 0.18 &&
+        sceneAlpha > 0.05;
+      block.surfaceMaterial.emissiveIntensity =
+        (isGlass ? 0.42 : 0.20) +
+        activation * (isGlass ? 0.48 : 0.20) +
+        flash * (isGlass ? 0.90 : 0.42);
+
+      if (block.panel) {
+        const detailVisible =
+          !compactDetails || isGlass || block.index % 2 === 0;
+        block.panel.visible = visible && detailVisible;
+        block.panelMaterial.opacity =
+          sceneAlpha *
+          (1 - dissolve) *
+          presence *
+          tileLife *
+          (0.08 + activation * 0.42 + flash * 0.14);
+        block.panelMaterial.emissiveIntensity =
+          0.12 + activation * 0.62 + flash * 0.80;
+      }
+      if (block.edges) {
+        block.edges.visible = visible;
+        block.localEdgeMaterial.opacity =
+          sceneAlpha *
+          (1 - dissolve) *
+          presence *
+          (0.06 + activation * 0.10 + flash * 0.68);
+      }
+      if (block.core) {
+        block.core.visible = visible;
+        block.localCoreMaterial.opacity =
+          sceneAlpha *
+          (1 - dissolve) *
+          presence *
+          (0.035 + activation * 0.15 + flash * 0.20);
+      }
+      const tabVisible =
+        visible &&
+        (!compactDetails || isGlass || block.config.tabs === "claw");
+      block.tabs.forEach((tab) => {
+        tab.mesh.visible = tabVisible;
+        tab.mesh.position.x = tab.openX + (tab.closedX - tab.openX) * lock;
+        tab.mesh.scale.set(
+          tab.width * presence,
+          tab.height * presence,
+          tab.depth * (1 - lock * 0.52) * presence,
+        );
+      });
+    });
+
+    connectorMaterial.opacity =
+      sceneAlpha * (1 - dissolve) * (0.24 + systemReady * 0.42);
+    connectors.forEach((connector) => {
+      const draw = range(connector.start, connector.start + 0.018, progress);
+      const detailVisible = !compactDetails || connector.compactEssential;
+      connector.mesh.visible =
+        detailVisible && draw > 0.002 && sceneAlpha > 0.002;
+      connector.mesh.position.set(
+        connector.from.x + (connector.to.x - connector.from.x) * draw * 0.5,
+        connector.from.y + (connector.to.y - connector.from.y) * draw * 0.5,
+        connector.from.z + (connector.to.z - connector.from.z) * draw * 0.5,
+      );
+      connector.mesh.scale.z = Math.max(0.001, connector.length * draw);
+    });
+
+    const physicalLightFade = 1 - range(0.346, 0.382, progress);
+    ambient.intensity =
+      sceneAlpha *
+      (0.28 + systemReady * 0.08) *
+      (1 - boardMerge * 0.45);
+    key.intensity =
+      sceneAlpha *
+      physicalLightFade *
+      (0.78 + systemReady * 0.14);
+    baseLight.intensity =
+      sceneAlpha *
+      physicalLightFade *
+      (4 + prelight * 8 + finalHit * 22);
+    rim.intensity =
+      sceneAlpha *
+      physicalLightFade *
+      (5 + gridDraw * 5);
+  }
+
+  const projectedBase = new Vector3();
+  function projectBase() {
+    projectedBase.copy(BASE).project(camera);
+    return {
+      x: (projectedBase.x * 0.5 + 0.5) * 100,
+      y: (-projectedBase.y * 0.5 + 0.5) * 100,
+    };
+  }
+
+  function render(renderer) {
+    if (scene.visible) renderer.render(scene, camera);
+  }
+
+  resize(16, 9);
+  update(0);
+
+  return {
+    scene,
+    camera,
+    resize,
+    update,
+    render,
+    projectBase,
+    dispose() {
+      boardGeometry.dispose();
+      boardMaterial.dispose();
+      boardTexture.dispose();
+      auraGeometry.dispose();
+      auraMaterial.dispose();
+      floorGeometry.dispose();
+      floorMaterial.dispose();
+      railGeometry.dispose();
+      railMaterial.dispose();
+      pad.geometry.dispose();
+      padMaterial.dispose();
+      ringGeometry.dispose();
+      rings.forEach(({ material }) => material.dispose());
+      cubeGeometry.dispose();
+      unitBoxGeometry.dispose();
+      edgeGeometry.dispose();
+      panelGeometry.dispose();
+      blocks.forEach((block) => {
+        block.surfaceMaterial.dispose();
+        block.localCoreMaterial?.dispose();
+        block.localEdgeMaterial?.dispose();
+        block.panelMaterial?.dispose();
+      });
+      armorMaterial.dispose();
+      glassMaterial.dispose();
+      edgeMaterial.dispose();
+      coreMaterial.dispose();
+      tabMaterial.dispose();
+      connectorMaterial.dispose();
+      circuitTextures.forEach((texture) => texture.dispose());
+    },
+  };
+}

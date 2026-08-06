@@ -1,0 +1,23 @@
+{
+  "name": "buildanta-solutions",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Buildanta Solutions — multi-product portfolio site",
+  "scripts": {
+    "dev": "vite --configLoader runner",
+    "build": "vite build --configLoader runner",
+    "preview": "vite preview --configLoader runner",
+    "build:single": "node scripts/build-single.mjs",
+    "build:we-scale": "node scripts/build-we-scale-standalone.mjs",
+    "verify:props": "node scripts/verify-intro-props.mjs"
+  },
+  "dependencies": {
+    "gsap": "^3.13.0",
+    "lenis": "^1.3.11",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "vite": "^7.1.5"
+  }
+}
