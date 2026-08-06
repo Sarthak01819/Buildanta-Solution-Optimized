@@ -255,33 +255,7 @@ export function createCodeBuild({ accent = "#22c55e" } = {}) {
   // Data-arc lines REMOVED (Yash, 6 Aug): they crossed the frame as stray
   // green wires during the transition into the act.
 
-  // Matrix Saturn Orbit Ring System
-  const orbitRingGroup = new Group();
-  orbitRingGroup.rotation.x = Math.PI / 3.2;
-  orbitRingGroup.rotation.y = Math.PI / 6;
-  scene.add(orbitRingGroup);
-
-  const ringGeomInner = new RingGeometry(20.5, 25.5, 128);
-  const ringMatInner = new MeshStandardMaterial({
-    color: 0x22c55e,
-    emissive: 0x15803d,
-    emissiveIntensity: 0.45,
-    side: DoubleSide,
-    transparent: true,
-    opacity: 0.55,
-    roughness: 0.1,
-    metalness: 0.9,
-    map: binaryTexture,
-  });
-  const saturnRingMesh = new Mesh(ringGeomInner, ringMatInner);
-  saturnRingMesh.rotation.x = Math.PI / 2;
-  orbitRingGroup.add(saturnRingMesh);
-
-  const ringGeomOuter = new RingGeometry(26.2, 26.7, 128);
-  const ringMatOuter = new MeshBasicMaterial({ color: 0x4ade80, side: DoubleSide, transparent: true, opacity: 0.7 });
-  const outerBorderRing = new Mesh(ringGeomOuter, ringMatOuter);
-  outerBorderRing.rotation.x = Math.PI / 2;
-  orbitRingGroup.add(outerBorderRing);
+  // Saturn-type orbit ring system REMOVED (Yash, 6 Aug 15:18).
 
   // Particle Field
   // Ambient particle cloud REMOVED (Yash, 6 Aug): its sprites read as
@@ -340,8 +314,6 @@ export function createCodeBuild({ accent = "#22c55e" } = {}) {
 
     secondGlobeMat.opacity = 0.18 * globalBuild;
     wireframeMat.opacity = 0.25 * globalBuild;
-    ringMatInner.opacity = 0.55 * globalBuild;
-    ringMatOuter.opacity = 0.70 * globalBuild;
 
     // HIGH PERFORMANCE 60 FPS MATRIX UPDATES:
     // Only update individual instance matrices during assembly window (0.264 <= p <= 0.395).
@@ -400,7 +372,6 @@ export function createCodeBuild({ accent = "#22c55e" } = {}) {
     wireframeGlobeMesh.rotation.y -= 0.0015;
     coreWireMesh.rotation.y += 0.004;
     coreWireMesh.rotation.x += 0.002;
-    orbitRingGroup.rotation.z += 0.002;
   }
 
   const projectedBase = new Vector3();
@@ -437,10 +408,6 @@ export function createCodeBuild({ accent = "#22c55e" } = {}) {
       secondGlobeGeom.dispose();
       secondGlobeMat.dispose();
       wireframeMat.dispose();
-      ringGeomInner.dispose();
-      ringMatInner.dispose();
-      ringGeomOuter.dispose();
-      ringMatOuter.dispose();
     },
   };
 }
