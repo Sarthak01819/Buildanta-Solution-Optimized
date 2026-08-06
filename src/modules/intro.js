@@ -497,7 +497,8 @@ export function createIntro({ onProgress } = {}) {
       if (portalOn && portalState === "off") {
         const skyLive = starIn > 0.01;
         portalWrap.classList.toggle("bg", skyLive);
-        if (skyLive) mountPortalModule();
+        portalWrap.classList.toggle("gone", !skyLive);
+        if (skyLive) mountPortalModule();                // no-op after entering
         else if (portalModule) teardownPortalModule();   // reversible
       }
       root.classList.toggle("consult-zero-live", consultOpacity > 0.002);
@@ -649,13 +650,14 @@ export function createIntro({ onProgress } = {}) {
   let portalCooldownUntil = 0;   // dismissal scroll-back crosses the engage
                                  // zone — without a cooldown it re-engages mid-flight
   let portalMounting = false;
+  let enteredOnce = false;   // the door exists once per visit (Yash MCQ)
 
   /* Mount EARLY and LOCKED (Yash, 6 Aug 20:19 MCQ): the portal becomes the sky
      behind the burning note — holes burned through the paper reveal a sky that
      is already bending — so the wall is not a handoff, just permission to
      touch. `.bg` keeps it at z6 (under the note) and non-interactive. */
   function mountPortalModule() {
-    if (!portalOn || portalModule || portalMounting) return;
+    if (!portalOn || portalModule || portalMounting || enteredOnce) return;
     portalMounting = true;
     import("../effects/blackhole-portal/index.js")
       .then(({ BlackholePortal }) => {
@@ -665,6 +667,7 @@ export function createIntro({ onProgress } = {}) {
           portalLabel: "ENTER",
           starfieldUrl: "/assets/starfield.jpg",
           locked: () => portalState !== "active",   // no collapse until the wall
+          holdOnEnter: true,                        // never re-grow the universe
           onReturn: () => dismissPortal(true),
         });
         portalModule.init();
@@ -681,10 +684,10 @@ export function createIntro({ onProgress } = {}) {
   }
 
   function engagePortal() {
-    if (!portalOn || portalState !== "off") return;
+    if (!portalOn || portalState !== "off" || enteredOnce) return;
     portalState = "active";
     window.__lenis?.stop();
-    portalWrap.classList.remove("bg");   // bg pinned z6 + pointer-events:none
+    portalWrap.classList.remove("bg", "gone");   // bg pins z6 + pointer-events
     portalWrap.classList.add("on");
     mountPortalModule();                 // already mounted during the burn
     portalWheel = (e) => {
@@ -726,29 +729,47 @@ export function createIntro({ onProgress } = {}) {
     if (portalState !== "active") return;
     portalState = "riding";
     beatUnlocked = true;
+    enteredOnce = true;
     hideHint();
-    /* Supernova whites the frame; the Gargantua resolves OUT of the light
-       (Yash MCQ). The portal teardown happens beneath the veil. */
-    whiteVeil?.classList.add("on");
-    portalTimers.push(setTimeout(() => {
-      whiteVeil?.classList.remove("on");
-      whiteVeil?.classList.add("fade");
-    }, 700));
-    portalTimers.push(setTimeout(() => whiteVeil?.classList.remove("fade"), 2400));
-    // Supernova peaks ~0.25s after ENTER; the beat rides out of its light and
-    // SETTLES at full presence — the living hole is the end of the site.
+
+    /* The hole grows FROM the point you entered (Yash MCQ): offset the beat
+       stage toward the door, then ease it home over the ride. The stage is
+       black, so the exposed edge reads as deep space. */
+    const btn = portalWrap.querySelector(".bh-portal");
+    const rect = btn?.getBoundingClientRect();
+    const ex = rect ? rect.left + rect.width / 2 : innerWidth / 2;
+    const ey = rect ? rect.top + rect.height / 2 : innerHeight / 2;
+    const clamp12 = (v, span) => Math.max(-0.12, Math.min(0.12, v / span)) * span;
+    const dx = clamp12(ex - innerWidth / 2, innerWidth);
+    const dy = clamp12(ey - innerHeight / 2, innerHeight);
+    if (blackholeHost) {
+      blackholeHost.classList.add("solid");
+      blackholeHost.style.transition = "none";
+      blackholeHost.style.transform = `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px)`;
+      requestAnimationFrame(() => {
+        blackholeHost.style.transition = "transform 3000ms linear";
+        blackholeHost.style.transform = "translate(0px, 0px)";
+      });
+    }
+
+    // Steady growth (linear), starting as the supernova flare peaks.
     portalTimers.push(setTimeout(() => {
       window.__lenis?.start();
       const rideRaw = beatRawStart + FINALE_BEAT * (1 - beatRawStart);
       const y = st.start + (st.end - st.start) * rideRaw;
-      if (window.__lenis) window.__lenis.scrollTo(y, { duration: 3.0, force: true, lock: true });
+      if (window.__lenis) window.__lenis.scrollTo(y, { duration: 3.0, force: true, lock: true, easing: (t) => t });
       else scrollTo(0, y);
     }, 260));
+
+    // The collapsed sky is HELD (holdOnEnter) until this instant removal —
+    // no re-grow, no fade-out of the plain starfield underneath.
     portalTimers.push(setTimeout(() => {
+      portalWrap.classList.add("gone");
       teardownPortalModule();
       portalState = "done";
-    }, 1150));
+    }, 900));
   }
+
   const onBhEnter = (e) => { e.preventDefault(); ridePortal(); };
   addEventListener("bh:enter", onBhEnter);
 
@@ -761,8 +782,12 @@ export function createIntro({ onProgress } = {}) {
       if (portalState === "off" && raw >= wallRaw && raw < 0.999 &&
           performance.now() > portalCooldownUntil) engagePortal();
       if (raw < wallRaw - 0.02) {
-        if (portalState === "done") portalState = "off";  // re-arm above the wall
-        beatUnlocked = false;                             // Gargantua seals again
+        if (portalState === "done") portalState = "off";
+        if (!enteredOnce) beatUnlocked = false;   // after entering the wall is
+        else if (blackholeHost) {                 // a pass-through, not a door
+          blackholeHost.style.transition = "none";
+          blackholeHost.style.transform = "";
+        }
       }
     }
     blackholeBeat?.setProgress(beatLocal);

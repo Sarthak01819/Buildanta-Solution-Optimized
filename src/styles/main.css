@@ -4085,3 +4085,16 @@ html.bh-final .sweep { display: none !important; }
 /* During the final-note focus the hand-canvas rides above the (fading)
    stage — its DOM props are already faded by --zero-dollar-focus there. */
 #intro .consult-zero.note-focus .consult-zero__hand-canvas { z-index: 21; }
+
+
+/* Ride teardown: the portal must VANISH, not fade — its 900ms fade-out
+   uncovered the plain (unlensed) starfield behind the collapse. */
+.intro__portalwrap.gone {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+}
+
+/* Once entered, the beat's stage is deep space: black behind the Gargantua
+   (also covers the edge exposed while the hole eases from the entry point). */
+.intro__blackhole.solid { background: #000; }

@@ -397,6 +397,7 @@ export class BlackholePortal {
           }
           hold.phase = 'entering'; hold.enterT = 0;
           hold.goHref = useDefault ? HREF : null;
+          if (opts.holdOnEnter) close();   // the ring is spent; the sky keeps burning
           run();
         }
 
@@ -498,7 +499,10 @@ export class BlackholePortal {
           hold.c = 1; hold.arm = Math.max(1 - hold.enterT * 2.5, 0);
           hold.flash = Math.min(hold.enterT / 0.18, 1) * 1.25;
           if (hold.enterT >= 0.22 && hold.goHref) { const h = hold.goHref; hold.goHref = null; location.href = h; }
-          if (hold.enterT >= 0.6 && !hold.goHref) portalReturn(true);
+          // Host-ride mode: the module's SPA hand-back (re-grow the universe
+          // from the button) is exactly the "stars open up again" bug — with
+          // holdOnEnter the collapsed state is HELD until the host tears down.
+          if (hold.enterT >= 0.6 && !hold.goHref && !opts.holdOnEnter) portalReturn(true);
         } else if (mouse.down) {
           hold.t += dt;
           const raw = Math.min(Math.max((hold.t - TUNE.COLLAPSE_DELAY) / TUNE.COLLAPSE_RAMP, 0), 1);
