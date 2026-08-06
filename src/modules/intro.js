@@ -485,11 +485,15 @@ export function createIntro({ onProgress } = {}) {
       /* Order (Yash, 17:04): intact note arrives fullscreen → background
          swaps to stars BEHIND it (.905–.935) → the burn plays over the
          stars (.94+). Never stars before the note, never burn before stars. */
-      const starIn = smoothstep((consultLocal - 0.905) / 0.03);
+      /* Swap hidden behind the fullscreen note (Yash MCQ 17:24): by .915 the
+         note covers the frame; the world and backdrop dissolve to stars
+         entirely BEHIND it — the visitor only discovers space when the burn
+         opens holes. */
+      const starIn = smoothstep((consultLocal - 0.915) / 0.015);
       consultZero.style.setProperty("--star-in", starIn.toFixed(3));
       /* Note-focus: the bill's canvas must ride ABOVE the fading stage, or
          the stage's half-faded cream veils the note during the swap. */
-      consultZero.classList.toggle("note-focus", consultLocal > 0.88);
+      consultZero.classList.toggle("note-focus", consultLocal > 0.913);
       if (portalOn && portalState === "off") {
         portalWrap.classList.toggle("bg", starIn > 0.01);
       }

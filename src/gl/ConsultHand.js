@@ -1364,11 +1364,11 @@ export function createConsultHand(canvas) {
     // this same globe dollies out and settles above the palm.
     const globeReveal = smooth(progress / 0.045);
     const exit = smooth((progress - 0.978) / 0.022);
-    const dollarFocus = smooth((progress - 0.87) / 0.07);
+    const dollarFocus = smooth((progress - 0.87) / 0.045);
     /* Burn AFTER arrival (Yash, 6 Aug 17:04): the note finishes its zoom at
        .94 (dollarFocus) — burning from .915 meant it arrived pre-torn (the
        old gate used to hide this window). */
-    const dollarBurn = smooth((progress - 0.94) / 0.045);
+    const dollarBurn = smooth((progress - 0.935) / 0.055);
     const dollarMorph = smooth((progress - 0.978) / 0.02);
     // One continuous Earth shot: the camera crosses its green shell first,
     // travels through the wireframe interior, then dollies out to reveal the
@@ -1379,7 +1379,10 @@ export function createConsultHand(canvas) {
     // world together—hand, globe, plant, butterflies, fireflies and fume.
     // Six notes fund the plant one-by-one through .86. Only after that full
     // story does the untouched Franklin focus note retire the world.
-    const fundedWorldFade = 1 - smooth((progress - 0.865) / 0.04);
+    /* Quick clean exit finishing at .905 — the instant before the growing
+       note's face reaches the hand's screen region. Holding any later parks
+       a half-faded hand ON the note (depth can't save a fading sprite). */
+    const fundedWorldFade = 1 - smooth((progress - 0.885) / 0.02);
     globe.visible = fundedWorldFade > 0.002;
     handRig.visible = handTextureReady && fundedWorldFade > 0.002;
     focusBurnBackdropMaterial.uniforms.uTime.value = time;
@@ -1700,6 +1703,10 @@ export function createConsultHand(canvas) {
         * supportingFade
         * (isFocusDollar ? 1 - dollarMorph : 1);
       if (isFocusDollar) {
+        /* While focused, the note is the nearest thing in the shot — but the
+           hand/globe wrote depth earlier and won where they overlap. The old
+           timing never overlapped them; the new world-exit does. */
+        bill.material.depthTest = dollarFocus <= 0.03;
         const curl = smooth((dollarBurn - 0.035) / 0.24)
           * (1 - smooth((dollarBurn - 0.46) / 0.28));
         bill.rotation.x += curl * 0.12;
