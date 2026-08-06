@@ -479,7 +479,10 @@ export function createIntro({ onProgress } = {}) {
       /* Stars behind the whole final-note scene (Yash, 6 Aug MCQ): the mint
          and the dark world yield to the starfield as the last note takes the
          camera; the same wrap later becomes the portal surface — seamless. */
-      const starIn = smoothstep((consultLocal - 0.862) / 0.03);
+      /* Stars reveal THROUGH the burn (Yash, 6 Aug 16:58 — revises the
+         earlier 'whole scene' choice): everything stays original until the
+         fire; the backdrops dissolve in sync with the burning edge. */
+      const starIn = smoothstep((consultLocal - 0.915) / 0.05);
       consultZero.style.setProperty("--star-in", starIn.toFixed(3));
       if (portalOn && portalState === "off") {
         portalWrap.classList.toggle("bg", starIn > 0.01);
@@ -490,12 +493,12 @@ export function createIntro({ onProgress } = {}) {
       root.style.setProperty("--zero-reveal", consultReveal.toFixed(3));
       root.style.setProperty("--zero-light", lightFrame.toFixed(3));
       consultZero.style.setProperty("--zero-progress", consultLocal.toFixed(3));
-      consultZero.style.setProperty("--zero-world", (world * (1 - starIn)).toFixed(3));
+      consultZero.style.setProperty("--zero-world", world.toFixed(3));
       consultZero.style.setProperty("--zero-intro", (introIn * introOut).toFixed(3));
       consultZero.style.setProperty("--zero-hand", (handIn * handOut).toFixed(3));
       consultZero.style.setProperty("--zero-hand-press", handPress.toFixed(3));
       consultZero.style.setProperty("--zero-hand-pulse", handPulse.toFixed(3));
-      consultZero.style.setProperty("--zero-hand-bg", (handBg * (1 - starIn)).toFixed(3));
+      consultZero.style.setProperty("--zero-hand-bg", handBg.toFixed(3));
       consultZero.style.setProperty("--zero-hand-copy", handCopy.toFixed(3));
       consultHand?.setProgress(consultLocal, consultOpacity);
       consultZero.style.setProperty("--zero-u1", update1.toFixed(3));

@@ -4061,6 +4061,6 @@ html.bh-final .sweep { display: none !important; }
    before — the ::after pseudo already carries the hand-stage's cream look and
    fades with --zero-hand-bg; the world container's own dark gradients now
    yield to the stars; the consult root color was never visible on its own. */
-#intro .consult-zero__hand-stage { background: transparent; }
-#intro .consult-zero { background: transparent; }
+#intro .consult-zero { background: transparent; } /* dark root would block the reveal */
+#intro .consult-zero__hand-stage { opacity: calc(1 - var(--star-in, 0)); }
 #intro .consult-zero__world { opacity: calc(1 - var(--star-in, 0)); }
