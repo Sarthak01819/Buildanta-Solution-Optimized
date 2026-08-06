@@ -139,33 +139,6 @@ function generateEarthVoxels() {
   return voxels;
 }
 
-function createArc(lat1, lon1, lat2, lon2, colorHex) {
-  const r = 14.8;
-  const phi1 = (90 - lat1) * (Math.PI / 180);
-  const theta1 = (lon1 + 180) * (Math.PI / 180);
-  const p1 = new Vector3(-r * Math.sin(phi1) * Math.cos(theta1), r * Math.cos(phi1), r * Math.sin(phi1) * Math.sin(theta1));
-
-  const phi2 = (90 - lat2) * (Math.PI / 180);
-  const theta2 = (lon2 + 180) * (Math.PI / 180);
-  const p2 = new Vector3(-r * Math.sin(phi2) * Math.cos(theta2), r * Math.cos(phi2), r * Math.sin(phi2) * Math.sin(theta2));
-
-  const mid = p1.clone().add(p2).multiplyScalar(0.5);
-  mid.normalize().multiplyScalar(r * 1.45);
-
-  const curve = new QuadraticBezierCurve3(p1, mid, p2);
-  const points = curve.getPoints(40);
-  const geom = new BufferGeometry().setFromPoints(points);
-
-  const mat = new LineBasicMaterial({
-    color: colorHex,
-    transparent: true,
-    opacity: 0.75,
-    linewidth: 2,
-  });
-
-  return new Line(geom, mat);
-}
-
 /**
  * ACT 02 — HIGH PERFORMANCE 60 FPS ULTRA-HD RA.ONE MATRIX ENGINE
  */
@@ -279,13 +252,8 @@ export function createCodeBuild({ accent = "#22c55e" } = {}) {
   const wireframeGlobeMesh = new Mesh(secondGlobeGeom, wireframeMat);
   landGroup.add(wireframeGlobeMesh);
 
-  // Matrix Green 3D Data Arcs
-  const arcsGroup = new Group();
-  arcsGroup.add(createArc(35.6, 139.6, 37.7, -122.4, 0x4ade80));
-  arcsGroup.add(createArc(40.7, -74.0, 51.5, -0.1, 0x22c55e));
-  arcsGroup.add(createArc(51.5, -0.1, -33.8, 151.2, 0x4ade80));
-  arcsGroup.add(createArc(50.1, 8.6, 12.9, 77.5, 0x22c55e));
-  landGroup.add(arcsGroup);
+  // Data-arc lines REMOVED (Yash, 6 Aug): they crossed the frame as stray
+  // green wires during the transition into the act.
 
   // Matrix Saturn Orbit Ring System
   const orbitRingGroup = new Group();
