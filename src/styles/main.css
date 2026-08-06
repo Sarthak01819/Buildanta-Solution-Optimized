@@ -4002,3 +4002,65 @@ html.bh-final .sweep { display: none !important; }
   text-shadow: 0 1px 8px #000;
   pointer-events: none;
 }
+
+
+/* Starfield UNDER the final-note scene: same wrap, background mode (z below
+   the consult world) — at the wall it flips to .on (z10) with zero visual
+   change, so burn → portal is one continuous sky. */
+.intro__portalwrap.bg {
+  opacity: 1;
+  visibility: visible;
+  z-index: 6;
+  pointer-events: none;
+  transition: opacity 700ms ease;
+}
+
+/* The WE SCALE HUD yields to the stars (Yash: gone with the stars). */
+.consult-zero__hud { opacity: calc(1 - var(--star-in, 0)); }
+
+/* ENTER: supernova whites the frame; the Gargantua resolves out of the light. */
+.intro__whiteveil {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  background: #fff7ea;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.intro__whiteveil.on {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 240ms ease-in;
+}
+.intro__whiteveil.fade {
+  visibility: visible;
+  opacity: 0;
+  transition: opacity 1500ms ease-out;
+}
+
+/* Idle whisper at the portal — appears only if nobody presses for a while. */
+.bh-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 18vh;
+  transform: translateX(-50%);
+  z-index: 2;
+  font: 500 11px/1 "DM Mono", ui-monospace, monospace;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  color: rgba(242, 220, 180, 0.0);
+  text-shadow: 0 0 18px rgba(242, 200, 148, 0.35);
+  transition: color 1200ms ease;
+  pointer-events: none;
+}
+.intro__portalwrap.hint .bh-hint { color: rgba(242, 220, 180, 0.55); }
+
+/* ── Stars behind the burn: the three opaque layers that were covering the
+   starfield. Pre-stars (--star-in: 0) each of these is visually identical to
+   before — the ::after pseudo already carries the hand-stage's cream look and
+   fades with --zero-hand-bg; the world container's own dark gradients now
+   yield to the stars; the consult root color was never visible on its own. */
+#intro .consult-zero__hand-stage { background: transparent; }
+#intro .consult-zero { background: transparent; }
+#intro .consult-zero__world { opacity: calc(1 - var(--star-in, 0)); }

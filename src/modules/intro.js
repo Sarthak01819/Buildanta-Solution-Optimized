@@ -476,18 +476,26 @@ export function createIntro({ onProgress } = {}) {
       const filmIdea = cutWindow(consultLocal, 0.835, 0.935, 0.026);
       const filmCta = smoothstep((consultLocal - 0.905) / 0.040);
 
+      /* Stars behind the whole final-note scene (Yash, 6 Aug MCQ): the mint
+         and the dark world yield to the starfield as the last note takes the
+         camera; the same wrap later becomes the portal surface — seamless. */
+      const starIn = smoothstep((consultLocal - 0.862) / 0.03);
+      consultZero.style.setProperty("--star-in", starIn.toFixed(3));
+      if (portalOn && portalState === "off") {
+        portalWrap.classList.toggle("bg", starIn > 0.01);
+      }
       root.classList.toggle("consult-zero-live", consultOpacity > 0.002);
       consultZero.style.setProperty("--zero-opacity", consultOpacity.toFixed(3));
       consultZero.style.setProperty("--zero-reveal", consultReveal.toFixed(3));
       root.style.setProperty("--zero-reveal", consultReveal.toFixed(3));
       root.style.setProperty("--zero-light", lightFrame.toFixed(3));
       consultZero.style.setProperty("--zero-progress", consultLocal.toFixed(3));
-      consultZero.style.setProperty("--zero-world", world.toFixed(3));
+      consultZero.style.setProperty("--zero-world", (world * (1 - starIn)).toFixed(3));
       consultZero.style.setProperty("--zero-intro", (introIn * introOut).toFixed(3));
       consultZero.style.setProperty("--zero-hand", (handIn * handOut).toFixed(3));
       consultZero.style.setProperty("--zero-hand-press", handPress.toFixed(3));
       consultZero.style.setProperty("--zero-hand-pulse", handPulse.toFixed(3));
-      consultZero.style.setProperty("--zero-hand-bg", handBg.toFixed(3));
+      consultZero.style.setProperty("--zero-hand-bg", (handBg * (1 - starIn)).toFixed(3));
       consultZero.style.setProperty("--zero-hand-copy", handCopy.toFixed(3));
       consultHand?.setProgress(consultLocal, consultOpacity);
       consultZero.style.setProperty("--zero-u1", update1.toFixed(3));
@@ -614,7 +622,10 @@ export function createIntro({ onProgress } = {}) {
      world mein chhod deta hai. LENIS landmine: stop on engage, start on EVERY
      exit path — return, Esc, dismiss, ride, destroy. */
   const portalWrap = root.querySelector(".intro__portalwrap");
+  const whiteVeil = root.querySelector(".intro__whiteveil");
   const portalOn = beatEnabled && Boolean(portalWrap);
+  let hintTimer = 0;
+  const hideHint = () => { portalWrap?.classList.remove("hint"); };
   let portalModule = null;
   let portalState = "off";       // off | active | riding | done
   let portalWheel = null;
@@ -623,6 +634,7 @@ export function createIntro({ onProgress } = {}) {
                                  // zone — without a cooldown it re-engages mid-flight
 
   function teardownPortalModule() {
+    clearTimeout(hintTimer); hintTimer = 0; hideHint();
     if (portalWheel) { removeEventListener("wheel", portalWheel); portalWheel = null; }
     portalTimers.forEach(clearTimeout); portalTimers = [];
     portalModule?.destroy(); portalModule = null;
@@ -652,6 +664,16 @@ export function createIntro({ onProgress } = {}) {
       if (e.deltaY < -12) dismissPortal(true);
     };
     addEventListener("wheel", portalWheel, { passive: true });
+    /* Idle whisper: if nobody presses within 4s, a dim HOLD fades in and
+       disappears at the first press (Yash: silent whisper after idle). */
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => {
+      const phase = window.__bhp?.state?.().phase;
+      if (portalState === "active" && (phase === "idle" || phase === "winding" || !phase)) {
+        portalWrap.classList.add("hint");
+        addEventListener("pointerdown", hideHint, { once: true, passive: true });
+      }
+    }, 4000);
   }
 
   function dismissPortal(scrollBack) {
@@ -674,6 +696,15 @@ export function createIntro({ onProgress } = {}) {
     if (portalState !== "active") return;
     portalState = "riding";
     beatUnlocked = true;
+    hideHint();
+    /* Supernova whites the frame; the Gargantua resolves OUT of the light
+       (Yash MCQ). The portal teardown happens beneath the veil. */
+    whiteVeil?.classList.add("on");
+    portalTimers.push(setTimeout(() => {
+      whiteVeil?.classList.remove("on");
+      whiteVeil?.classList.add("fade");
+    }, 700));
+    portalTimers.push(setTimeout(() => whiteVeil?.classList.remove("fade"), 2400));
     // Supernova peaks ~0.25s after ENTER; the beat rides out of its light and
     // SETTLES at full presence — the living hole is the end of the site.
     portalTimers.push(setTimeout(() => {
