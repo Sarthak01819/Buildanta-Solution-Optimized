@@ -603,8 +603,90 @@ export function createIntro({ onProgress } = {}) {
   const beatRawStart = beatEnabled ? introRawEnd - 0.008 : introRawEnd;
   const mapBeatLocal = (raw) =>
     beatStretch ? Math.max(0, Math.min(1, (raw - beatRawStart) / (1 - beatRawStart))) : 0;
+  /* ── the PORTAL wall (sealed black-hole-bg module) ──
+     Burn khatam → scroll ek deewar par rukta hai, starfield + cursor-hole
+     aata hai. Hold-to-collapse se ENTER ka darwaza banta hai; enter karne par
+     Gargantua beat auto-ride hota hai. Wheel-up (bina arm kiye) wapas consult
+     world mein chhod deta hai. LENIS landmine: stop on engage, start on EVERY
+     exit path — return, Esc, dismiss, ride, destroy. */
+  const portalWrap = root.querySelector(".intro__portalwrap");
+  const portalOn = beatEnabled && Boolean(portalWrap);
+  let portalModule = null;
+  let portalState = "off";       // off | active | riding | done
+  let portalWheel = null;
+  let portalTimers = [];
+
+  function teardownPortalModule() {
+    if (portalWheel) { removeEventListener("wheel", portalWheel); portalWheel = null; }
+    portalTimers.forEach(clearTimeout); portalTimers = [];
+    portalModule?.destroy(); portalModule = null;
+    portalWrap?.classList.remove("on");
+  }
+
+  function engagePortal() {
+    if (!portalOn || portalState !== "off") return;
+    portalState = "active";
+    window.__lenis?.stop();
+    portalWrap.classList.add("on");
+    import("../effects/blackhole-portal/index.js")
+      .then(({ BlackholePortal }) => {
+        if (portalState !== "active") return;
+        portalModule = new BlackholePortal(portalWrap, {
+          portalLabel: "ENTER",
+          starfieldUrl: "/assets/starfield.jpg",
+          onReturn: () => dismissPortal(true),   // committed scroll-back / Esc
+        });
+        portalModule.init();
+      })
+      .catch((e) => { console.error("[intro] portal unavailable:", e); dismissPortal(true); });
+    portalWheel = (e) => {
+      if (portalState !== "active") return;
+      const phase = window.__bhp?.state?.().phase;
+      if (phase === "armed" || phase === "entering") return; // the door owns the wheel
+      if (e.deltaY < -12) dismissPortal(true);
+    };
+    addEventListener("wheel", portalWheel, { passive: true });
+  }
+
+  function dismissPortal(scrollBack) {
+    // Only a LIVE portal can dismiss. During the ride the module's own
+    // internal return (0.6s after enter) fires onReturn — honoring it there
+    // yanked the scroll backwards mid-flight (measured: landed at raw .90).
+    if (portalState !== "active") return;
+    portalState = "off";
+    teardownPortalModule();
+    window.__lenis?.start();
+    if (scrollBack) {
+      const y = st.start + (st.end - st.start) * (introRawEnd - 0.06);
+      if (window.__lenis) window.__lenis.scrollTo(y, { duration: 0.9, force: true });
+      else scrollTo(0, y);
+    }
+  }
+
+  function ridePortal() {
+    if (portalState !== "active") return;
+    portalState = "riding";
+    // Supernova peaks ~0.25s after ENTER; the beat rides out of its light.
+    portalTimers.push(setTimeout(() => {
+      window.__lenis?.start();
+      const y = st.end + 2;
+      if (window.__lenis) window.__lenis.scrollTo(y, { duration: 3.4, force: true, lock: true });
+      else scrollTo(0, y);
+    }, 260));
+    portalTimers.push(setTimeout(() => {
+      teardownPortalModule();
+      portalState = "done";
+    }, 1150));
+  }
+  const onBhEnter = (e) => { e.preventDefault(); ridePortal(); };
+  addEventListener("bh:enter", onBhEnter);
+
   const applyRaw = (raw) => {
     beatLocal = mapBeatLocal(raw);
+    if (portalOn) {
+      if (portalState === "off" && raw >= introRawEnd - 0.002 && raw < 0.999) engagePortal();
+      if (portalState === "done" && raw < introRawEnd - 0.03) portalState = "off"; // re-arm above the wall
+    }
     blackholeBeat?.setProgress(beatLocal);
     applyProgress(mapScrollProgress(raw));
   };
@@ -695,6 +777,9 @@ export function createIntro({ onProgress } = {}) {
       gsap.ticker.remove(tick);
       removeEventListener("resize", onResize);
       st.kill();
+      removeEventListener("bh:enter", onBhEnter);
+      teardownPortalModule();
+      window.__lenis?.start();
       corridor.dispose();
       consultHand?.dispose();
       blackholeBeat?.dispose();

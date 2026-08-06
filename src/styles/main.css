@@ -3907,3 +3907,71 @@ html.entry-pending body {
    (it re-appeared the moment consult-zero-live dropped — a cyan stripe over
    the hole). It returns with the rest of the site chrome via --site-in. */
 html.beat-live #progress { opacity: 0 !important; pointer-events: none !important; }
+
+/* ── Black-hole portal wall (sealed module port) ─────────────────────────
+   The wrap's CSS starfield is the fail-open fallback; the canvas only adds
+   distortion. Gesture region: no text selection, no long-press callout. */
+.intro__portalwrap {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  background: #000 url(/assets/starfield.jpg) center/cover no-repeat;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 900ms ease, visibility 0s linear 900ms;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.intro__portalwrap.on {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 900ms ease;
+}
+.bh-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.bh-canvas.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .bh-canvas { transition: none; } }
+
+/* The ENTER door — a real button; magnetic (CURSOR-01 native port). */
+.bh-portal {
+  position: fixed;
+  z-index: 40;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 4, 10, 0.55);
+  color: #f5deba;
+  border: 1.5px solid rgba(242, 200, 148, 0.9);
+  font: 600 12px/1 "DM Mono", ui-monospace, monospace;
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  cursor: pointer;
+  --bh-near: 0;
+  will-change: transform;
+  box-shadow: 0 0 34px rgba(242, 200, 148, 0.28), inset 0 0 22px rgba(242, 200, 148, 0.14);
+}
+.bh-portal::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(242, 200, 148, 0.30), transparent 70%);
+  opacity: var(--bh-near);
+  transition: opacity 140ms ease-out;
+}
+.bh-portal:focus-visible { outline: 2px solid #f2c894; outline-offset: 5px; }
+.bh-portal__label { display: inline-block; will-change: transform; }
+
+.footer__credit { opacity: 0.55; font-size: 0.85em; }
