@@ -495,7 +495,10 @@ export function createIntro({ onProgress } = {}) {
          the stage's half-faded cream veils the note during the swap. */
       consultZero.classList.toggle("note-focus", consultLocal > 0.913);
       if (portalOn && portalState === "off") {
-        portalWrap.classList.toggle("bg", starIn > 0.01);
+        const skyLive = starIn > 0.01;
+        portalWrap.classList.toggle("bg", skyLive);
+        if (skyLive) mountPortalModule();
+        else if (portalModule) teardownPortalModule();   // reversible
       }
       root.classList.toggle("consult-zero-live", consultOpacity > 0.002);
       consultZero.style.setProperty("--zero-opacity", consultOpacity.toFixed(3));
@@ -645,6 +648,29 @@ export function createIntro({ onProgress } = {}) {
   let portalTimers = [];
   let portalCooldownUntil = 0;   // dismissal scroll-back crosses the engage
                                  // zone — without a cooldown it re-engages mid-flight
+  let portalMounting = false;
+
+  /* Mount EARLY and LOCKED (Yash, 6 Aug 20:19 MCQ): the portal becomes the sky
+     behind the burning note — holes burned through the paper reveal a sky that
+     is already bending — so the wall is not a handoff, just permission to
+     touch. `.bg` keeps it at z6 (under the note) and non-interactive. */
+  function mountPortalModule() {
+    if (!portalOn || portalModule || portalMounting) return;
+    portalMounting = true;
+    import("../effects/blackhole-portal/index.js")
+      .then(({ BlackholePortal }) => {
+        portalMounting = false;
+        if (portalState === "done") return;
+        portalModule = new BlackholePortal(portalWrap, {
+          portalLabel: "ENTER",
+          starfieldUrl: "/assets/starfield.jpg",
+          locked: () => portalState !== "active",   // no collapse until the wall
+          onReturn: () => dismissPortal(true),
+        });
+        portalModule.init();
+      })
+      .catch((e) => { portalMounting = false; console.error("[intro] portal unavailable:", e); });
+  }
 
   function teardownPortalModule() {
     clearTimeout(hintTimer); hintTimer = 0; hideHint();
@@ -658,18 +684,9 @@ export function createIntro({ onProgress } = {}) {
     if (!portalOn || portalState !== "off") return;
     portalState = "active";
     window.__lenis?.stop();
+    portalWrap.classList.remove("bg");   // bg pinned z6 + pointer-events:none
     portalWrap.classList.add("on");
-    import("../effects/blackhole-portal/index.js")
-      .then(({ BlackholePortal }) => {
-        if (portalState !== "active") return;
-        portalModule = new BlackholePortal(portalWrap, {
-          portalLabel: "ENTER",
-          starfieldUrl: "/assets/starfield.jpg",
-          onReturn: () => dismissPortal(true),   // committed scroll-back / Esc
-        });
-        portalModule.init();
-      })
-      .catch((e) => { console.error("[intro] portal unavailable:", e); dismissPortal(true); });
+    mountPortalModule();                 // already mounted during the burn
     portalWheel = (e) => {
       if (portalState !== "active") return;
       const phase = window.__bhp?.state?.().phase;

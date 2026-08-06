@@ -584,6 +584,9 @@ export class BlackholePortal {
       function setTarget(cx, cy) { [mouse.tx, mouse.ty] = toCanvas(cx, cy); mouse.moved = true; run(); }
       const passive = { passive: true };
       const press = () => {
+        // Locked while the portal is only the sky behind the burning note:
+        // the hole still follows the cursor, but nothing can be collapsed.
+        if (opts.locked && opts.locked()) return;
         if (hold.phase === 'armed' || hold.phase === 'entering') return;
         mouse.down = true; hold.t = 0; hold.bt = 0; hold.armT = 0;
         canvas.style.transition = 'none'; canvas.classList.add('on');
