@@ -482,8 +482,14 @@ export function createIntro({ onProgress } = {}) {
       /* Stars reveal THROUGH the burn (Yash, 6 Aug 16:58 — revises the
          earlier 'whole scene' choice): everything stays original until the
          fire; the backdrops dissolve in sync with the burning edge. */
-      const starIn = smoothstep((consultLocal - 0.915) / 0.05);
+      /* Order (Yash, 17:04): intact note arrives fullscreen → background
+         swaps to stars BEHIND it (.905–.935) → the burn plays over the
+         stars (.94+). Never stars before the note, never burn before stars. */
+      const starIn = smoothstep((consultLocal - 0.905) / 0.03);
       consultZero.style.setProperty("--star-in", starIn.toFixed(3));
+      /* Note-focus: the bill's canvas must ride ABOVE the fading stage, or
+         the stage's half-faded cream veils the note during the swap. */
+      consultZero.classList.toggle("note-focus", consultLocal > 0.88);
       if (portalOn && portalState === "off") {
         portalWrap.classList.toggle("bg", starIn > 0.01);
       }

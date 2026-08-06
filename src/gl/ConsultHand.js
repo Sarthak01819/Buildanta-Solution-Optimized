@@ -778,7 +778,7 @@ export function createConsultHand(canvas) {
             float grain = valueNoise(vUv * 18.0) * 0.060
               + valueNoise(vUv * 47.0 + 3.7) * 0.025;
             float burnField = paperEdge + grain;
-            float threshold = uBurn * 0.62;
+            float threshold = uBurn * 0.45;
             float fireDistance = burnField - threshold;
             if (uBurn > 0.001 && fireDistance < 0.0) discard;
 
@@ -1365,7 +1365,10 @@ export function createConsultHand(canvas) {
     const globeReveal = smooth(progress / 0.045);
     const exit = smooth((progress - 0.978) / 0.022);
     const dollarFocus = smooth((progress - 0.87) / 0.07);
-    const dollarBurn = smooth((progress - 0.915) / 0.065);
+    /* Burn AFTER arrival (Yash, 6 Aug 17:04): the note finishes its zoom at
+       .94 (dollarFocus) — burning from .915 meant it arrived pre-torn (the
+       old gate used to hide this window). */
+    const dollarBurn = smooth((progress - 0.94) / 0.045);
     const dollarMorph = smooth((progress - 0.978) / 0.02);
     // One continuous Earth shot: the camera crosses its green shell first,
     // travels through the wireframe interior, then dollies out to reveal the
@@ -1715,8 +1718,7 @@ export function createConsultHand(canvas) {
         updateFocusBurnMask(dollarBurn);
         focusBurnOverlayMaterial.uniforms.uBurn.value = dollarBurn;
         focusBurnOverlayMaterial.uniforms.uOpacity.value = billOpacity
-          * (1 - smooth((dollarBurn - 0.78) / 0.22))
-          * 0.74;
+          * (1 - smooth((dollarBurn - 0.78) / 0.22));
         focusBurnOverlayMaterial.uniforms.uTime.value = time;
         const fragmentReveal = smooth((dollarBurn - 0.38) / 0.12);
         focusBurnFlameMaterial.uniforms.uTime.value = time;

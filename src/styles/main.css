@@ -4062,5 +4062,18 @@ html.bh-final .sweep { display: none !important; }
    fades with --zero-hand-bg; the world container's own dark gradients now
    yield to the stars; the consult root color was never visible on its own. */
 #intro .consult-zero { background: transparent; } /* dark root would block the reveal */
-#intro .consult-zero__hand-stage { opacity: calc(1 - var(--star-in, 0)); }
 #intro .consult-zero__world { opacity: calc(1 - var(--star-in, 0)); }
+/* The hand-canvas (the NOTE) is a CHILD of the stage — never fade the stage
+   itself. Only its backdrop (flat cream + gradient pseudos) yields to the
+   stars, and only during note-focus so WE SCALE stays untouched. */
+#intro .consult-zero.note-focus .consult-zero__hand-stage { background: transparent; }
+#intro .consult-zero.note-focus .consult-zero__hand-stage::after {
+  opacity: calc(var(--zero-hand-bg, var(--zero-hand-copy)) * (1 - var(--star-in, 0)));
+}
+#intro .consult-zero.note-focus .consult-zero__hand-stage::before {
+  opacity: calc(var(--zero-hand-bg, var(--zero-hand-copy)) * 0.46 * (1 - var(--star-in, 0)));
+}
+
+/* During the final-note focus the hand-canvas rides above the (fading)
+   stage — its DOM props are already faded by --zero-dollar-focus there. */
+#intro .consult-zero.note-focus .consult-zero__hand-canvas { z-index: 21; }
