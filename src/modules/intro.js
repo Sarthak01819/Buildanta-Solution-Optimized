@@ -597,12 +597,16 @@ export function createIntro({ onProgress } = {}) {
     return consultTimelineStart
       + ((r - consultRawSplit) / (1 - consultRawSplit)) * (1 - consultTimelineStart);
   };
-  /* Beat ko halka sa head-start: intro ki tail (p ≈ .996–1) mint paper
-     dikhati thi — burn ke baad, hole ke pehle ek hard bright cut. Beat ka
-     near-black canvas usi zone par fade-in hokar use dhak leta hai. */
-  const beatRawStart = beatEnabled ? introRawEnd - 0.008 : introRawEnd;
+  /* Gargantua sirf ENTER ke baad (Yash, 6 Aug 16:18 MCQ): pehle ka 0.008
+     head-start overlap mint flash dhakta tha, par ab wahi kaam PORTAL ka
+     starfield karta hai — beat ka koi bhi ghost darwaze se pehle nahi. */
+  const beatRawStart = introRawEnd;
   const mapBeatLocal = (raw) =>
     beatStretch ? Math.max(0, Math.min(1, (raw - beatRawStart) / (1 - beatRawStart))) : 0;
+  let beatUnlocked = false;   // flips true at ENTER; false back above the wall
+  /* FINALE (Yash, 6 Aug): the site ENDS on the living hole — the beat holds
+     at full presence (drift + churn continue) and never swallows to white. */
+  const FINALE_BEAT = 0.58;
   /* ── the PORTAL wall (sealed black-hole-bg module) ──
      Burn khatam → scroll ek deewar par rukta hai, starfield + cursor-hole
      aata hai. Hold-to-collapse se ENTER ka darwaza banta hai; enter karne par
@@ -615,6 +619,8 @@ export function createIntro({ onProgress } = {}) {
   let portalState = "off";       // off | active | riding | done
   let portalWheel = null;
   let portalTimers = [];
+  let portalCooldownUntil = 0;   // dismissal scroll-back crosses the engage
+                                 // zone — without a cooldown it re-engages mid-flight
 
   function teardownPortalModule() {
     if (portalWheel) { removeEventListener("wheel", portalWheel); portalWheel = null; }
@@ -654,6 +660,7 @@ export function createIntro({ onProgress } = {}) {
     // yanked the scroll backwards mid-flight (measured: landed at raw .90).
     if (portalState !== "active") return;
     portalState = "off";
+    portalCooldownUntil = performance.now() + 1500;
     teardownPortalModule();
     window.__lenis?.start();
     if (scrollBack) {
@@ -666,11 +673,14 @@ export function createIntro({ onProgress } = {}) {
   function ridePortal() {
     if (portalState !== "active") return;
     portalState = "riding";
-    // Supernova peaks ~0.25s after ENTER; the beat rides out of its light.
+    beatUnlocked = true;
+    // Supernova peaks ~0.25s after ENTER; the beat rides out of its light and
+    // SETTLES at full presence — the living hole is the end of the site.
     portalTimers.push(setTimeout(() => {
       window.__lenis?.start();
-      const y = st.end + 2;
-      if (window.__lenis) window.__lenis.scrollTo(y, { duration: 3.4, force: true, lock: true });
+      const rideRaw = beatRawStart + FINALE_BEAT * (1 - beatRawStart);
+      const y = st.start + (st.end - st.start) * rideRaw;
+      if (window.__lenis) window.__lenis.scrollTo(y, { duration: 3.0, force: true, lock: true });
       else scrollTo(0, y);
     }, 260));
     portalTimers.push(setTimeout(() => {
@@ -681,11 +691,18 @@ export function createIntro({ onProgress } = {}) {
   const onBhEnter = (e) => { e.preventDefault(); ridePortal(); };
   addEventListener("bh:enter", onBhEnter);
 
+  /* Deewar burn ke aakhri embers par hi aati hai — mint tail kabhi nangi
+     nahi dikhti; 900ms ka CSS fade "instant but smooth" deta hai. */
+  const wallRaw = introRawEnd - 0.0105;
   const applyRaw = (raw) => {
-    beatLocal = mapBeatLocal(raw);
+    beatLocal = beatUnlocked ? Math.min(mapBeatLocal(raw), FINALE_BEAT) : 0;
     if (portalOn) {
-      if (portalState === "off" && raw >= introRawEnd - 0.002 && raw < 0.999) engagePortal();
-      if (portalState === "done" && raw < introRawEnd - 0.03) portalState = "off"; // re-arm above the wall
+      if (portalState === "off" && raw >= wallRaw && raw < 0.999 &&
+          performance.now() > portalCooldownUntil) engagePortal();
+      if (raw < wallRaw - 0.02) {
+        if (portalState === "done") portalState = "off";  // re-arm above the wall
+        beatUnlocked = false;                             // Gargantua seals again
+      }
     }
     blackholeBeat?.setProgress(beatLocal);
     applyProgress(mapScrollProgress(raw));

@@ -52,18 +52,28 @@ const URL = process.env.SITE_URL || 'http://127.0.0.1:5290/';
   await page.evaluate(() => new Promise((r) => setTimeout(r, 400)));
   await page.screenshot({ path: 'shots-journey/portal/2-armed.png' });
 
-  // 3 — ENTER → supernova → beat ride → hero
+  // 3 — ENTER → supernova → the ride SETTLES on the living hole (finale)
   await page.click('.bh-portal');
   await page.evaluate(() => new Promise((r) => setTimeout(r, 700)));
   await page.screenshot({ path: 'shots-journey/portal/3-supernova.png' });
-  await page.evaluate(() => new Promise((r) => setTimeout(r, 4200)));
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 4000)));
   const landed = await page.evaluate(() => {
-    const { intro } = window.__buildanta;
-    return { y: Math.round(scrollY), end: Math.round(intro.st.end), siteIn: getComputedStyle(document.documentElement).getPropertyValue('--site-in').trim() };
+    const beatCanvas = document.querySelector('.intro__blackhole canvas');
+    return {
+      y: Math.round(scrollY),
+      beatOpacity: beatCanvas ? beatCanvas.style.opacity : null,
+      siteHidden: getComputedStyle(document.querySelector('#top')).display === 'none',
+      siteIn: getComputedStyle(document.documentElement).getPropertyValue('--site-in').trim(),
+    };
   });
-  if (landed.y < landed.end - 8) throw new Error('ride did not land at pin end: ' + JSON.stringify(landed));
-  console.log('3. ENTER rode the beat to the hero ✓', JSON.stringify(landed));
-  await page.screenshot({ path: 'shots-journey/portal/4-hero.png' });
+  if (!(parseFloat(landed.beatOpacity) >= 0.999)) throw new Error('living hole not visible: ' + JSON.stringify(landed));
+  if (!landed.siteHidden) throw new Error('blue site not hidden: ' + JSON.stringify(landed));
+  const y1 = landed.y;
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 3000)));
+  const y2 = await page.evaluate(() => Math.round(scrollY));
+  if (Math.abs(y2 - y1) > 4) throw new Error('finale did not hold: ' + y1 + ' -> ' + y2);
+  console.log('3. ENTER settles on the LIVING hole; blue site hidden; holds ✓', JSON.stringify(landed));
+  await page.screenshot({ path: 'shots-journey/portal/4-finale.png' });
 
   // 4 — reverse to consult, re-engage, Esc returns
   await goRaw(0.75);

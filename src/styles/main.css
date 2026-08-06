@@ -3975,3 +3975,30 @@ html.beat-live #progress { opacity: 0 !important; pointer-events: none !importan
 .bh-portal__label { display: inline-block; will-change: transform; }
 
 .footer__credit { opacity: 0.55; font-size: 0.85em; }
+
+
+/* ── FINALE MODE (Yash, 6 Aug): the living black hole is the LAST page.
+   The blue main site stays in the codebase but is fully hidden. To restore
+   the full site: remove the bh-final class in src/main.js. ── */
+html.bh-final .nav,
+html.bh-final #top,
+html.bh-final .footer,
+html.bh-final #gl,
+html.bh-final .hud,
+html.bh-final .entry-gate,
+html.bh-final .blueprint,
+html.bh-final .vignette,
+html.bh-final .scan,
+html.bh-final .sweep { display: none !important; }
+
+.bh-credit {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  z-index: 2;
+  font: 400 10px/1.4 "DM Mono", ui-monospace, monospace;
+  letter-spacing: 0.06em;
+  color: rgba(220, 214, 228, 0.5);
+  text-shadow: 0 1px 8px #000;
+  pointer-events: none;
+}

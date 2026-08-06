@@ -13,6 +13,10 @@ import "lenis/dist/lenis.css";
 
 gsap.registerPlugin(ScrollTrigger);
 
+/* FINALE MODE: the black hole ends the experience — the blue site below is
+   hidden (kept intact in markup). Delete this one line to restore it. */
+document.documentElement.classList.add("bh-final");
+
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -335,11 +339,10 @@ function boot() {
     );
     if (nav) nav.style.pointerEvents = siteIn > 0.5 ? "" : "none";
     if (beatOn) {
-      /* Handoff ke documented gap ka fix: gate ab burn ke pehle kabhi nahi
-         aata — wo black hole ke white-out ke andar hi resolve hota hai. */
-      if (beat.local < 0.80) entryGate?.rearm();
-      if (beat.local >= 0.88 && entryGate && !entryGate.completed) entryGate.show();
-      if (beat.local >= 0.97 && entryGateReady && (!entryGate || entryGate.completed)) playHero();
+      /* Franklin gate REMOVED from the main flow (Yash, 6 Aug 16:18 MCQ):
+         the Gargantua's white-out lands straight on the hero. The gate still
+         exists for the reduced-motion path below. */
+      if (beat.local >= 0.97 && entryGateReady) playHero();
     } else {
       // Reduced-motion (beat disabled) — purana behaviour, jaisa tha waisa.
       if (p < 0.94) entryGate?.rearm();
@@ -357,10 +360,8 @@ function boot() {
     onComplete: playHero,
   });
   entryGateReady = true;
-  // Sirf end-state reload par hi gate seedha dikhe — beat ke beech reload
-  // hua to scroll-restore ke through hi sahi jagah se resume hota hai.
-  if (intro?.progress > 0.998) entryGate?.show();
-  else if (intro?.progress > 0.998 && !entryGate) playHero();
+  // End-state reload: the gate is out of the main flow — land on the hero.
+  if (intro?.progress > 0.998) playHero();
 
   // dev handle — console se sequence tune karne ke liye.
   // Build mein ye block poora strip ho jaata hai.
