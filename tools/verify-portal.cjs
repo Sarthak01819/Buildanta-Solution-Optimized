@@ -75,22 +75,29 @@ const URL = process.env.SITE_URL || 'http://127.0.0.1:5290/';
   console.log('3. ENTER settles on the LIVING hole; blue site hidden; holds ✓', JSON.stringify(landed));
   await page.screenshot({ path: 'shots-journey/portal/4-finale.png' });
 
-  // 4 — reverse to consult, re-engage, Esc returns
+  // 4 — the door is ONE-WAY (Yash MCQ): scrolling back replays the journey
+  //     but never rebuilds the portal, and coming forward again passes
+  //     straight through into the black hole (no dead end).
   await goRaw(0.75);
-  await page.evaluate(() => new Promise((r) => setTimeout(r, 600)));
-  const wrapOff = await page.evaluate(() => !document.querySelector('.intro__portalwrap').classList.contains('on'));
-  if (!wrapOff) throw new Error('portal wrap still on back in consult world');
-  await goRaw(0.856);
-  await page.waitForFunction('window.__bhp && window.__bhp.ready === true', null, { timeout: 15000 });
-  await page.evaluate(() => { window.__bhp.press(); window.__bhp.step(175); });
-  await page.keyboard.press('Escape');
-  await page.evaluate(() => new Promise((r) => setTimeout(r, 1600)));
-  const after = await page.evaluate(() => ({
-    on: document.querySelector('.intro__portalwrap').classList.contains('on'),
-    btn: Boolean(document.querySelector('.bh-portal')),
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
+  const back = await page.evaluate(() => ({
+    beat: document.querySelector('.intro__blackhole canvas')?.style.opacity,
+    door: Boolean(document.querySelector('.bh-portal')),
+    module: Boolean(window.__bhp),
   }));
-  if (after.on || after.btn) throw new Error('Esc did not fully return: ' + JSON.stringify(after));
-  console.log('4. re-arm cycle + Esc return ✓');
+  if (parseFloat(back.beat) > 0.01) throw new Error('Gargantua still up after scroll-back: ' + JSON.stringify(back));
+  if (back.door) throw new Error('door rebuilt after entering (must be one-way)');
+  console.log('4a. scroll-back replays the journey, no door rebuilt ✓', JSON.stringify(back));
+
+  await goRaw(0.94);
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 1200)));
+  const through = await page.evaluate(() => ({
+    beat: document.querySelector('.intro__blackhole canvas')?.style.opacity,
+    door: Boolean(document.querySelector('.bh-portal')),
+  }));
+  if (!(parseFloat(through.beat) > 0.9)) throw new Error('forward pass did not reach the hole: ' + JSON.stringify(through));
+  if (through.door) throw new Error('door reappeared on the second pass');
+  console.log('4b. second pass goes straight through to the hole ✓', JSON.stringify(through));
 
   console.log(errs.length ? 'PAGE ERRORS:\n' + errs.join('\n') : '5. console silent ✓');
   if (errs.length) process.exit(1);
