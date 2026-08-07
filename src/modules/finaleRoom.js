@@ -23,7 +23,7 @@ import { mountFlightSky } from "../gl/endurance/flightSky.js";
    pace. The corner framing starts ~2.7x further out than the reference did,
    so the same 8s would cover that extra ground as a rush — 11s keeps the
    apparent speed close to the reference's while still arriving promptly. */
-const FLIGHT_SECONDS = 11;
+const FLIGHT_SECONDS = 14;   // Yash: a longer voyage from the corner
 
 const smoothstep = (a, b, x) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -185,7 +185,10 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
            advances progress at a constant rate — the closest honest stand-in
            for a steady scroll — and every bit of shaping comes from the rail,
            exactly as at :5291. */
-        const s = k;
+        /* Linear scrub, with a short ease-in only: Yash wants the first
+           second to feel like leaving from rest. Everything after that is
+           the reference's own rail shaping, untouched. */
+        const s = k * smoothstep(0, 0.10, k);
         applyFlight(tweenFrom + (tweenTo - tweenFrom) * s);
         if (k >= 1) tweening = false;
       }

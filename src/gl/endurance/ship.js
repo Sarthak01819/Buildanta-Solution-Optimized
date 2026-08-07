@@ -293,7 +293,9 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
         const k = POSE.dist / 30;
         const curve = new CatmullRomCurve3([
           orbitEye,
-          new Vector3(-4.6 * k, 1.6 * k, 20 * k),
+          // curve OUT before closing (Yash's pick), so the ship is seen from
+          // changing angles rather than growing on a straight line
+          new Vector3(-9.5 * k, 3.4 * k, 22 * k),
           new Vector3(2.4 * k, 2.6 * k, 12.5 * k),
           dock.clone().addScaledVector(axis, 4.6).addScaledVector(lat, 1.1),
           dock.clone().addScaledVector(axis, 1.25).addScaledVector(lat, 0.4),
@@ -303,8 +305,20 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
         // so arrival reads as slowing down, not as a jump cut.
         const e = Math.pow(smoothstep(0.02, 0.88, flyIn), 0.62);
         const eye = curve.getPoint(e);
-        const target = new Vector3().lerpVectors(
-          shipParent.position, dock, smoothstep(0.25, 0.75, e));
+        /* THE TELEPORT, and its cause. The reference lerped the look target
+           from the SHIP'S CENTRE to the dock, which was harmless there
+           because its resting camera already looked almost at the ship. Ours
+           rests looking far off it — that is what parks the Endurance in the
+           corner — so starting the lerp at the ship's centre re-aimed the
+           camera on the first frame of the flight and the ship snapped to
+           the middle of frame. It read as the ship teleporting in.
+
+           The aim now starts exactly where it rests and eases across, so the
+           Endurance drifts out of the corner as you close on it, and is
+           centred by the docking approach. No frame ever jumps. */
+        const target = new Vector3()
+          .lerpVectors(orbitLook, shipParent.position, smoothstep(0, 0.45, e))
+          .lerp(dock, smoothstep(0.45, 0.85, e));
         const roll = 0.35 * smoothstep(0.55, 1, e);
         camera.up.set(Math.sin(roll), Math.cos(roll), 0);
         camera.position.copy(eye);
