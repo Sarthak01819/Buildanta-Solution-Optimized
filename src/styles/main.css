@@ -4731,3 +4731,14 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
     transform: translate(-50%, -50%) translateX(-22%) scale(var(--room-zoom, 1));
   }
 }
+
+/* ── the camera, restored 7 Aug 17:27 ───────────────────────────────────
+   Yash pointed at the two-reel cine camera and said it was working earlier.
+   It was: only the MARKUP had been deleted (12:37, "remove the projector") —
+   the CSS and the --market-camera-* variables never stopped running, which is
+   why putting the markup back brought the motion back with it.
+   It sits LEFT of the gate rather than dead centre. Centred it covers the very
+   plate the act is trying to make you read, and the whole point of the reel is
+   the word on the plate. Verified by measurement: the camera's box does not
+   intersect the lit plate's box at any parked beat. */
+.market-pusher { left: 22%; width: min(31vw, 54vh); }

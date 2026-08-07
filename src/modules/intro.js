@@ -502,7 +502,11 @@ export function createIntro({ onProgress } = {}) {
          on a separate curve, so the machine looked disconnected from the reel
          it was supposedly pulling (Yash, 7 Aug). `pos` is the exact card
          position, so the projector parks when a plate parks. */
-      const cameraSpin = pos * 0.62 + cameraCapture * 2.25;
+      /* The reels turn by the film that passes them. Raised from 0.62 to 1.45
+         turns per plate so the movement actually reads at this size — the
+         wheels are the thing Yash points at, and half a turn per beat is a
+         nudge, not a machine running. */
+      const cameraSpin = pos * 1.45 + cameraCapture * 2.25;
       const cameraCrank = Math.sin(cameraSpin * Math.PI * 2) * 18;
       // Travel scales with the strip: 10 plates (was 7 originally, briefly
       // 20 during the A/B judging pass).
