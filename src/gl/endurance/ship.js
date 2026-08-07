@@ -20,7 +20,12 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
 const OMEGA = 0.14;                 // rad/s ≈ 37 px/s at the module ring
-const POSE = { tiltX: -0.80, tiltZ: 0.45, dist: 46 };
+// The standalone's pose, verbatim (its config.js: dist 30, lookOffset
+// [-1.55, 0.1, 0]). Yash: the entry ANGLE was wrong — the site had pushed the
+// ship far to the right of frame and started 46 units out, so the flight
+// began off-axis and distant. This is the framing the reference flies from.
+const POSE = { tiltX: -0.80, tiltZ: 0.45, dist: 30 };
+const LOOK = [-1.55, 0.1, 0];
 const PARALLAX = [0.55, 0.34];
 const BANK = { maxYaw: 0.16, maxPitch: 0.10, easeIn: 2.4, easeOut: 0.9 };
 const HOVER = { radiusFactor: 1.18, spinBoost: 1.6, easeIn: 3.0, easeOut: 0.8 };
@@ -254,8 +259,8 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
          waypoints, the pow(0.62) rail easing, the dock on the hub's fore port,
          the roll, the target lerp. The only site-specific part is the starting
          framing, which stays the finale's own (hole centre, ship beside it). */
-      const orbitEye = new Vector3(parallax[0] * damp - 2.6, parallax[1] * damp + 1.4, POSE.dist * fit);
-      const orbitLook = new Vector3(-10.8 / fit, 1.7, 0);
+      const orbitEye = new Vector3(parallax[0] * damp, parallax[1] * damp, POSE.dist * fit);
+      const orbitLook = new Vector3(LOOK[0] / fit, LOOK[1], LOOK[2]);
 
       if (flyIn <= 0.02) {
         camera.up.set(0, 1, 0);

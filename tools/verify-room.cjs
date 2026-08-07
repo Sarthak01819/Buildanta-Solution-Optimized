@@ -85,7 +85,7 @@ async function rideToFinale(page) {
 
   // the flight in
   await page.$eval('.finale-cta', (el) => el.click());
-  await page.waitForTimeout(6000);      // mid-approach of a 14s flight
+  await page.waitForTimeout(1500);      // early in an 8s flight
   await page.screenshot({ path: path.join(OUT, 'finale-2-approach.png') });
   /* Poll the whole flight rather than sampling at guessed instants: the
      airlock swell is a ~2s window inside a 14s flight, and a screenshot in

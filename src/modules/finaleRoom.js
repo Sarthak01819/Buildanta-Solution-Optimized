@@ -19,9 +19,9 @@
 import { createShip } from "../gl/endurance/ship.js";
 import { mountFlightSky } from "../gl/endurance/flightSky.js";
 
-const FLIGHT_SECONDS = 14;   // Yash's call: a real voyage
-const ARRIVE_AT = 0.90;      // travel at which the white-out is triggered
-const ARRIVE_MS = 1100;      // and how long the whole swap takes — Yash: quick
+/* At :5291 the visitor scrubs this; 8s is about the rate a steady scroll
+   covers it, and with progress now linear that is what sets the pace. */
+const FLIGHT_SECONDS = 8;
 
 const smoothstep = (a, b, x) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -63,7 +63,6 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
      portal is what the visitor is looking at). */
   let beatLive = false;      // has the visitor ridden through to Gargantua?
   let bgShifted = false;     // is the black-hole canvas currently offset?
-  let arriveT0 = 0;          // wall-clock start of the white-out beat
   let sky = null, skyPending = false, t = 21;   // the flight's own black hole
 
   function ensureSky() {
@@ -130,32 +129,17 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
 
     // Bloom carries the handover: a long swell, peaking on the crossfade's
     // midpoint, then a shorter clear.
-    /* THE ARRIVAL. The white-out runs on its OWN short clock, not on flight
-       progress: the flight curve decelerates hard into the dock, so anything
-       keyed to its last stretch of travel stretches over five or six seconds
-       — which is exactly why this felt slow. Here it is a fixed 1.1s beat,
-       kicked once the approach is essentially complete.
+    /* The reference's arrival, verbatim (src-three/main.js): an asymmetric
+       bloom that swells from 0.58, peaks at 0.855 and clears by 0.995, with
+       the room crossfading 0.74 -> 0.97 underneath it. Same numbers, same
+       progress space — so the transition is timed exactly as it is there. */
+    const rise = smoothstep(0.58, 0.855, flight);
+    const fall = 1 - smoothstep(0.855, 0.995, flight);
+    flash.style.opacity = (reduced ? 0 : Math.min(rise, fall) * 0.97).toFixed(3);
 
-       Order is the whole trick: the room reaches full opacity BEHIND the
-       white while it is at peak. If the white cleared first you would watch
-       the room fade up, which is a dissolve — the thing this replaces. */
-    let white = 0;
-    let roomFade = 0;
-    if (reduced) {
-      white = 0;
-      roomFade = flight > 0.86 ? 1 : 0;
-    } else {
-      if (flight >= ARRIVE_AT && arriveT0 === 0) arriveT0 = performance.now();
-      if (flight < ARRIVE_AT - 0.02) arriveT0 = 0;      // flying back out
-      if (arriveT0) {
-        const a = Math.min(1, (performance.now() - arriveT0) / ARRIVE_MS);
-        white = a < 0.42 ? a / 0.42 : 1 - (a - 0.42) / 0.58;
-        roomFade = a >= 0.38 ? 1 : 0;                   // swaps under the white
-      }
-    }
-    flash.style.opacity = white.toFixed(3);
+    const roomFade = reduced ? (flight > 0.8 ? 1 : 0) : smoothstep(0.74, 0.97, flight);
     roomSection.style.opacity = roomFade.toFixed(3);
-    roomSection.style.transform = "";
+    roomSection.style.transform = `scale(${(1.055 - 0.055 * roomFade).toFixed(4)})`;
     roomSection.style.setProperty("--room-zoom", "1");
     roomSection.style.setProperty("--ui-in", "1");
     roomSection.style.pointerEvents = roomFade > 0.85 ? "" : "none";
@@ -191,14 +175,15 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
       cta.classList.toggle("finale-cta--in", beatLive && flight <= 0.02);
       if (tweening) {
         const k = Math.min(1, (performance.now() - tweenT0) / tweenDur);
-        /* The ONE curve for the whole flight. `flight` is travel and the
-           camera consumes it linearly, so this shape is exactly what the eye
-           sees. Smootherstep was wrong here: over 14 seconds its slow start
-           left roughly five seconds where nothing visibly happened, and the
-           whole approach read as sluggish before it read as anything. This
-           departs promptly (a short ease-in only to avoid a jerk) and then
-           decelerates long into the dock. */
-        const s = (1 - Math.pow(1 - k, 1.8)) * smoothstep(0, 0.06, k);
+        /* LINEAR. This is the piece that made the site's flight differ from
+           the reference: there, the visitor SCRUBS it, so progress advances at
+           a steady rate and the rail's own pow(0.62) easing is the only shape
+           in the system. Putting a tween curve on top multiplied two curves
+           together and changed the whole motion profile. The auto-flight now
+           advances progress at a constant rate — the closest honest stand-in
+           for a steady scroll — and every bit of shaping comes from the rail,
+           exactly as at :5291. */
+        const s = k;
         applyFlight(tweenFrom + (tweenTo - tweenFrom) * s);
         if (k >= 1) tweening = false;
       }
