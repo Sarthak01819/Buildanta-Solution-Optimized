@@ -116,29 +116,25 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
 
     // Bloom carries the handover: a long swell, peaking on the crossfade's
     // midpoint, then a shorter clear.
-    /* The camera reaches the hatch at 0.86 and HOLDS there — you see inside
-       before you enter. Only then does the interior light take the frame, so
-       the bloom and the room both start after the hold begins. */
-    const rise = smoothstep(0.86, 0.945, flight);
-    const fall = 1 - smoothstep(0.945, 0.999, flight);
-    flash.style.opacity = (Math.min(rise, fall) * 0.97).toFixed(3);
+    /* THE ARRIVAL, as Yash asked for it twice: close on the airlock, white
+       fills the screen, and it clears straight into the meeting room —
+       already settled, nothing zooming. Everything that made this fiddly
+       before (a push-in through the room's walls, a procedural throat) is
+       gone; the white-out IS the transition, and its only job is to be
+       complete at the moment the two scenes swap.
 
-    /* THE ENTRY. Rather than a procedural throat in the ship scene (tried,
-       and a bare cylinder reads as another flat wall), the room's OWN plate
-       is the tunnel: it starts far oversized — you are effectively at its
-       threshold, ribbed walls filling the periphery — and settles to its
-       resting frame as you come to rest inside. The walls that "reappear"
-       are the room's real walls, so the two spaces cannot disagree.
+       Order matters: the room reaches full opacity BEHIND the white, while
+       it is at peak. If the white cleared first you would watch the room
+       fade up, which is a dissolve — the thing this replaces. */
+    const white = reduced ? (flight > 0.86 ? 1 : 0)
+      : Math.min(smoothstep(0.78, 0.90, flight), 1 - smoothstep(0.945, 1, flight));
+    flash.style.opacity = white.toFixed(3);
 
-       The copy is deliberately late: text riding a 2.3x push-in is nausea,
-       and it belongs to the room you have arrived in, not to the passage. */
-    const roomFade = reduced ? (flight > 0.5 ? 1 : 0) : smoothstep(0.86, 0.99, flight);
+    const roomFade = reduced ? (flight > 0.86 ? 1 : 0) : smoothstep(0.845, 0.915, flight);
     roomSection.style.opacity = roomFade.toFixed(3);
     roomSection.style.transform = "";
-    roomSection.style.setProperty("--room-zoom",
-      (1 + 1.3 * Math.pow(1 - roomFade, 1.7)).toFixed(4));
-    roomSection.style.setProperty("--ui-in",
-      (reduced ? 1 : smoothstep(0.945, 1, flight)).toFixed(3));
+    roomSection.style.setProperty("--room-zoom", "1");
+    roomSection.style.setProperty("--ui-in", "1");
     roomSection.style.pointerEvents = roomFade > 0.85 ? "" : "none";
     roomSection.setAttribute("aria-hidden", roomFade > 0.5 ? "false" : "true");
     roomSection.classList.toggle("room--live", roomFade > 0.002);

@@ -112,11 +112,14 @@ async function rideToFinale(page) {
   });
   ok('backdrop-moves', bg > 40, `black hole drifted ${bg.toFixed(0)}px with the camera`);
 
-  const early = samples.slice(0, 8);
+  // The white-out now begins at travel 0.78 (earlier than the old bloom), so
+  // the "approach is clean" window has to end before it — the first four
+  // polls sit around travel 0.5-0.65, comfortably ahead of it.
+  const early = samples.slice(0, 4);
   const peak = samples.reduce((a, b) => (b.flash > a.flash ? b : a));
   ok('flight-bloom',
     early.every((s2) => s2.flash < 0.02 && !s2.inside) && peak.flash > 0.25,
-    `approach stays clean, then the airlock swells to ${peak.flash.toFixed(2)}`);
+    `approach stays clean, then whites out to ${peak.flash.toFixed(2)} at the airlock`);
 
   await page.screenshot({ path: path.join(OUT, 'finale-3-room.png') });
   const room = await page.evaluate(() => {
