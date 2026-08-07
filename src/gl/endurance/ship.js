@@ -254,38 +254,38 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
         camera.position.copy(orbitEye);
         camera.lookAt(orbitLook);
       } else {
-        /* The dock is ON the spin axis (the hub's fore port) so the ring's
-           rotation rolls it in place instead of sweeping it out of frame.
-           The path ARCS around to meet it from the black hole's side: a
-           straight line from the orbit framing drills through a module and
-           the camera ends up inside dark hull — that was the roughness Yash
-           saw. Waypoints are built in the ship's own frame so they follow
-           its tilt. */
-        const dock = spinGroup.localToWorld(new Vector3(0, AIRLOCK_Y, 0));
+        /* Head-on down the ring's axis, and THROUGH it — this is the shape
+           the standalone module flies (localhost:5291), and the reason that
+           one reads as travel: the ring fills the frame, modules sweep past on
+           both sides, and you pass between them. Arcing around the outside to
+           a side port reads as orbiting, which is what Yash kept seeing.
+           The axis is the spin axis, so the approach is perpendicular to the
+           ring plane and passes through its centre. */
         const axis = new Vector3(0, 1, 0).applyQuaternion(shipParent.quaternion).normalize();
-        const lat = new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion).normalize();
-        const up = new Vector3(0, 0, 1).applyQuaternion(shipParent.quaternion).normalize();
+        const centre = new Vector3();
+        shipParent.getWorldPosition(centre);
+        // come in from whichever side the camera already sits on
+        const side = axis.dot(orbitEye.clone().sub(centre)) >= 0 ? 1 : -1;
+        const app = axis.clone().multiplyScalar(side);
+        const dock = centre.clone().addScaledVector(app, 0.45);
 
         const path = new CatmullRomCurve3([
           orbitEye,
-          // swing wide and rise, keeping the whole ship in shot
-          dock.clone().addScaledVector(axis, 15).addScaledVector(lat, 12).addScaledVector(up, 3),
-          // come round to the lit side, ship filling the frame
-          dock.clone().addScaledVector(axis, 8).addScaledVector(lat, 3.5).addScaledVector(up, 1.2),
-          // line up on the hatch
-          dock.clone().addScaledVector(axis, 3.2),
-          // the hold position, a beat in front of the open airlock
-          dock.clone().addScaledVector(axis, HOLD_GAP),
+          // swing onto the axis while still far out, ship growing ahead
+          centre.clone().addScaledVector(app, 26).addScaledVector(
+            new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion), 6),
+          // lined up, ring filling the frame
+          centre.clone().addScaledVector(app, 12),
+          // through the ring plane, modules sweeping past both sides
+          centre.clone().addScaledVector(app, 4.2),
+          dock,
         ]);
         path.curveType = "catmullrom";
         path.tension = 0.4;
 
-        // travel is already shaped by the caller — consume it linearly, and
-        // spend the last stretch holding rather than moving
-        if (!motesPlaced) { placeMotes(orbitEye, dock); motesPlaced = true; }
         const e = Math.min(1, flyIn / HOLD_AT);
         const eye = path.getPoint(e);
-        const target = new Vector3().lerpVectors(orbitLook, dock, smoothstep(0.10, 0.62, e));
+        const target = new Vector3().lerpVectors(orbitLook, centre, smoothstep(0.06, 0.5, e));
         const roll = 0.30 * smoothstep(0.55, 1, e);
         camera.up.set(Math.sin(roll), Math.cos(roll), 0);
         camera.position.copy(eye);
