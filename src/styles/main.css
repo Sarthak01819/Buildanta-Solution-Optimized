@@ -5033,7 +5033,14 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
     radial-gradient(15% 11% at 27% 17%, rgba(255,255,255,.38), transparent 72%),
     radial-gradient(circle at 64% 71%, rgba(124,92,255,.20), transparent 48%),
     radial-gradient(circle at 36% 67%, rgba(64,196,255,.11), transparent 42%),
-    radial-gradient(circle, #010104 0 17%, rgba(1,1,4,.66) 27%, transparent 48%),
+    /* THE PUPIL IS A FIXED SIZE IN PIXELS, not a fraction of the lens.
+       As a percentage it grew with the element — at 2553px across it was a
+       static dark disc 613px wide, swallowing the entire visible area, so the
+       blades were only on screen out in the corners and the whole thing read
+       as stopped. Measured, that alone took the motion down to 2.1%. In pixels
+       it stays a small dark centre however big the lens gets, and the blades
+       fill the frame and visibly turn. */
+    radial-gradient(circle, #010104 0 64px, rgba(1,1,4,.62) 104px, transparent 188px),
     conic-gradient(from var(--market-camera-shutter-angle, 0deg),
       rgba(255,255,255,.11) 0deg, rgba(255,255,255,.02) 96deg,
       rgba(0,0,0,.20) 186deg, rgba(255,255,255,.02) 286deg,
@@ -5041,9 +5048,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
     repeating-conic-gradient(from var(--market-camera-shutter-angle, 0deg),
       #5c5c80 0 7deg, #1b1b2b 7deg 30deg, #14141f 30deg 60deg),
     radial-gradient(circle, #05050c 0 60%, #010103 100%);
-  box-shadow:
-    inset 0 0 0 2px rgba(188,200,236,.20),
-    inset 0 0 calc(var(--lens-r, 0) * 0.10px) calc(var(--lens-r, 0) * 0.02px) rgba(0,0,0,.9);
+  box-shadow: inset 0 0 0 2px rgba(188,200,236,.20);
 }
 
 /* The camera's OWN lens hides while the sharp one is showing, or you get the
@@ -5053,9 +5058,26 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 /* The aperture opening. A mask, not another gradient layer: the centre has to
    become genuinely transparent so you pass THROUGH it to the dark beyond,
    rather than having a dark circle painted on top of the blades. */
-.market-lens-takeover {
-  -webkit-mask-image: radial-gradient(circle,
-    transparent 0 var(--iris-open, 0%), #000 calc(var(--iris-open, 0%) + 3%));
-  mask-image: radial-gradient(circle,
-    transparent 0 var(--iris-open, 0%), #000 calc(var(--iris-open, 0%) + 3%));
+/* The aperture is a rotating POLYGON now, built in JS as a clip-path with an
+   even-odd hole (see intro.js). A circular mask could never show rotation —
+   a circle looks identical at every angle. */
+
+
+/* The iris aperture. A positive black polygon over the lens rather than a hole
+   punched through it: `polygon(evenodd, ...)` rendered inverted here, and a
+   shape that can be inverted by a fill-rule is a shape waiting to betray you.
+   Black over the lens looks the same as a hole, because black is exactly what
+   is behind the lens at this point. */
+.market-iris {
+  position: absolute;
+  z-index: 9;                       /* over the lens (8), under nothing else */
+  left: 50%;
+  top: 50%;
+  width: calc(var(--lens-r, 0) * 2px);
+  height: calc(var(--lens-r, 0) * 2px);
+  margin-left: calc(var(--lens-r, 0) * -1px);
+  margin-top: calc(var(--lens-r, 0) * -1px);
+  background: #000;
+  opacity: var(--iris-on, 0);
+  pointer-events: none;
 }

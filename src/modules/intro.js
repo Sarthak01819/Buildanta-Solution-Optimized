@@ -161,6 +161,8 @@ export function createIntro({ onProgress } = {}) {
       .catch((e) => { projectorPending = false; console.error("[intro] projector unavailable:", e); });
   }
 
+  const lensTakeEl = root.querySelector(".market-lens-takeover");
+  const irisEl = root.querySelector(".market-iris");
   const consultZero = root.querySelector(".consult-zero");
   const consultHandCanvas = root.querySelector(".consult-zero__hand-canvas");
   const consultHand = !reduced && consultHandCanvas
@@ -646,8 +648,13 @@ export function createIntro({ onProgress } = {}) {
          motion on top, which is how he asked for it.
          Timed with the blackout so the opening aperture reveals the dark
          rather than the inside of a scaled photograph. */
-      const irisOpen = smoothstep((p - 0.732) / 0.018);
-      root.style.setProperty("--iris-open", `${(irisOpen * 82).toFixed(2)}%`);
+      /* Opened LATER and slower (Yash, 21:05), so the blades stay on screen
+         and turning for most of the descent instead of being pushed past the
+         edges while the fall is still running. The aperture itself is built
+         further down, where the blade angle is available. */
+      /* The aperture opens at the very END now. The blades are what should be
+         moving for the descent (his point); the aperture is how it finishes. */
+      const irisOpen = smoothstep((p - 0.742) / 0.008);
       /* It sits BEHIND the strip while the reel plays, so it can never cover a
          service word — but a machine travelling toward you has to pass the
          film, not stay pinned behind it. It comes forward on the APPROACH. */
@@ -839,6 +846,42 @@ export function createIntro({ onProgress } = {}) {
          handover, so the lock never breaks */
       marketExperience.style.setProperty("--market-camera-shutter-angle",
         `${((pos * SHUTTER_TURNS_PER_PLATE + handover * HANDOVER_TURNS) * 360).toFixed(1)}deg`);
+
+      /* ── A REAL APERTURE IS A POLYGON, NOT A CIRCLE (Yash, 21:05) ─────
+         He is still seeing the lens stop, and he is right to. Rotation
+         displaces a pixel by radius x angle, so at the centre — which is all
+         that is left on screen once the lens fills it — the blades converge
+         and barely move. A round opening makes it worse: a circle looks
+         identical at every rotation, so there is nothing on it that CAN show
+         it turning.
+         A real iris opening is a polygon whose corners sit far from the
+         centre, so they sweep a long way per frame. The rotation becomes
+         unmissable exactly where a circle would look dead — and it is what the
+         thing actually IS, so nothing has to speed up and the 1:1 lock with
+         the spools stays untouched. Both his calls.
+         Built here rather than beside irisOpen because it needs the blade
+         angle, which is not computed until this point. */
+      if (irisEl) {
+        const o = irisOpen * 0.80;              // of the element's half-size
+        if (o > 0.002) {
+          const rot = (pos * SHUTTER_TURNS_PER_PLATE + handover * HANDOVER_TURNS) * Math.PI * 2;
+          let pts = "";
+          for (let i = 0; i < 6; i++) {         // six blades, six corners
+            const a = rot + (i / 6) * Math.PI * 2;
+            pts += `, ${(50 + 50 * o * Math.cos(a)).toFixed(2)}% ${(50 + 50 * o * Math.sin(a)).toFixed(2)}%`;
+          }
+          /* evenodd: the square is the shape and the polygon is a HOLE punched
+             through it, so you look through the aperture rather than at a dark
+             disc painted over the blades */
+          irisEl.style.clipPath = `polygon(${pts.slice(2)})`;
+        }
+        /* Its own visibility, NOT the lens's. With no clip-path it is a plain
+           black square the size of the lens — 3454px of it — so leaving it
+           visible while the aperture was shut painted the whole screen black.
+           Caught by looking: the measurement said 0.0% changed, which is what
+           a solid black frame looks like to a diff. */
+        root.style.setProperty("--iris-on", (o > 0.002 ? lensTakeOn : 0).toFixed(3));
+      }
       marketExperience.style.setProperty("--market-transition-t", transitionT.toFixed(3));
       marketExperience.style.setProperty("--market-transition-opacity", Math.max(0, transitionOpacity).toFixed(3));
       marketExperience.style.setProperty("--market-transition-y", `${(94 - transitionT * 46).toFixed(2)}vh`);
