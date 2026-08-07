@@ -612,13 +612,17 @@ export function createIntro({ onProgress } = {}) {
          fixed ratio. The strip, the spools and the shutter cannot drift apart,
          because there is nothing left for them to drift against.
 
-         The 2:1 is chosen, not physical. A real shutter turns once per FRAME,
-         so it runs hundreds of times faster than a spool — at this scroll rate
-         that lands well past Nyquist against a 60fps display and the blades
-         alias into standing still or turning backwards. 2:1 is the fastest
-         ratio that still reads as rotation (measured below). */
+         The ratio is 1:1 — the shutter turns exactly as fast as the spools.
+         Not physical: a real shutter turns once per FRAME, hundreds of times
+         faster. But at 2:1 against a pattern that repeated every 90deg, the
+         lens advanced 428-542deg between samples and 542 mod 90 is 2deg — it
+         landed in a near-identical position and read as STOPPED, then jumped.
+         The angle was locked the whole time; the ambiguity was in what you
+         could see. Rotation you cannot read is not rotation. 1:1 is also the
+         easiest lock for a human to verify: the lens and the wheels turn
+         together, once each. */
       const SPOOL_TURNS_PER_PLATE = 1.45;
-      const SHUTTER_TURNS_PER_PLATE = SPOOL_TURNS_PER_PLATE * 2;
+      const SHUTTER_TURNS_PER_PLATE = SPOOL_TURNS_PER_PLATE;
       const cameraSpin = pos * SPOOL_TURNS_PER_PLATE + cameraCapture * 2.25;
       const cameraCrank = Math.sin(cameraSpin * Math.PI * 2) * 18;
       // Travel scales with the strip: 10 plates (was 7 originally, briefly
@@ -757,7 +761,7 @@ export function createIntro({ onProgress } = {}) {
       /* same driver as the spools and the strip, same ratio through the
          handover, so the lock never breaks */
       marketExperience.style.setProperty("--market-camera-shutter-angle",
-        `${(pos * SHUTTER_TURNS_PER_PLATE * 360 + cameraCapture * 2.25 * 2 * 360).toFixed(1)}deg`);
+        `${(pos * SHUTTER_TURNS_PER_PLATE * 360 + cameraCapture * 2.25 * 360).toFixed(1)}deg`);
       marketExperience.style.setProperty("--market-transition-t", transitionT.toFixed(3));
       marketExperience.style.setProperty("--market-transition-opacity", Math.max(0, transitionOpacity).toFixed(3));
       marketExperience.style.setProperty("--market-transition-y", `${(94 - transitionT * 46).toFixed(2)}vh`);

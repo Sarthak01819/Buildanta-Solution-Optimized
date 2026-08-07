@@ -4858,11 +4858,25 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 }
 
 
-/* Four blades, not six (Yash 19:18). The shutter now turns twice as fast as
-   the spools, and a 59deg repeat at that speed crosses Nyquist against 60fps —
-   the blades alias into standing still or turning backwards, which is the
-   opposite of synced. A 90deg repeat at the same speed stays well under it. */
+/* ONE blade, not four (Yash 19:26 — "the lens is not yet synced").
+   A repeating pattern is ambiguous under rotation: with a 90deg repeat, any
+   advance that happens to be a multiple of 90 looks like no advance at all.
+   Measured, the lens was moving 428-542deg between samples and 542 mod 90 is
+   2deg — so it read as stopped and then jumped, while the angle underneath was
+   perfectly locked. The fix is not a faster or slower spin, it is a shape with
+   NO rotational symmetry: a single open sector, so every angle looks different
+   from every other and the rotation can never be misread. */
 .market-camera__lens {
-  background: repeating-conic-gradient(from var(--market-camera-shutter-angle, 0deg),
-    #020205 0 34deg, #15151b 35deg 60deg, #050506 61deg 90deg);
+  /* Bladed enough to read as a mechanism, but with NO rotational symmetry —
+     the sectors are deliberately unevenly spaced, so no rotation can ever land
+     on a position that looks like another one. */
+  background:
+    conic-gradient(from var(--market-camera-shutter-angle, 0deg),
+      #2b2b42 0 104deg,
+      #05050c 104deg 116deg,
+      #191927 116deg 208deg,
+      #05050c 208deg 218deg,
+      #101019 218deg 352deg,
+      #05050c 352deg 360deg),
+    radial-gradient(circle, #08080f 0 30%, transparent 31%);
 }
