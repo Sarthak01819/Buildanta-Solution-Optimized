@@ -318,9 +318,14 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
         const k = POSE.dist / 30;
         const curve = new CatmullRomCurve3([
           orbitEye,
-          // curve OUT before closing, so the ship is seen from changing
-          // angles rather than growing on a straight line
-          new Vector3(-9.5 * k, 3.4 * k, 22 * k),
+          /* Curve OUT before closing, so the ship is seen from changing
+             angles rather than growing on a straight line. Expressed off the
+             port's own axis rather than in world space, so it follows the
+             ship's orientation: with a world-space point, changing the
+             resting pose could swing this waypoint inside the hull. */
+          dock.clone().addScaledVector(axis, 22 * k)
+            .addScaledVector(lat, -9.5 * k)
+            .add(new Vector3(0, 3.4 * k, 0)),
           dock.clone().addScaledVector(axis, 15),
           dock.clone().addScaledVector(axis, 6),
           dock.clone().addScaledVector(axis, 1.25),
