@@ -4753,3 +4753,59 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
   -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent 78%);
   mask-image: linear-gradient(180deg, #000 60%, transparent 78%);
 }
+
+
+/* ── the boxy look, and the grey machine (Yash, 17:46) ──────────────────
+   THE PANEL: the "square thing" behind the camera was .market-room__pool —
+   the room's light pool. Measured at Yash's own viewport, it lifted the
+   background from 3.85 to 5.08 in a soft rectangle; on a near-black room a
+   30% lift reads as a lit panel with edges, even though it is a gradient.
+   Hiding it dropped the contrast to 0.24, which is how it was identified.
+   It was there to suggest a lamp throwing light on the floor — but the
+   machine is a CAMERA now, and a camera does not light the room. */
+.market-room__pool {
+  background:
+    radial-gradient(64% 50% at 50% 56%, rgba(96, 76, 150, .085), transparent 76%);
+  opacity: .5;
+}
+
+/* THE GREY MACHINE: a neutral steel photograph on an indigo-violet set never
+   belonged to the same room as the plates. Graded into the act's own palette.
+   sepia() first because hue-rotate does nothing to a grey pixel — it needs a
+   hue to rotate. Static, never animated, so it rasterises once (vault M2). */
+.market-pusher img {
+  filter: sepia(.72) hue-rotate(214deg) saturate(1.5) brightness(.82) contrast(1.06);
+}
+/* the blue glow around it was part of the colour mismatch — shadow only now */
+.market-pusher { filter: drop-shadow(-14px 12px 26px rgba(0,0,0,.62)); }
+
+
+/* ── the black between the acts, and the sphere that ends it ────────────
+   The old handover used a bright white "exposure frame" that started at
+   p=0.674 — while the reel still had three beats to run. Measured: the frame's
+   green lead went -1.7 to +5.4 between p=0.66 and p=0.68, so IoT and CRM were
+   read through a wash. Replaced by a true cut to black. */
+.market-blackout {
+  position: absolute;
+  inset: 0;
+  z-index: 6;                 /* over the market act (5), under the world (7) */
+  background: #000;
+  opacity: var(--blackout, 0);
+  pointer-events: none;
+}
+/* The rim of the growing sphere. The consult world's own clip-circle does the
+   reveal; this is the green edge that makes it read as a SPHERE arriving in
+   the dark rather than a hole being cut in a curtain. Brightest when small. */
+.market-blackout::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: calc(var(--hole, 0) * 156vmax);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 7vmax 1.2vmax rgba(0, 255, 154, .38),
+    inset 0 0 5vmax rgba(0, 255, 154, .22);
+  opacity: calc((1 - var(--hole, 0)) * var(--blackout, 0));
+}

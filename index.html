@@ -116,12 +116,17 @@
         <span class="market-camera__reel market-camera__reel--b"></span>
         <span class="market-camera__drive market-camera__drive--a"></span>
         <span class="market-camera__drive market-camera__drive--b"></span>
-        <span class="market-camera__crank"></span>
         <span class="market-camera__lens"></span>
         <span class="market-camera__portal"></span>
         <img src="/market-cinema-camera-front.png" alt="" />
       </div>
     </div>
+    <!-- ACT 03 → ACT 04 (Yash, 17:46): you go through the lens, the screen
+         goes properly BLACK, and then a small green sphere appears and grows
+         until it is the world. This layer is the black. It sits at z-index 6,
+         between the market act (5) and the consult world (7), so the consult's
+         own growing clip-circle IS the sphere, opening over the darkness. -->
+    <div class="market-blackout" aria-hidden="true"></div>
     <div class="consult-zero" aria-hidden="true">
       <div class="consult-zero__world">
         <div class="consult-zero__grid"></div>

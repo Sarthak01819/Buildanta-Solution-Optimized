@@ -468,7 +468,13 @@ export function createIntro({ onProgress } = {}) {
          scene sirf tunnel full-frame hone ke baad dissolve hota hai. */
       /* Camera stays intact outside the expanding Earth portal. Once the
          portal covers the frame, the old market plate can disappear. */
-      const marketOut = 1 - smoothstep((p - 0.696) / 0.036);
+      /* ── THE HANDOVER (Yash, 17:46) ────────────────────────────────
+         Through the lens → a real beat of black → a green sphere that grows
+         into the world. The act's exit and the lens takeover are the SAME
+         curve now, so the machine swallowing the frame is what ends ACT 03,
+         and it all happens under the black rather than over the reel. */
+      const lensTake = smoothstep((p - 0.688) / 0.018);   // .688 → .706
+      const marketOut = 1 - lensTake;
       const marketOpacity = marketIn * marketOut;
       const local = Math.max(0, Math.min(1, (p - 0.48) / 0.24));
       const zoomT = smoothstep((local - 0.08) / 0.38);
@@ -528,6 +534,13 @@ export function createIntro({ onProgress } = {}) {
         (roomIn * roomOut * (0.5 + 0.5 * lampStrike)).toFixed(3));
       marketExperience.style.setProperty("--market-lamp",
         (lampStrike * filmIn * filmOut).toFixed(3));
+
+      /* black is fully up by .706 and HOLDS to .722 — a real beat of nothing,
+         which is what makes the sphere land. The sphere is the consult world's
+         own clip-circle opening (see --zero-reveal below). */
+      const sphere = smoothstep((p - 0.722) / 0.064);      // .722 → .786
+      root.style.setProperty("--blackout", lensTake.toFixed(3));
+      root.style.setProperty("--hole", sphere.toFixed(3));
 
       root.classList.toggle("market-live", marketOpacity > 0.002);
       marketExperience.style.setProperty("--market-opacity", marketOpacity.toFixed(3));
@@ -634,14 +647,18 @@ export function createIntro({ onProgress } = {}) {
          Blue title/frame hidden hi rehta hai. */
       /* A bright exposure frame arrives first. Camera disappears under its
          peak, then the green Earth / WE CONSULT world resolves slowly. */
-      const lightIn = smoothstep((p - 0.674) / 0.026);
-      const lightOut = 1 - smoothstep((p - 0.706) / 0.052);
-      const consultReveal = smoothstep((p - 0.704) / 0.076);
-      const lightPulse = lightIn * lightOut;
-      const lightBridge = lightIn * (1 - consultReveal);
-      const lightFrame = Math.max(lightPulse, lightBridge);
+      /* The bright exposure frame is gone. It fired at p=0.674, three beats
+         before the reel had finished, and washed the last two service plates
+         in white-green — the single thing Yash pointed at. The handover is a
+         cut to black now, so there is nothing to bleed over the reel. */
+      const lightFrame = 0;
+      /* the sphere: the world's own clip-circle, opening AFTER the black beat */
+      const consultReveal = smoothstep((p - 0.722) / 0.064);
       const consultOut = 1 - smoothstep((p - 0.992) / 0.008);
-      const consultOpacity = smoothstep(consultReveal / 0.75) * consultOut;
+      /* fully painted behind the black before the circle opens, so the circle
+         is the ONLY reveal — a world that also fades in reads as a dissolve,
+         not as something you entered */
+      const consultOpacity = smoothstep((p - 0.700) / 0.014) * consultOut;
       const consultLocal = Math.max(0, Math.min(1, (p - 0.704) / 0.288));
       // The same palm globe begins around the camera and zooms out into place.
       // Bring its mint world in immediately—there is no separate space scene.
