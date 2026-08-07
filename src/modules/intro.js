@@ -7,6 +7,7 @@ import { createCorridor } from "../gl/Corridor.js";
 import { createConsultHand } from "../gl/ConsultHand.js";
 import { mountBlackholeBeat } from "../gl/blackhole/index.js";
 import { buildObjects, projectObjects } from "./introObjects.js";
+import { SERVICES } from "./services.js";
 
 /**
  * SCROLL-DRIVEN INTRO
@@ -51,6 +52,18 @@ export function createIntro({ onProgress } = {}) {
   const bar = root.querySelector(".intro__bar");
   const marketExperience = root.querySelector(".market-experience");
   const filmStrip = root.querySelector(".market-film");
+  if (filmStrip) {
+    /* One plate per service, rendered from services.js — the word a customer
+       already uses is the hero; the promise and scope sit under it. */
+    filmStrip.innerHTML = SERVICES.map((sv) => `
+      <a class="market-frame market-frame--plate" href="#" data-service="${sv.id}"
+         aria-label="${sv.word} — ${sv.line.replace(/<br>/g, " ")}"
+         style="background-image:url(/assets/reel/${sv.art})">
+        <span class="plate__word">${sv.word}</span>
+        <strong class="plate__line">${sv.line}</strong>
+        <span class="plate__tag">${sv.tag}</span>
+      </a>`).join("");
+  }
   const filmCards = filmStrip ? [...filmStrip.querySelectorAll(".market-frame")] : [];
   /* The detent parks a plate in the gate only if the strip advances by exactly
      one card pitch per beat — so measure the pitch, never assume it. (Guessing
@@ -983,13 +996,27 @@ export function createIntro({ onProgress } = {}) {
      structure is final so filling it in later is a content job, not a build. */
   const sheet = root.querySelector(".service-sheet");
   let sheetOpen = false, sheetLast = null;
+  const WA_NUMBER = "";   // ⚠️ Yash's WhatsApp number still needed — falls back to email
   function openSheet(card) {
     if (!sheet || sheetOpen) return;
+    const sv = SERVICES.find((x) => x.id === card.dataset.service);
+    if (!sv) return;
     sheetOpen = true;
     sheetLast = card;
-    sheet.querySelector("[data-sheet-eyebrow]").textContent = card.querySelector("small").textContent;
-    sheet.querySelector("[data-sheet-title]").innerHTML = card.querySelector("strong").innerHTML;
-    sheet.querySelector("[data-sheet-proof]").textContent = card.querySelector("span").textContent;
+    sheet.querySelector("[data-sheet-eyebrow]").textContent = sv.word;
+    sheet.querySelector("[data-sheet-title]").innerHTML = sv.line;
+    sheet.querySelector("[data-sheet-proof]").textContent = sv.tag;
+    sheet.querySelector("[data-sheet-what]").textContent = sv.what;
+    sheet.querySelector("[data-sheet-gets]").innerHTML = sv.gets.map((g) => `<li>${g}</li>`).join("");
+    sheet.querySelector("[data-sheet-who]").textContent = `For: ${sv.who}`;
+    const msg = encodeURIComponent(`Hi Buildanta — I'd like to talk about ${sv.word}.`);
+    const wa = sheet.querySelector("[data-sheet-wa]");
+    const mail = sheet.querySelector("[data-sheet-mail]");
+    if (mail) mail.href = `mailto:hello@buildanta.com?subject=${encodeURIComponent(sv.word + " — Buildanta")}`;
+    if (wa) {
+      if (WA_NUMBER) { wa.href = `https://wa.me/${WA_NUMBER}?text=${msg}`; wa.hidden = false; }
+      else wa.hidden = true;          // no number yet: email carries it
+    }
     sheet.querySelector("[data-sheet-art]").style.backgroundImage = card.style.backgroundImage;
     sheet.classList.add("on");
     sheet.setAttribute("aria-hidden", "false");
