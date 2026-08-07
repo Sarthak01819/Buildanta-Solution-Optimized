@@ -159,11 +159,14 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
       cta.classList.toggle("finale-cta--in", beatLive && flight <= 0.02);
       if (tweening) {
         const k = Math.min(1, (performance.now() - tweenT0) / tweenDur);
-        /* The ONE curve for the whole flight. `flight` is travel, and the
+        /* The ONE curve for the whole flight. `flight` is travel and the
            camera consumes it linearly, so this shape is exactly what the eye
-           sees: a soft departure, a cruise, and a long deceleration into the
-           dock. Adding any easing downstream re-introduces the lurch. */
-        const s = k * k * k * (k * (k * 6 - 15) + 10);      // smootherstep
+           sees. Smootherstep was wrong here: over 14 seconds its slow start
+           left roughly five seconds where nothing visibly happened, and the
+           whole approach read as sluggish before it read as anything. This
+           departs promptly (a short ease-in only to avoid a jerk) and then
+           decelerates long into the dock. */
+        const s = (1 - Math.pow(1 - k, 1.8)) * smoothstep(0, 0.06, k);
         applyFlight(tweenFrom + (tweenTo - tweenFrom) * s);
         if (k >= 1) tweening = false;
       }

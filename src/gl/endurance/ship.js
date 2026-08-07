@@ -271,11 +271,14 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
 
         const path = new CatmullRomCurve3([
           orbitEye,
-          // swing onto the axis while still far out, ship growing ahead
-          centre.clone().addScaledVector(app, 26).addScaledVector(
-            new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion), 6),
+          // swing onto the axis EARLY and close: in the reference the ship is
+          // the subject within the first couple of seconds, centred and
+          // filling frame. Hanging back leaves the black hole as the subject
+          // and the ship as a detail creeping in from the side.
+          centre.clone().addScaledVector(app, 17).addScaledVector(
+            new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion), 3.5),
           // lined up, ring filling the frame
-          centre.clone().addScaledVector(app, 12),
+          centre.clone().addScaledVector(app, 9),
           // through the ring plane, modules sweeping past both sides
           centre.clone().addScaledVector(app, 4.2),
           dock,
@@ -285,7 +288,12 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
 
         const e = Math.min(1, flyIn / HOLD_AT);
         const eye = path.getPoint(e);
-        const target = new Vector3().lerpVectors(orbitLook, centre, smoothstep(0.06, 0.5, e));
+        /* Put the ship at frame centre almost immediately. The look target
+           starts on the black hole (the finale's own composition) and must
+           hand over fast, or the whole approach is spent watching the hole
+           while the ship creeps in from the edge — which is exactly how the
+           site version differed from the reference. */
+        const target = new Vector3().lerpVectors(orbitLook, centre, smoothstep(0.01, 0.16, e));
         const roll = 0.30 * smoothstep(0.55, 1, e);
         camera.up.set(Math.sin(roll), Math.cos(roll), 0);
         camera.position.copy(eye);
