@@ -11,10 +11,10 @@
  * caller's word — 4.1MB must never be part of first paint.
  */
 import {
-  ACESFilmicToneMapping, AmbientLight, CatmullRomCurve3, Color,
-  DirectionalLight, Group,
-  PerspectiveCamera,
-  PointLight, Scene, Vector3, WebGLRenderer,
+  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BufferAttribute,
+  BufferGeometry, CatmullRomCurve3, Color, DirectionalLight, Group,
+  PerspectiveCamera, Points, PointsMaterial, PointLight, Scene, Vector3,
+  WebGLRenderer,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -89,6 +89,46 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
   innerGlow.position.set(0, 0, -0.25);
   airlock.add(innerGlow);
   const leaves = [];
+
+  /* Motion parallax — what makes YOU the one travelling.
+     With nothing in frame but a distant hole and the ship, a growing
+     silhouette reads as the ship coming at you: there is no near reference to
+     move past. These motes sit STILL in world space along the flight
+     corridor, so the camera sweeps through them and they stream out past the
+     frame edges. Static points, moving camera — the parallax is real. */
+  const MOTES = 900;
+  const motePos = new Float32Array(MOTES * 3);
+  const motes = new Points(
+    new BufferGeometry().setAttribute("position", new BufferAttribute(motePos, 3)),
+    new PointsMaterial({
+      color: new Color(0.82, 0.86, 1.0), size: 0.08, sizeAttenuation: true,
+      transparent: true, opacity: 0, depthWrite: false, blending: AdditiveBlending,
+    }));
+  motes.frustumCulled = false;
+  scene.add(motes);
+  let motesPlaced = false;
+
+  /** Scatter the motes through a tube joining the orbit framing to the dock. */
+  function placeMotes(from, to) {
+    const along = to.clone().sub(from);
+    const len = along.length() || 1;
+    const dir = along.clone().divideScalar(len);
+    const side = new Vector3(0, 1, 0).cross(dir).normalize();
+    if (side.lengthSq() < 1e-6) side.set(1, 0, 0);
+    const up = dir.clone().cross(side).normalize();
+    for (let i = 0; i < MOTES; i++) {
+      // biased toward the corridor's centre so the streaming reads as depth
+      const t = Math.random();
+      const r = (2.5 + 9 * Math.random() ** 1.6);
+      const a = Math.random() * Math.PI * 2;
+      const p = from.clone()
+        .addScaledVector(dir, t * len * 1.06 - len * 0.03)
+        .addScaledVector(side, Math.cos(a) * r)
+        .addScaledVector(up, Math.sin(a) * r);
+      motePos[i * 3] = p.x; motePos[i * 3 + 1] = p.y; motePos[i * 3 + 2] = p.z;
+    }
+    motes.geometry.attributes.position.needsUpdate = true;
+  }
 
   let ready = false;
   let emissives = [];
@@ -166,6 +206,14 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
         spin += OMEGA * (1 + hoverEased * (HOVER.spinBoost - 1)) * spinHold * dt;
       }
 
+      /* Motes fill the corridor between the orbit framing and the dock the
+         first time a flight begins, then fade in only while travelling —
+         they are a cue for motion, so they have no business being visible
+         while the ship simply hangs there. */
+
+      motes.material.opacity = 0.9 * smoothstep(0.02, 0.16, flyIn) *
+                                     (1 - smoothstep(0.86, 0.97, flyIn));
+
       // Airlock: leaves retract, then the interior light escapes
       // The port "opens": interior light grows on final approach and washes
       // the hull around the dock just before the hold.
@@ -227,6 +275,7 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
 
         // travel is already shaped by the caller — consume it linearly, and
         // spend the last stretch holding rather than moving
+        if (!motesPlaced) { placeMotes(orbitEye, dock); motesPlaced = true; }
         const e = Math.min(1, flyIn / HOLD_AT);
         const eye = path.getPoint(e);
         const target = new Vector3().lerpVectors(orbitLook, dock, smoothstep(0.10, 0.62, e));
