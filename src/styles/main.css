@@ -5045,3 +5045,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
     inset 0 0 0 2px rgba(188,200,236,.20),
     inset 0 0 calc(var(--lens-r, 0) * 0.10px) calc(var(--lens-r, 0) * 0.02px) rgba(0,0,0,.9);
 }
+
+/* The camera's OWN lens hides while the sharp one is showing, or you get the
+   blurry upscaled copy sitting behind the crisp one. */
+.market-camera__lens { opacity: calc(1 - var(--lens-take, 0)); }

@@ -598,12 +598,15 @@ export function createIntro({ onProgress } = {}) {
          camera — and only the ENTER beat pushes past that into the glass. One
          blended curve cannot express a stop, which is why it read as a single
          lunge. */
-      /* The camera travels to 4.2x and STOPS there. It used to carry on to
-         13x, which blew the 785px image up to 2900px on screen — that is the
-         quality Yash saw falling apart (20:24). Past this point the lens
-         takeover does the work at native resolution. */
-      marketExperience.style.setProperty("--market-camera-scale",
-        (1 + approach * 3.2).toFixed(3));
+      /* THE MACHINE KEEPS TRAVELLING (Yash, 20:39). Capping it at 4.2x fixed
+         the sharpness but froze the thing you are supposed to be moving into —
+         so the lens grew on its own and read as coming AT you. It carries on
+         to 13x; the sharp lens tracks its lens plate exactly, so the whole
+         scene scales together and you fly IN. The body going soft as it passes
+         is accepted (his call): by then it is a blur at the corners for a
+         fraction of a second, which is what happens in a real camera too. */
+      const camScale = 1 + approach * 3.2 + enter * 8.8;
+      marketExperience.style.setProperty("--market-camera-scale", camScale.toFixed(3));
       /* CENTRE IT. The scale origin is the lens, so the lens stays wherever it
          started — measured at (683, 341) against a viewport centre of
          (720, 450), off by (-37, -109) for the whole approach. These
@@ -614,14 +617,17 @@ export function createIntro({ onProgress } = {}) {
       marketExperience.style.setProperty("--market-camera-dx", `${(lensDX * approach).toFixed(1)}px`);
       marketExperience.style.setProperty("--market-camera-dy", `${(lensDY * approach).toFixed(1)}px`);
 
-      /* the takeover: a real length, so it is drawn sharp at every size */
-      const takeR = camLensR + enter * (Math.hypot(innerWidth, innerHeight) * 0.52 - camLensR);
+      /* The takeover TRACKS the camera's own lens plate rather than growing on
+         its own schedule — same width fraction (30.5%), same scale, same
+         internal lens scale. That lock is what makes it read as one object
+         being flown into instead of two things moving independently. */
+      const takeR = camLensW * 0.305 * 0.5 * camScale * (0.72 + enter * 0.55);
       root.style.setProperty("--lens-r", takeR.toFixed(1));
       /* AND IT MUST GO AWAY AGAIN. I switched this on when the entry began and
          never switched it off, so the lens sat over the whole rest of the page
          and swallowed WE SCALE entirely — visible at p=0.88, an act and a half
          later. It now fades out under the black that replaces it. */
-      const lensTakeOn = smoothstep((p - 0.726) / 0.006)
+      const lensTakeOn = smoothstep((p - 0.724) / 0.006)
         * (1 - smoothstep((p - 0.744) / 0.012));
       root.style.setProperty("--lens-take", lensTakeOn.toFixed(3));
       /* It sits BEHIND the strip while the reel plays, so it can never cover a
