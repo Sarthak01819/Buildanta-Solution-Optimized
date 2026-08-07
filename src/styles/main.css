@@ -4698,11 +4698,14 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 .market-film .market-frame:nth-child(n) { transform: none; }
 
 /* ── the take-up reel takes the film (Yash, 7 Aug) ─────────────────────
-   The machine's canvas moves ABOVE the strip so the reel's flange can cover
-   the film wrapping onto it — new film goes on the outside of the roll and
-   disappears behind the near cheek, which is the whole read. Safe now only
-   because the beam's cone is solved to stop at the top edge of the strip, so
-   moving the canvas up cannot wash the plates it is lighting. */
+   The canvas STAYS BEHIND the strip (z-index 3, unchanged). Lifting it above
+   so the reel's flange could occlude the film was wrong twice over: the beam
+   then washed a bright blob across the two plates nearest the gate — the very
+   thing rule M8 is about. Fixed properly instead: the cone now fades out just
+   ABOVE the film (BEAM_STOP_Y), so the canvas can sit on top without touching
+   a single plate — and it HAS to sit on top, because the strip's own opaque
+   black backing hides anything behind it and there is only ~99px of clear
+   viewport below the strip, nowhere near enough for the reel. */
 .market-projector { z-index: 7; }
 
 /* The end-fade mask has to go: it dissolved the film a fixed distance from the
@@ -4721,5 +4724,11 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 
 /* The finale slides the beat's canvas to track the flight camera's turn, so
    its host must stay put, stay black, and clip — otherwise the page shows
-   through at the edges as the canvas travels. */
-.intro__blackhole { background-color: #000; overflow: hidden; }
+   through at the edges as the canvas travels.
+   The BLACK is scoped to `.solid`, which is exactly the class the finale adds
+   when the beat is entered (intro.js). Unconditional, it painted an opaque
+   black full-bleed layer at z-index 9 over the entire site at every scroll
+   position — every act rendered as a black screen with only the progress bar
+   visible. The clipping is safe to leave on always. */
+.intro__blackhole { overflow: hidden; }
+.intro__blackhole.solid { background-color: #000; }

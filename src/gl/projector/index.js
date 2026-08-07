@@ -26,8 +26,9 @@
  */
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, AmbientLight, PointLight,
-  Mesh, MeshBasicMaterial, SphereGeometry, ConeGeometry, ShaderMaterial,
-  AdditiveBlending, Color, DoubleSide, MathUtils, Box3, Matrix4, Vector3, Quaternion,
+  Mesh, MeshBasicMaterial, SphereGeometry, ConeGeometry, CircleGeometry,
+  ShaderMaterial, AdditiveBlending, Color, DoubleSide, MathUtils, Box3, Matrix4,
+  Vector3, Quaternion,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
@@ -39,10 +40,29 @@ const MODEL = "/assets/projector/filmstrip_projector_8mm_1k.gltf";
    nose, which reads as a machine that has fallen over rather than one hung
    and angled at the screen. */
 const AIM = new Vector3(0.015, -0.78, 0.63).normalize();
-const BEAM_RADIUS = 0.86;  // ≈ one plate wide where it lands
-/* the beam ends AT the film — it is a projector, not a searchlight. World Y of
-   the top edge of the strip in this camera's units. */
-const BEAM_STOP_Y = -0.22;
+const BEAM_RADIUS = 0.60;  // narrower now that it stops short of the film
+/* The beam fades out JUST ABOVE the film, not on it. The canvas has to sit
+   above the strip so the corner reel is visible at all (the strip's own black
+   backing covers everything behind it, and there is only ~99px of clear
+   viewport below it — nowhere near enough for the reel). With the canvas on
+   top, a cone that reached the plates washed a bright blob across the two
+   nearest the gate, which is precisely the failure M8 is about. The plate in
+   the gate is lit by its own light pool, not by this cone — the cone is
+   atmosphere, and atmosphere stops at the film. */
+const BEAM_STOP_Y = 0.30;
+
+/* ── the take-up reel, bottom-left (Yash, 7 Aug) ──
+   The film that has been shown has to GO somewhere. It winds onto a spool in
+   the corner, and that spool is the machine's own take-up part cloned and
+   scaled up — same geometry, same material, genuinely the same equipment. */
+/* Measured, not eyeballed: at this camera 1 world unit ≈ 219 screen px on a
+   1440×900 frame. The centre is set so a FULL roll's top lands on the film's
+   own line (648px) and its bottom still clears the viewport (885 < 900), and
+   the hub is deliberately fat so an EMPTY spool's top is not so far below the
+   film that the run-in reads as the strip falling off a shelf. */
+const REEL_POS = new Vector3(-2.04, -0.85, 0.30);
+const REEL_HUB_R = 0.26;   // bare spool, nothing wound yet  (≈ 57px)
+const REEL_FULL_R = 0.49;  // the whole reel wound on        (≈ 107px)
 
 const BEAM_VERT = `
   varying vec2 vUv;
@@ -93,7 +113,9 @@ const BEAM_FRAG = `
 
     /* along the cone: hot at the lens, gone before the open mouth so the beam
        never ends on a straight cut across the screen */
-    float along = smoothstep(0.0, 0.09, vUv.y) * (1.0 - smoothstep(0.48, 0.99, vUv.y));
+    /* gone well before the open mouth — left to fade at 0.99 the cone's far
+       end read as a bright disc hanging in mid-air once the film had run out */
+    float along = smoothstep(0.0, 0.09, vUv.y) * (1.0 - smoothstep(0.34, 0.82, vUv.y));
     float hot   = 1.0 - smoothstep(0.0, 0.32, vUv.y);   // flare right at the lamp
 
     /* dust: MOTES, not clouds — and few of them. The first build ran the noise
@@ -103,8 +125,44 @@ const BEAM_FRAG = `
     float dust = noise(vPos * 21.0 + vec3(0.0, -uTime * 0.5, uTime * 0.2));
     dust = smoothstep(0.84, 1.0, dust);
 
-    float a = body * along * (0.30 + hot * 0.34 + dust * 0.26) * uIntensity;
+    float a = body * along * (0.21 + hot * 0.26 + dust * 0.19) * uIntensity;
     gl_FragColor = vec4(uColor * (0.95 + dust * 0.5 + hot * 0.5), a);
+  }
+`;
+
+/* The wound film itself: a disc whose radius grows as plates are consumed.
+   Banded by radius so you can see it is COILED — a flat dark disc reads as a
+   washer, and the whole point is that the roll is visibly thickening. */
+const ROLL_VERT = `
+  varying vec2 vXY;
+  varying vec3 vN;
+  void main() {
+    vXY = position.xy;
+    vN = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const ROLL_FRAG = `
+  uniform float uHub;      // hub radius as a fraction of the disc
+  uniform float uTurn;     // spool angle, so the coil turns with the film
+  uniform vec3  uLight;
+  varying vec2 vXY;
+  varying vec3 vN;
+  void main() {
+    float r = length(vXY);
+    if (r > 1.0 || r < uHub) discard;              // outside the coil / inside the hub
+    /* coil lines, tightening toward the hub like real wound film */
+    float bands = sin((r - uHub) / max(1.0 - uHub, 0.001) * 46.0 + uTurn * 0.6);
+    float coil = 0.5 + 0.5 * bands;
+    /* one bright seam so the roll visibly ROTATES rather than just growing */
+    float a = atan(vXY.y, vXY.x) + uTurn;
+    float seam = smoothstep(0.86, 1.0, cos(a));
+    /* dark, with the coil doing the work — film is nearly black stock, and a
+       flat bright disc reads as plastic rather than a thousand wraps of film */
+    float shade = 0.17 + coil * 0.26 + seam * 0.15;
+    /* a soft edge highlight where the newest wrap catches the room */
+    shade += smoothstep(0.88, 1.0, r) * 0.40;
+    gl_FragColor = vec4(uLight * shade, 1.0);
   }
 `;
 
@@ -259,7 +317,62 @@ export async function createProjector(canvas, opts = {}) {
   beam.renderOrder = 2;
   rig.add(beam);
 
-  const state = { pos: 0, presence: 0, shutter: 0, lastPos: 0 };
+  /* ── the take-up reel in the corner ──
+     The machine's OWN take-up spool, cloned and scaled up: same geometry, same
+     material, so it reads as the other end of the same projector rather than a
+     prop dropped next to it. Sized from its measured bounding box, so changing
+     REEL_FULL_R alone re-proportions the whole assembly. */
+  const reel = new Group();
+  reel.position.copy(REEL_POS);
+  rig.add(reel);
+
+  if (spoolTake) {
+    const flange = spoolTake.clone(true);
+    flange.position.set(0, 0, 0);
+    flange.rotation.set(0, 0, 0);
+    flange.scale.setScalar(1);
+    flange.visible = true;
+    flange.traverse((o) => { if (o.isMesh) o.visible = true; });
+    const fb = new Box3().setFromObject(flange);
+    const fs = fb.getSize(new Vector3());
+    const spokeR = Math.max(fs.x, fs.y, fs.z) * 0.5 || 1;
+    /* flanges sit a touch proud of a full roll, the way a real spool does */
+    flange.scale.setScalar((REEL_FULL_R * 1.16) / spokeR);
+    const fc = new Box3().setFromObject(flange).getCenter(new Vector3());
+    flange.position.sub(fc);
+    reel.add(flange);
+    reel.userData.flange = flange;
+  }
+
+  /* the wound film — a disc that grows from bare hub to full reel */
+  const rollMat = new ShaderMaterial({
+    vertexShader: ROLL_VERT,
+    fragmentShader: ROLL_FRAG,
+    uniforms: {
+      uHub: { value: REEL_HUB_R / REEL_FULL_R },
+      uTurn: { value: 0 },
+      uLight: { value: new Color(0x9a89cf) },
+    },
+    side: DoubleSide,
+    transparent: false,
+  });
+  /* A unit disc in the XY plane, scaled to the current roll radius. Scaling
+     beats rebuilding geometry every frame, and because the shader works in
+     OBJECT space the coil pattern turns with the spool for free. */
+  const roll = new Mesh(new CircleGeometry(1, 96), rollMat);
+  /* IN FRONT of the flange. Behind it, the spool's dark cheek hid the very
+     thing that is supposed to be growing — the roll read as a black disc.
+     The flange is sized 1.16× a full roll, so its rim still shows all round
+     and you can see what the film is winding onto. */
+  roll.position.z = 0.52;
+  reel.add(roll);
+
+  /* the corner needs its own light or the reel is a black hole next to a lamp */
+  const reelLight = new PointLight(0xb9a4ff, 15, 5.0, 2);
+  reelLight.position.copy(REEL_POS).add(new Vector3(0.7, 0.9, 1.5));
+  rig.add(reelLight);
+
+  const state = { pos: 0, presence: 0, shutter: 0, lastPos: 0, consumed: 0, rollR: REEL_HUB_R };
 
   function resize() {
     const w = canvas.clientWidth || canvas.parentElement?.clientWidth || 1;
@@ -284,8 +397,11 @@ export async function createProjector(canvas, opts = {}) {
   renderer.render(scene, camera);
 
   return {
-    /** pos = continuous card position (1.0 = one plate advanced) */
-    setFilm(pos) {
+    /**
+     * pos      = continuous card position (1.0 = one plate advanced)
+     * consumed = 0..1, how much of the reel has wound onto the take-up
+     */
+    setFilm(pos, consumed = 0) {
       /* a real projector's spools turn by the film that passes them, so the
          rotation is the TRAVEL, not a free-running spin */
       const travel = pos - state.lastPos;
@@ -296,6 +412,42 @@ export async function createProjector(canvas, opts = {}) {
       if (roller) roller.rotation.z -= travel * 6.4;
       /* shutter: a brief darkening each time a frame is pulled through */
       state.shutter = Math.min(state.shutter + Math.abs(travel) * 5.5, 1);
+
+      /* THE CORNER REEL.
+         Film arrives at the top of the roll travelling left, so it wraps over
+         the top and down the left side — anticlockwise on screen, which is a
+         POSITIVE turn about +Z. Turning it the other way would have the reel
+         spitting film out instead of taking it up, and that reads as wrong
+         even to someone who could not say why. */
+      state.consumed = Math.max(0, Math.min(1, consumed));
+      /* Area, not radius, is what accumulates: film has constant thickness, so
+         a full reel's area is proportional to how much has wound on. Growing
+         the radius linearly makes the roll balloon early and then barely move
+         for the whole second half. */
+      const a0 = REEL_HUB_R * REEL_HUB_R;
+      const a1 = REEL_FULL_R * REEL_FULL_R;
+      state.rollR = Math.sqrt(a0 + (a1 - a0) * state.consumed);
+      roll.scale.set(state.rollR, state.rollR, 1);
+      rollMat.uniforms.uHub.value = REEL_HUB_R / Math.max(state.rollR, 1e-4);
+      /* the spool turns by the film it swallows, so it stops when the film
+         stops — the same contract as the machine's own spools */
+      reel.rotation.z += travel * 0.92;
+    },
+    /**
+     * Where the reel is ON SCREEN, in canvas CSS pixels, so the DOM film can
+     * curl onto exactly the circle being drawn — rather than onto a second,
+     * hand-typed circle that drifts the moment anything is re-tuned.
+     */
+    reelScreen() {
+      const c = reel.position.clone().project(camera);
+      const e = reel.position.clone().add(new Vector3(state.rollR, 0, 0)).project(camera);
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      const cx = (c.x * 0.5 + 0.5) * w;
+      return {
+        x: cx,
+        y: (0.5 - c.y * 0.5) * h,
+        r: Math.abs((e.x * 0.5 + 0.5) * w - cx),
+      };
     },
     setPresence(a) {
       state.presence = Math.max(0, Math.min(1, a));
