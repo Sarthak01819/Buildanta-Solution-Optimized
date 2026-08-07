@@ -7,7 +7,7 @@ import { createScene } from "./gl/Scene.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
-import { mountContactRoom, BH_SHADERS } from "./gl/endurance/index.js";
+import { mountContactRoom } from "./gl/endurance/index.js";
 import { createFinaleRoom } from "./modules/finaleRoom.js";
 import { createEntryGate } from "./modules/entryGate.js";
 import { initCursor, initMagnetic, countUp } from "./modules/interactions.js";
@@ -307,12 +307,12 @@ function boot() {
   if (FINALE && roomSection) {
     const lite = (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
                  (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
-    /* The portal keeps its place earlier in the journey; once it has settled,
-       Gargantua rises over it as the last screen with the Endurance beside
-       it, and Contact flies you inside. */
+    /* Riding the portal lands on the site's own Gargantua beat — that is the
+       black hole the visitor ends on, so that is where the Endurance orbits
+       and where Contact flies them in from. */
     finale = createFinaleRoom({
-      portalWrap: $(".intro__portalwrap"),
-      roomSection, shaders: BH_SHADERS, reduced: REDUCED, lite,
+      blackholeHost: $(".intro__blackhole"),
+      roomSection, reduced: REDUCED, lite,
     });
     if (finale) {
       // the room is fixed-position now; it is always "on screen" for the

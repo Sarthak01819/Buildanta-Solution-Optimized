@@ -17,7 +17,6 @@
  * legible — that is what turns a dissolve into an arrival.
  */
 import { createShip } from "../gl/endurance/ship.js";
-import { mountFinaleGargantua } from "../gl/endurance/finaleGargantua.js";
 
 const FLIGHT_SECONDS = 10;
 
@@ -26,17 +25,15 @@ const smoothstep = (a, b, x) => {
   return k * k * (3 - 2 * k);
 };
 
-export function createFinaleRoom({ portalWrap, roomSection, shaders, reduced = false, lite = false }) {
-  if (!portalWrap || !roomSection) return null;
+export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, lite = false }) {
+  if (!blackholeHost || !roomSection) return null;
 
-  /* Gargantua ends the film. The nebula portal keeps its place earlier in the
-     journey; once it has settled, this stage rises over it and the Endurance
-     is beside the hole. Own layer, own engine — see finaleGargantua.js. */
-  const stage = document.createElement("div");
-  stage.className = "finale-stage";
-  stage.setAttribute("aria-hidden", "true");
-  document.body.appendChild(stage);
-  let garg = null;
+  /* The portal is the DOOR, not the destination: holding it open rides you
+     through to the site own Gargantua beat, which is when `.intro__blackhole`
+     goes `solid` with its canvas live. That is the black hole the visitor
+     ends on, so that is what the Endurance orbits beside — no second engine,
+     no second raymarch. (An earlier read of "the beat never becomes visible"
+     came from a probe that scrolled to the end without ever riding through.) */
 
   // Relocate the room out of the hidden <main> and make it a fixed overlay.
   document.body.appendChild(roomSection);
@@ -54,25 +51,15 @@ export function createFinaleRoom({ portalWrap, roomSection, shaders, reduced = f
   flash.setAttribute("aria-hidden", "true");
   document.body.appendChild(flash);
 
-  const ship = reduced ? null : createShip(stage, { reducedMotion: reduced, lite });
+  const ship = reduced ? null : createShip(blackholeHost, { reducedMotion: reduced, lite });
 
   /* What holds the screen at the end of this flow is the PORTAL — its own
      `on` class is the honest signal that the finale has arrived. The
      black-hole beat has already handed over by then, so gating on
      `beat.local` shows nothing (measured: beat local stays 0 while the
      portal is what the visitor is looking at). */
-  let portalLive = false;
+  let beatLive = false;      // has the visitor ridden through to Gargantua?
   let flight = 0;            // 0 = outside, 1 = fully inside the room
-  let stageIn = 0;           // 0 = portal owns the screen, 1 = Gargantua does
-  let t = 21;                // scene clock (s) — starts on a handsome frame
-
-  function ensureGargantua() {
-    if (garg || ensureGargantua.started || reduced) return;
-    ensureGargantua.started = true;
-    mountFinaleGargantua(stage, { shaders, reducedMotion: reduced, lite })
-      .then((g) => { garg = g; })
-      .catch(() => {});
-  }
   let tweenFrom = 0, tweenTo = 0, tweenT0 = 0, tweenDur = 0, tweening = false;
 
   function startFlight(to, seconds) {
@@ -141,46 +128,31 @@ export function createFinaleRoom({ portalWrap, roomSection, shaders, reduced = f
 
     // the black hole and the ship dim out as the room takes the frame
     const outside = 1 - roomFade;
-    stage.style.opacity = (stageIn * outside).toFixed(3);
+    blackholeHost.style.opacity = outside.toFixed(3);
     cta.classList.toggle("finale-cta--gone", flight > 0.02);
     document.documentElement.classList.toggle("finale-inside", roomFade > 0.85);
   }
 
-  function syncPortal() {
-    const live = portalWrap.classList.contains("on") &&
-                 !portalWrap.classList.contains("gone");
-    if (live === portalLive) return;
-    portalLive = live;
-    if (live) { ship?.load(); ensureGargantua(); }
-    if (ship) ship.canvas.style.opacity = live && ship.ready ? "1" : "0";
-    // scrolling back up out of the finale must also put us outside the room
+  function syncBeat() {
+    // `solid` is set the moment the ride lands on Gargantua
+    const live = blackholeHost.classList.contains("solid");
+    if (live === beatLive) return;
+    beatLive = live;
+    if (live) ship?.load();
+    // rewinding back out of the finale must also put us outside the room
     if (!live && flight > 0) { tweening = false; applyFlight(0); }
+    if (!live) cta.classList.remove("finale-cta--in");
   }
-  const portalWatch = new MutationObserver(syncPortal);
-  portalWatch.observe(portalWrap, { attributes: true, attributeFilter: ["class"] });
-  syncPortal();
+  const beatWatch = new MutationObserver(syncBeat);
+  beatWatch.observe(blackholeHost, { attributes: true, attributeFilter: ["class"] });
+  syncBeat();
 
   return {
     /** kept for the caller; the portal observer is what actually drives this */
     setBeat() {},
-    setCursor(nx, ny) { ship?.setCursor(nx, ny); garg?.setCursor(nx, ny); },
+    setCursor(nx, ny) { ship?.setCursor(nx, ny); },
     tick(dt) {
-      t += dt;
-      /* The stage rises once the portal has fully settled (its own `hint`
-         state is the honest cue that it is done talking), and only while we
-         are not already flying. 1.8s is long enough to read as an opening,
-         short enough not to feel like a wait. */
-      const wantStage = portalLive && portalWrap.classList.contains("hint");
-      const target = wantStage ? 1 : 0;
-      if (stageIn !== target) {
-        stageIn = target > stageIn
-          ? Math.min(1, stageIn + dt / 1.8)
-          : Math.max(0, stageIn - dt / 0.9);
-        applyFlight(flight);            // re-applies stage opacity
-      }
-      if (stageIn > 0.002 && garg && !garg.retired) garg.draw(t, 0);
-      cta.classList.toggle("finale-cta--in", stageIn > 0.85 && flight <= 0.02);
-
+      cta.classList.toggle("finale-cta--in", beatLive && flight <= 0.02);
       if (tweening) {
         const k = Math.min(1, (performance.now() - tweenT0) / tweenDur);
         // TRAVEL eases, not the raw parameter: the camera rail already
@@ -193,16 +165,14 @@ export function createFinaleRoom({ portalWrap, roomSection, shaders, reduced = f
       // rather than only on the portal's class change, or a ship that loads
       // after the finale opens never appears.
       if (ship) {
-        const want = portalLive && ship.ready ? "1" : "0";
+        const want = beatLive && ship.ready ? "1" : "0";
         if (ship.canvas.style.opacity !== want) ship.canvas.style.opacity = want;
       }
       ship?.tick(dt);
     },
-    state() { return { portalLive, stageIn, flight, ship: ship?.state?.() ?? null }; },
+    state() { return { beatLive, flight, ship: ship?.state?.() ?? null }; },
     dispose() {
-      portalWatch.disconnect();
-      garg?.dispose();
-      stage.remove();
+      beatWatch.disconnect();
       removeEventListener("wheel", onWheel);
       removeEventListener("keydown", onKey);
       ship?.dispose();

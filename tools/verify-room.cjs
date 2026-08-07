@@ -34,7 +34,11 @@ async function rideToFinale(page) {
     }, f);
     await page.waitForTimeout(700);
   }
-  await page.waitForTimeout(6000);   // ship model + portal settle
+  await page.waitForTimeout(4000);
+  // Ride the portal — this is the DOOR to the Gargantua beat. A probe that
+  // only scrolls to the end never opens it and measures a dark finale.
+  await page.evaluate(() => dispatchEvent(new Event('bh:enter')));
+  await page.waitForTimeout(6000);   // ride + ship model
 }
 
 (async () => {
@@ -61,11 +65,11 @@ async function rideToFinale(page) {
       shipPx: ship ? [ship.width, ship.height] : null,
       ctaIn: cta ? cta.classList.contains('finale-cta--in') : false,
       ctaOnScreen: cr ? (cr.top < innerHeight && cr.bottom > 0 && cr.width > 40) : false,
-      portalLive: document.querySelector('.intro__portalwrap')?.classList.contains('on'),
+      beatLive: document.querySelector('.intro__blackhole')?.classList.contains('solid'),
     };
   });
-  ok('finale-ship', orbit.shipVisible && orbit.portalLive,
-    `ship canvas ${orbit.shipPx?.join('x')} over a live portal`);
+  ok('finale-ship', orbit.shipVisible && orbit.beatLive,
+    `ship canvas ${orbit.shipPx?.join('x')} over the live Gargantua beat`);
   // Prove clickability by hit-test rather than by Playwright's click: its
   // actionability check scrolls first, and any scroll here rewinds the pinned
   // finale underneath us. The hit-test is the honest question — is the
@@ -184,6 +188,16 @@ async function rideToFinale(page) {
   });
   ok('portrait', m.inside && m.uiInside && !m.overflow && m.glassOnScreen,
     `inside=${m.inside}, copy x ${m.uiBox[0]}–${m.uiBox[1]} in ${m.vw}px, glass framed=${m.glassOnScreen}`);
+
+  const cur = await mob.evaluate(() => {
+    const c = document.querySelector('#cursor');
+    const room = document.getElementById('contact');
+    return { cursorZ: c ? +getComputedStyle(c).zIndex : null,
+             roomZ: +getComputedStyle(room).zIndex,
+             ctaZ: +getComputedStyle(document.querySelector('.finale-cta')).zIndex };
+  });
+  ok('cursor-on-top', cur.cursorZ > cur.roomZ && cur.cursorZ > cur.ctaZ,
+    `cursor z=${cur.cursorZ} above room ${cur.roomZ} and control ${cur.ctaZ}`);
 
   ok('console-clean', errs.length === 0, errs.slice(0, 3).join(' | ') || 'no errors');
 
