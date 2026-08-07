@@ -623,7 +623,23 @@ export function createIntro({ onProgress } = {}) {
          together, once each. */
       const SPOOL_TURNS_PER_PLATE = 1.45;
       const SHUTTER_TURNS_PER_PLATE = SPOOL_TURNS_PER_PLATE;
-      const cameraSpin = pos * SPOOL_TURNS_PER_PLATE + cameraCapture * 2.25;
+      /* ── AND IT MUST NOT STALL WHILE IT TRAVELS (Yash, 19:59) ─────────
+         `pos` stops the moment the film runs out, and the entry term does not
+         begin until you are already going into the lens — so between them the
+         spools and the shutter froze for the whole approach and hold, which is
+         exactly where the machine should look most alive. Measured before this:
+         11.60 turns, unchanged, from p=0.686 to p=0.724.
+         `handover` is monotonic across the entire journey, so there is no gap
+         left for it to stall in. It replaces the old entry-only term rather
+         than adding to it — two overlapping drivers would double the rate at
+         the end.
+         8 turns is derived, not chosen: the spools run at ~2.8 turns per
+         screen-height during the reel, and the journey is ~2.9 screens, so 8
+         keeps the rate continuous across the join. A different number would
+         make the machine visibly change gear the instant the film ends. */
+      const handover = Math.max(0, Math.min(1, (p - 0.684) / (0.752 - 0.684)));
+      const HANDOVER_TURNS = 8;
+      const cameraSpin = pos * SPOOL_TURNS_PER_PLATE + handover * HANDOVER_TURNS;
       const cameraCrank = Math.sin(cameraSpin * Math.PI * 2) * 18;
       // Travel scales with the strip: 10 plates (was 7 originally, briefly
       // 20 during the A/B judging pass).
@@ -761,7 +777,7 @@ export function createIntro({ onProgress } = {}) {
       /* same driver as the spools and the strip, same ratio through the
          handover, so the lock never breaks */
       marketExperience.style.setProperty("--market-camera-shutter-angle",
-        `${(pos * SHUTTER_TURNS_PER_PLATE * 360 + cameraCapture * 2.25 * 360).toFixed(1)}deg`);
+        `${((pos * SHUTTER_TURNS_PER_PLATE + handover * HANDOVER_TURNS) * 360).toFixed(1)}deg`);
       marketExperience.style.setProperty("--market-transition-t", transitionT.toFixed(3));
       marketExperience.style.setProperty("--market-transition-opacity", Math.max(0, transitionOpacity).toFixed(3));
       marketExperience.style.setProperty("--market-transition-y", `${(94 - transitionT * 46).toFixed(2)}vh`);
