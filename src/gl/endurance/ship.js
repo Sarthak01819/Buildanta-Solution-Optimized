@@ -11,8 +11,10 @@
  * caller's word — 4.1MB must never be part of first paint.
  */
 import {
-  ACESFilmicToneMapping, AmbientLight, Color, DirectionalLight,
-  Group, PerspectiveCamera, Scene, Vector2, Vector3, WebGLRenderer,
+  ACESFilmicToneMapping, AmbientLight, CatmullRomCurve3, Color,
+  DirectionalLight, Group,
+  PerspectiveCamera,
+  PointLight, Scene, Vector3, WebGLRenderer,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -22,6 +24,9 @@ const POSE = { tiltX: -0.80, tiltZ: 0.45, dist: 46 };
 const PARALLAX = [0.55, 0.34];
 const BANK = { maxYaw: 0.16, maxPitch: 0.10, easeIn: 2.4, easeOut: 0.9 };
 const HOVER = { radiusFactor: 1.18, spinBoost: 1.6, easeIn: 3.0, easeOut: 0.8 };
+const HOLD_AT = 0.86;     // travel at which the camera reaches the hatch
+const HOLD_GAP = 0.85;    // how far in front of the hatch it stops
+const IRIS_FROM = 0.62;   // the leaves start parting on final approach
 
 const smoothstep = (a, b, x) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -63,6 +68,27 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
   const spinGroup = new Group();
   shipParent.add(spinGroup);
   scene.add(shipParent);
+
+  /* The airlock. Built as geometry on the hub's fore port so it reads as a
+     door opening, not as a lens effect: a ring collar, six iris leaves that
+     retract, and a warm light that only escapes once they part. */
+  const AIRLOCK_Y = 1.62;           // the dock point, ON the spin axis
+  const airlock = new Group();
+  airlock.position.set(0, AIRLOCK_Y, 0);
+  airlock.rotation.x = -Math.PI / 2;          // face along +Y
+  spinGroup.add(airlock);
+
+  /* LIGHT ONLY, for now. A hand-built iris was tried twice here and read as
+     a wedge fan, then as a washer: a hatch seen head-on at half a metre needs
+     real modelled depth, exactly like the ship itself did. Until that asset
+     exists this is the interior light escaping the port as it opens — which
+     is what the bloom and the hold are already selling. The mount point and
+     the `iris` ramp below stay, so dropping a modelled hatch in is a
+     parent-and-animate, not a rewrite. */
+  const innerGlow = new PointLight(new Color(1.0, 0.76, 0.46), 0, 6, 2);
+  innerGlow.position.set(0, 0, -0.25);
+  airlock.add(innerGlow);
+  const leaves = [];
 
   let ready = false;
   let emissives = [];
@@ -133,7 +159,18 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
       }
       hoverEased = ease(hoverEased, hoverTarget,
         hoverTarget > hoverEased ? HOVER.easeIn : HOVER.easeOut, dt);
-      if (!reducedMotion) spin += OMEGA * (1 + hoverEased * (HOVER.spinBoost - 1)) * dt;
+      /* The ring eases to a halt as you close — the ship matching you for
+         docking — so the frame is settled before the room takes over. */
+      const spinHold = 1 - smoothstep(0.25, HOLD_AT, flyIn);
+      if (!reducedMotion) {
+        spin += OMEGA * (1 + hoverEased * (HOVER.spinBoost - 1)) * spinHold * dt;
+      }
+
+      // Airlock: leaves retract, then the interior light escapes
+      // The port "opens": interior light grows on final approach and washes
+      // the hull around the dock just before the hold.
+      const iris = smoothstep(IRIS_FROM, 0.93, flyIn);
+      innerGlow.intensity = iris * 14;
 
       // rails take over on approach — drift/parallax/bank fade out
       const damp = 1 - smoothstep(0, 0.30, flyIn);
@@ -151,29 +188,49 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
       shipParent.updateMatrixWorld(true);
 
       const fit = Math.min(Math.max(1.45 / camera.aspect, 1), 1.9);
-      // Off to the RIGHT of frame: Gargantua owns the centre in the finale
       // Beside the hole, not on it: Gargantua owns the centre, so the eye
       // and its look target are pushed far apart on X to throw the ship out
       // to the right of frame.
       const orbitEye = new Vector3(parallax[0] * damp - 2.6, parallax[1] * damp + 1.4, POSE.dist * fit);
+      const orbitLook = new Vector3(-10.8 / fit, 1.7, 0);
+
       if (flyIn <= 0.001) {
         camera.up.set(0, 1, 0);
         camera.position.copy(orbitEye);
-        camera.lookAt(-10.8 / fit, 1.7, 0);
+        camera.lookAt(orbitLook);
       } else {
-        // Dock at the hub spine's fore port — ON the spin axis, so the ship's
-        // rotation rolls it in place instead of sweeping it out of frame
-        const dock = spinGroup.localToWorld(new Vector3(0, 1.62, 0));
+        /* The dock is ON the spin axis (the hub's fore port) so the ring's
+           rotation rolls it in place instead of sweeping it out of frame.
+           The path ARCS around to meet it from the black hole's side: a
+           straight line from the orbit framing drills through a module and
+           the camera ends up inside dark hull — that was the roughness Yash
+           saw. Waypoints are built in the ship's own frame so they follow
+           its tilt. */
+        const dock = spinGroup.localToWorld(new Vector3(0, AIRLOCK_Y, 0));
         const axis = new Vector3(0, 1, 0).applyQuaternion(shipParent.quaternion).normalize();
-        const lat = new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion);
-        // pow < 1: travel front-loads and the last stretch crawls — arrival
-        // reads as deceleration, not a jump cut
-        const e = Math.pow(smoothstep(0, 0.92, flyIn), 0.62);
-        const eye = orbitEye.clone().lerp(
-          dock.clone().addScaledVector(axis, 1.25).addScaledVector(lat, 0.4), e);
-        const target = new Vector3().lerpVectors(
-          new Vector3(-10.8 / fit, 1.7, 0), dock, smoothstep(0.15, 0.75, e));
-        const roll = 0.35 * smoothstep(0.55, 1, e);
+        const lat = new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion).normalize();
+        const up = new Vector3(0, 0, 1).applyQuaternion(shipParent.quaternion).normalize();
+
+        const path = new CatmullRomCurve3([
+          orbitEye,
+          // swing wide and rise, keeping the whole ship in shot
+          dock.clone().addScaledVector(axis, 15).addScaledVector(lat, 12).addScaledVector(up, 3),
+          // come round to the lit side, ship filling the frame
+          dock.clone().addScaledVector(axis, 8).addScaledVector(lat, 3.5).addScaledVector(up, 1.2),
+          // line up on the hatch
+          dock.clone().addScaledVector(axis, 3.2),
+          // the hold position, a beat in front of the open airlock
+          dock.clone().addScaledVector(axis, HOLD_GAP),
+        ]);
+        path.curveType = "catmullrom";
+        path.tension = 0.4;
+
+        // travel is already shaped by the caller — consume it linearly, and
+        // spend the last stretch holding rather than moving
+        const e = Math.min(1, flyIn / HOLD_AT);
+        const eye = path.getPoint(e);
+        const target = new Vector3().lerpVectors(orbitLook, dock, smoothstep(0.10, 0.62, e));
+        const roll = 0.30 * smoothstep(0.55, 1, e);
         camera.up.set(Math.sin(roll), Math.cos(roll), 0);
         camera.position.copy(eye);
         camera.lookAt(target);

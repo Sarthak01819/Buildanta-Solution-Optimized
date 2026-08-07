@@ -85,22 +85,28 @@ async function rideToFinale(page) {
 
   // the flight in
   await page.$eval('.finale-cta', (el) => el.click());
-  await page.waitForTimeout(4200);
+  await page.waitForTimeout(6000);      // mid-approach of a 14s flight
   await page.screenshot({ path: path.join(OUT, 'finale-2-approach.png') });
-  const readFlight = () => page.evaluate(() => ({
-    flash: parseFloat(document.querySelector('.finale-flash').style.opacity || '0'),
-    inside: document.documentElement.classList.contains('finale-inside'),
-  }));
-  // ~4s in: pure approach. The bloom starts at flight 0.58, which a 10s
-  // smootherstep does not reach until ~6s — no light here is CORRECT.
-  const approach = await readFlight();
-  await page.waitForTimeout(3200);
-  const bloomPeak = await readFlight();     // ~7.4s: the airlock swell
+  /* Poll the whole flight rather than sampling at guessed instants: the
+     airlock swell is a ~2s window inside a 14s flight, and a screenshot in
+     between shifts every later timestamp. Record the peak and when it came. */
+  const samples = [];
+  for (let i = 0; i < 40; i++) {
+    samples.push(await page.evaluate(() => ({
+      t: performance.now(),
+      flash: parseFloat(document.querySelector('.finale-flash').style.opacity || '0'),
+      inside: document.documentElement.classList.contains('finale-inside'),
+      room: parseFloat(document.getElementById('contact').style.opacity || '0'),
+    })));
+    if (i === 12) await page.screenshot({ path: path.join(OUT, 'finale-2-approach.png') });
+    await page.waitForTimeout(420);
+  }
+  const early = samples.slice(0, 8);
+  const peak = samples.reduce((a, b) => (b.flash > a.flash ? b : a));
   ok('flight-bloom',
-    approach.flash < 0.02 && !approach.inside && bloomPeak.flash > 0.25,
-    `approach clean (${approach.flash.toFixed(2)}) → airlock swells to ${bloomPeak.flash.toFixed(2)}`);
+    early.every((s2) => s2.flash < 0.02 && !s2.inside) && peak.flash > 0.25,
+    `approach stays clean, then the airlock swells to ${peak.flash.toFixed(2)}`);
 
-  await page.waitForTimeout(5000);
   await page.screenshot({ path: path.join(OUT, 'finale-3-room.png') });
   const room = await page.evaluate(() => {
     const sec = document.getElementById('contact');
@@ -171,7 +177,7 @@ async function rideToFinale(page) {
   await mob.goto(URL, { waitUntil: 'load' });
   await rideToFinale(mob);
   await mob.$eval('.finale-cta', (el) => el.click()).catch(() => {});
-  await mob.waitForTimeout(12000);
+  await mob.waitForTimeout(16000);
   await mob.screenshot({ path: path.join(OUT, 'finale-4-mobile.png') });
   const m = await mob.evaluate(() => {
     const sec = document.getElementById('contact');

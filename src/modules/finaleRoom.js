@@ -18,7 +18,7 @@
  */
 import { createShip } from "../gl/endurance/ship.js";
 
-const FLIGHT_SECONDS = 10;
+const FLIGHT_SECONDS = 14;   // Yash's call: a real voyage
 
 const smoothstep = (a, b, x) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -115,11 +115,14 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
 
     // Bloom carries the handover: a long swell, peaking on the crossfade's
     // midpoint, then a shorter clear.
-    const rise = smoothstep(0.58, 0.855, flight);
-    const fall = 1 - smoothstep(0.855, 0.995, flight);
+    /* The camera reaches the hatch at 0.86 and HOLDS there — you see inside
+       before you enter. Only then does the interior light take the frame, so
+       the bloom and the room both start after the hold begins. */
+    const rise = smoothstep(0.86, 0.945, flight);
+    const fall = 1 - smoothstep(0.945, 0.999, flight);
     flash.style.opacity = (Math.min(rise, fall) * 0.97).toFixed(3);
 
-    const roomFade = reduced ? (flight > 0.5 ? 1 : 0) : smoothstep(0.74, 0.97, flight);
+    const roomFade = reduced ? (flight > 0.5 ? 1 : 0) : smoothstep(0.90, 0.99, flight);
     roomSection.style.opacity = roomFade.toFixed(3);
     roomSection.style.transform = `scale(${(1.055 - 0.055 * roomFade).toFixed(4)})`;
     roomSection.style.pointerEvents = roomFade > 0.85 ? "" : "none";
@@ -155,9 +158,11 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
       cta.classList.toggle("finale-cta--in", beatLive && flight <= 0.02);
       if (tweening) {
         const k = Math.min(1, (performance.now() - tweenT0) / tweenDur);
-        // TRAVEL eases, not the raw parameter: the camera rail already
-        // front-loads its own curve, and easing both multiplies into a lurch
-        const s = k * k * k * (k * (k * 6 - 15) + 10);
+        /* The ONE curve for the whole flight. `flight` is travel, and the
+           camera consumes it linearly, so this shape is exactly what the eye
+           sees: a soft departure, a cruise, and a long deceleration into the
+           dock. Adding any easing downstream re-introduces the lurch. */
+        const s = k * k * k * (k * (k * 6 - 15) + 10);      // smootherstep
         applyFlight(tweenFrom + (tweenTo - tweenFrom) * s);
         if (k >= 1) tweening = false;
       }
