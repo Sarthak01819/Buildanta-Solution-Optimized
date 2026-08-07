@@ -4628,3 +4628,21 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
     radial-gradient(34% 26% at 50% 74%, rgba(80, 60, 140, .14), transparent 74%);
   opacity: .85;
 }
+
+/* ── the projector canvas: high and behind, the film runs below it ────── */
+.market-projector {
+  position: absolute;
+  inset: 0;
+  z-index: 3;                 /* behind the film strip (5), above the room (2) */
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Yash's sketch: the strip lives in the lower third, under the beam. */
+.market-film {
+  top: 72%;
+  height: clamp(190px, 34vh, 340px);
+}

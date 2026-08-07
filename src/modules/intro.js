@@ -8,6 +8,7 @@ import { createConsultHand } from "../gl/ConsultHand.js";
 import { mountBlackholeBeat } from "../gl/blackhole/index.js";
 import { buildObjects, projectObjects } from "./introObjects.js";
 import { SERVICES } from "./services.js";
+import { createProjector } from "../gl/projector/index.js";
 
 /**
  * SCROLL-DRIVEN INTRO
@@ -82,6 +83,19 @@ export function createIntro({ onProgress } = {}) {
     filmCards.forEach((c, i) => { c.style.transform = prevT[i]; });
     if (prevX) marketExperience.style.setProperty("--market-film-x", prevX);
   }
+  /* ── the projector (real 3D, CC0 Poly Haven model) ──
+     Yash's sketch: high and behind, cone falling onto the strip below. Mounted
+     lazily on first approach so acts 1–2 never pay for it. */
+  const projectorCanvas = root.querySelector(".market-projector");
+  let projector = null, projectorPending = false;
+  function mountProjector() {
+    if (projector || projectorPending || reduced || !projectorCanvas) return;
+    projectorPending = true;
+    createProjector(projectorCanvas, { dprCap: 1.6 })
+      .then((p) => { projector = p; projectorPending = false; })
+      .catch((e) => { projectorPending = false; console.error("[intro] projector unavailable:", e); });
+  }
+
   const consultZero = root.querySelector(".consult-zero");
   const consultHandCanvas = root.querySelector(".consult-zero__hand-canvas");
   const consultHand = !reduced && consultHandCanvas
@@ -476,6 +490,13 @@ export function createIntro({ onProgress } = {}) {
       marketExperience.style.setProperty("--market-film-opacity", (filmIn * filmOut * marketOpacity).toFixed(3));
       marketExperience.style.setProperty("--market-film-x", `${filmX.toFixed(2)}vw`);
       marketExperience.style.setProperty("--market-film-capture-x", `${(filmX * (1 - cameraCapture)).toFixed(2)}vw`);
+
+      /* the machine: present with the act, turning with the film */
+      if (!reduced) {
+        if (marketOpacity > 0.02) mountProjector();
+        projector?.setPresence(lampStrike * filmIn * filmOut * marketOpacity);
+        projector?.setFilm(pos);
+      }
 
       /* CURVE INTO DEPTH + THREAD THROUGH THE MACHINE.
          Each plate is transformed by where it sits on screen, not by its index
@@ -958,6 +979,7 @@ export function createIntro({ onProgress } = {}) {
     last = time;
 
     corridor.render(time);
+    projector?.render(time);
     consultHand?.render(time);
     blackholeBeat?.tick(dt);          // gas churns on its own clock (hybrid)
     projectObjects(groups, corridor, time);
@@ -1041,6 +1063,7 @@ export function createIntro({ onProgress } = {}) {
   const onResize = () => {
     filmPitch = 0;                 // re-measure the strip at the new width
     corridor.resize();
+    projector?.resize();
     consultHand?.resize();
     blackholeBeat?.resize();
   };
@@ -1086,6 +1109,7 @@ export function createIntro({ onProgress } = {}) {
       teardownPortalModule();
       window.__lenis?.start();
       corridor.dispose();
+      projector?.dispose();
       consultHand?.dispose();
       blackholeBeat?.dispose();
       sound.stopAmbient(0.4);
