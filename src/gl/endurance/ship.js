@@ -132,6 +132,13 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
 
   let ready = false;
   let emissives = [];
+  /* The black hole lives on ANOTHER canvas (the site's own beat), so it does
+     not share this camera. Left alone it stays nailed to the screen while the
+     flight turns and travels — which is exactly why the approach read as "the
+     ship comes to me": the one far reference in frame never moved. We publish
+     the camera's turn each frame and the caller shifts that canvas to match. */
+  const bgShift = { x: 0, y: 0 };
+  let lastYaw = null, lastPitch = null, turnYaw = 0, turnPitch = 0;
   const cursor = { has: false, x: 0, y: 0 };
   let hoverEased = 0, spin = 0, t = 0, flyIn = 0;
   const parallax = [0, 0], bank = [0, 0];
@@ -286,6 +293,47 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
       }
       camera.updateProjectionMatrix();
 
+      /* How far the camera has TURNED since the orbit framing, in screen
+         pixels. A distant object subtends the same angle wherever you stand,
+         so rotation — not translation — is what sweeps it across frame; that
+         is the honest parallax for something effectively at infinity, and it
+         is the cue that was missing.
+
+         Two things this needs to survive:
+         · the arc turns through more than 180°, so the raw yaw wraps and the
+           background would teleport. Accumulate the per-frame delta instead
+           of differencing absolute angles.
+         · at full gain the hole leaves frame within a second and the rest of
+           the flight has no landmark at all. GAIN keeps it drifting across
+           and out over several seconds, which is what reads as travel. */
+      {
+        const f = new Vector3();
+        camera.getWorldDirection(f);
+        const yaw = Math.atan2(f.x, f.z);
+        const pitch = Math.asin(Math.max(-1, Math.min(1, f.y)));
+        if (flyIn <= 0.001 || lastYaw === null) {
+          lastYaw = yaw; lastPitch = pitch; turnYaw = 0; turnPitch = 0;
+        } else {
+          let d = yaw - lastYaw;
+          while (d > Math.PI) d -= Math.PI * 2;
+          while (d < -Math.PI) d += Math.PI * 2;
+          turnYaw += d;
+          turnPitch += pitch - lastPitch;
+          lastYaw = yaw; lastPitch = pitch;
+        }
+        const vFov = (camera.fov * Math.PI) / 180;
+        const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+        /* Capped well inside the canvas's own margin: the beat canvas is only
+           viewport-sized, so every pixel of drift reveals its edge. Scaling it
+           1.5x during the flight buys 0.25 screens of margin, and the cap sits
+           under that. The drift does not need to be physically complete — it
+           needs to be SEEN, and ~0.2 screens over a few seconds plainly is. */
+        const GAIN = 0.42;
+        const capX = w * 0.2, capY = h * 0.2;
+        bgShift.x = Math.max(-capX, Math.min(capX, -(turnYaw / hFov) * w * GAIN));
+        bgShift.y = Math.max(-capY, Math.min(capY, (turnPitch / vFov) * h * GAIN));
+      }
+
       // Window emissive must sit BELOW the ACES knee or the rows clip to
       // white pinpricks and the hover lift becomes invisible
       for (const m of emissives) {
@@ -310,8 +358,10 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
 
       renderer.render(scene, camera);
     },
+    /** Pixels the far background must move so it tracks the camera's turn. */
+    backgroundShift() { return bgShift; },
     state() {
-      return { ready, spin, hover: hoverEased, flyIn,
+      return { ready, spin, hover: hoverEased, flyIn, bgShift: { ...bgShift },
                centerPx: [...metrics.centerPx], radiusPx: metrics.radiusPx,
                pxPerSec: OMEGA * metrics.radiusPx };
     },

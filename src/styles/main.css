@@ -4696,3 +4696,30 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 /* The fixed fan of angles belonged to the static carousel — and only ever
    covered seven of the nine plates. The reel curves itself now. */
 .market-film .market-frame:nth-child(n) { transform: none; }
+
+/* ── the take-up reel takes the film (Yash, 7 Aug) ─────────────────────
+   The machine's canvas moves ABOVE the strip so the reel's flange can cover
+   the film wrapping onto it — new film goes on the outside of the roll and
+   disappears behind the near cheek, which is the whole read. Safe now only
+   because the beam's cone is solved to stop at the top edge of the strip, so
+   moving the canvas up cannot wash the plates it is lighting. */
+.market-projector { z-index: 7; }
+
+/* The end-fade mask has to go: it dissolved the film a fixed distance from the
+   strip's own ends, which would eat the last plates before they ever reached
+   the corner. The film now ENDS by being wound up, which is the point. */
+.market-film { -webkit-mask-image: none; mask-image: none; }
+
+/* Plates are positioned individually along the wind-on path, so the strip's
+   own sprocket bands can no longer follow them past the gate. They fade out
+   over the run-in to the reel and the 3D roll carries the eye from there. */
+.market-film::before,
+.market-film::after {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0 6%, #000 16%);
+  mask-image: linear-gradient(90deg, transparent 0 6%, #000 16%);
+}
+
+/* The finale slides the beat's canvas to track the flight camera's turn, so
+   its host must stay put, stay black, and clip — otherwise the page shows
+   through at the edges as the canvas travels. */
+.intro__blackhole { background-color: #000; overflow: hidden; }

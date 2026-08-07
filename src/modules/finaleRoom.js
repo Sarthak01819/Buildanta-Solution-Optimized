@@ -59,6 +59,7 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
      `beat.local` shows nothing (measured: beat local stays 0 while the
      portal is what the visitor is looking at). */
   let beatLive = false;      // has the visitor ridden through to Gargantua?
+  let bgShifted = false;     // is the black-hole canvas currently offset?
   let flight = 0;            // 0 = outside, 1 = fully inside the room
   let tweenFrom = 0, tweenTo = 0, tweenT0 = 0, tweenDur = 0, tweening = false;
 
@@ -174,6 +175,31 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
         if (ship.canvas.style.opacity !== want) ship.canvas.style.opacity = want;
       }
       ship?.tick(dt);
+
+      /* Move the black hole with the flight. It renders on its own canvas
+         with its own camera, so without this it stays pinned while everything
+         else travels — the single strongest "nothing is moving" tell. Shifting
+         that canvas by the camera's own turn makes the one far landmark in
+         frame behave like a far landmark. transform only, so it composites. */
+      const beatCanvas = blackholeHost.querySelector("canvas:not(.finale-ship)");
+      if (beatCanvas && ship && flight > 0.0005) {
+        const s2 = ship.backgroundShift();
+        // the CANVAS slides, not its host: moving the host would drag its own
+        // black backing with it and expose the page behind at the edges
+        /* Scale gives the drift somewhere to go without showing the canvas
+           edge; the fade is the honest half of it — you are turning away from
+           the hole, so it leaves. Together they read as "that landmark is
+           behind me now" instead of "the backdrop is nailed to my screen". */
+        const zoom = 1 + 0.5 * smoothstep(0, 0.12, flight);
+        beatCanvas.style.transform =
+          `translate3d(${s2.x.toFixed(1)}px, ${s2.y.toFixed(1)}px, 0) scale(${zoom.toFixed(3)})`;
+        beatCanvas.style.opacity = (1 - smoothstep(0.18, 0.62, flight)).toFixed(3);
+        bgShifted = true;
+      } else if (bgShifted && beatCanvas) {
+        beatCanvas.style.transform = "";
+        beatCanvas.style.opacity = "";
+        bgShifted = false;
+      }
     },
     state() { return { beatLive, flight, ship: ship?.state?.() ?? null }; },
     dispose() {

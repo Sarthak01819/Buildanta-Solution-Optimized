@@ -101,6 +101,17 @@ async function rideToFinale(page) {
     if (i === 12) await page.screenshot({ path: path.join(OUT, 'finale-2-approach.png') });
     await page.waitForTimeout(420);
   }
+  /* The backdrop MUST move during the flight. It renders on its own canvas
+     with its own camera, so if nothing drives it the black hole stays nailed
+     to the screen and the whole approach reads as the ship coming to you —
+     which is exactly the bug this check exists to catch. */
+  const bg = await page.evaluate(() => {
+    const c = document.querySelector('.intro__blackhole canvas:not(.finale-ship)');
+    const m = (c?.style.transform || '').match(/translate3d\(([-\d.]+)px,\s*([-\d.]+)px/);
+    return m ? Math.hypot(+m[1], +m[2]) : 0;
+  });
+  ok('backdrop-moves', bg > 40, `black hole drifted ${bg.toFixed(0)}px with the camera`);
+
   const early = samples.slice(0, 8);
   const peak = samples.reduce((a, b) => (b.flash > a.flash ? b : a));
   ok('flight-bloom',
