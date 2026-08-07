@@ -266,7 +266,11 @@ export function createIntro({ onProgress } = {}) {
     /* Act 03 camera ke end par purana amber/glass Act 04 corridor bilkul
        disappear ho jata hai. Iske baad direct green consultation world hai. */
     const corridorOut = 1 - smoothstep((p - 0.675) / 0.045);
-    glCanvas.style.opacity = corridorOut.toFixed(3);
+    /* Lights down for the screening room: the code world dims WITH the room
+       instead of being hidden behind it — an opaque curtain over a fully lit
+       scene is what made this seam feel like a cut (measured 7 Aug). */
+    const houseLights = 1 - smoothstep((p - 0.392) / 0.052);
+    glCanvas.style.opacity = Math.min(corridorOut, houseLights).toFixed(3);
 
     /* fog do padosi acts ke beech lerp hota hai — yahi "ek jagah se doosri
        jagah" ka transition hai, koi cut nahi.
@@ -400,13 +404,13 @@ export function createIntro({ onProgress } = {}) {
       const local = Math.max(0, Math.min(1, (p - 0.48) / 0.24));
       const zoomT = smoothstep((local - 0.08) / 0.38);
       const heroReveal = smoothstep((p - 0.472) / 0.028);
-      const copyOpacity = heroReveal * (1 - smoothstep((local - 0.12) / 0.24));
-      const filmIn = smoothstep((local - 0.30) / 0.12);
-      const filmOut = 1 - smoothstep((local - 0.94) / 0.06);
+      const copyOpacity = heroReveal * (1 - smoothstep((local - 0.12) / 0.16));
+      const filmIn = smoothstep((local - 0.24) / 0.09);
+      const filmOut = 1 - smoothstep((local - 0.90) / 0.07);
       /* SETTLE AND HOLD (Yash MCQ): the strip is not linear in scroll. A
          detent curve spends most of its time parked with a plate in the gate
          and crosses the gap between plates quickly — a projector's rhythm. */
-      const filmRaw = smoothstep((local - 0.28) / 0.60);   // done by .88
+      const filmRaw = smoothstep((local - 0.27) / 0.58);   // reel owns .27–.85
       const slots = Math.max(filmCards.length - 1, 1);
       const pos = filmRaw * slots;
       const idx = Math.floor(pos);
@@ -440,10 +444,11 @@ export function createIntro({ onProgress } = {}) {
 
       /* LIGHTS DOWN, THEN THE LAMP (Yash MCQ): the code world dims to a dark
          room first; only then does the projector strike and the reel start. */
-      const roomIn = smoothstep((p - 0.404) / 0.030);
+      const roomIn = smoothstep((p - 0.392) / 0.052);
       const roomOut = 1 - smoothstep((p - 0.700) / 0.014);
-      const lampStrike = smoothstep((local - 0.245) / 0.055);
-      marketExperience.style.setProperty("--market-room", (roomIn * roomOut).toFixed(3));
+      const lampStrike = smoothstep((local - 0.19) / 0.06);   // projector arrives AFTER the opening
+      marketExperience.style.setProperty("--market-room",
+        (roomIn * roomOut * (0.5 + 0.5 * lampStrike)).toFixed(3));
       marketExperience.style.setProperty("--market-lamp",
         (lampStrike * filmIn * filmOut).toFixed(3));
 
@@ -475,7 +480,11 @@ export function createIntro({ onProgress } = {}) {
             `translateZ(${z.toFixed(0)}px) rotateY(${rotY.toFixed(1)}deg) scale(${(1 - curve * 0.06).toFixed(3)})`;
           card.style.filter =
             `brightness(${(0.42 + lit * 1.05).toFixed(2)}) saturate(${(0.65 + lit * 0.7).toFixed(2)}) contrast(${(0.95 + lit * 0.15).toFixed(2)})`;
-          card.style.opacity = (1 - curve * 0.62).toFixed(3);   // neighbours stay in the strip
+          /* Two separate falloffs: the depth curve is wide so neighbouring
+             plates still read as a strip, while visibility dies hard past
+             0.26 of the screen so nothing is ever bright at the edge. */
+          const edgeFade = 1 - Math.min(Math.max((Math.abs(d) - 0.26) / 0.13, 0), 1);
+          card.style.opacity = ((1 - curve * 0.35) * (0.06 + 0.94 * edgeFade)).toFixed(3);
           card.dataset.lit = lit > 0.6 ? "1" : "0";
         }
       }
@@ -685,7 +694,7 @@ export function createIntro({ onProgress } = {}) {
   /* WE MARKET needs room: ten plates each get a readable beat (Yash, 7 Aug).
      Given as EXTRA viewport-heights on that act's own slice of the timeline,
      so every other act keeps exactly the pacing it already had. */
-  const marketStretch = reduced ? 0 : 1.4;
+  const marketStretch = reduced ? 0 : 3.0;   // ~0.42vh of scroll per plate
   const MARKET_P0 = 0.425, MARKET_P1 = 0.696;
   /* Black-hole beat ka apna scroll span, burn ke poora hone ke BAAD —
      intro ka saara purana ganit introScrollLength par hi chalta hai,
