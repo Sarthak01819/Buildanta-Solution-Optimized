@@ -617,7 +617,13 @@ export function createIntro({ onProgress } = {}) {
       /* the takeover: a real length, so it is drawn sharp at every size */
       const takeR = camLensR + enter * (Math.hypot(innerWidth, innerHeight) * 0.52 - camLensR);
       root.style.setProperty("--lens-r", takeR.toFixed(1));
-      root.style.setProperty("--lens-take", (enter > 0 ? 1 : 0).toFixed(0));
+      /* AND IT MUST GO AWAY AGAIN. I switched this on when the entry began and
+         never switched it off, so the lens sat over the whole rest of the page
+         and swallowed WE SCALE entirely — visible at p=0.88, an act and a half
+         later. It now fades out under the black that replaces it. */
+      const lensTakeOn = smoothstep((p - 0.726) / 0.006)
+        * (1 - smoothstep((p - 0.744) / 0.012));
+      root.style.setProperty("--lens-take", lensTakeOn.toFixed(3));
       /* It sits BEHIND the strip while the reel plays, so it can never cover a
          service word — but a machine travelling toward you has to pass the
          film, not stay pinned behind it. It comes forward on the APPROACH. */
