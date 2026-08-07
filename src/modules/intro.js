@@ -72,9 +72,18 @@ export function createIntro({ onProgress } = {}) {
   let filmC0 = 0, filmPitch = 0;
   function measureFilm() {
     if (filmCards.length < 2 || !marketExperience) return;
+    /* BOTH offsets have to go to zero. The strip's transform reads
+       `var(--market-film-capture-x, var(--market-film-x))`, so zeroing only
+       the second one leaves the film exactly where it was and the "origin" is
+       measured wherever the strip happens to be parked — putting card 0's
+       centre at the gate and shifting the entire reel by four plates. It
+       survived this long only because the measurement used to run once,
+       before capture-x existed; ANY resize would have hit it. */
     const prevX = marketExperience.style.getPropertyValue("--market-film-x");
+    const prevC = marketExperience.style.getPropertyValue("--market-film-capture-x");
     const prevT = filmCards.map((c) => c.style.transform);
     marketExperience.style.setProperty("--market-film-x", "0px");
+    marketExperience.style.setProperty("--market-film-capture-x", "0px");
     filmCards.forEach((c) => { c.style.transform = "none"; });
     const r0 = filmCards[0].getBoundingClientRect();
     const r1 = filmCards[1].getBoundingClientRect();
@@ -82,6 +91,39 @@ export function createIntro({ onProgress } = {}) {
     filmPitch = (r1.left + r1.width / 2) - filmC0;
     filmCards.forEach((c, i) => { c.style.transform = prevT[i]; });
     if (prevX) marketExperience.style.setProperty("--market-film-x", prevX);
+    else marketExperience.style.removeProperty("--market-film-x");
+    if (prevC) marketExperience.style.setProperty("--market-film-capture-x", prevC);
+    else marketExperience.style.removeProperty("--market-film-capture-x");
+    fitWords();
+  }
+  /* The hero word is the whole point of a plate, so it must never be cut off.
+     Widths are MEASURED, not estimated from the character count: caps in Space
+     Grotesk vary by 35% in width, so "WEBSITE" fits at a size where "SOFTWARE"
+     overflows by 29px — which is exactly how the reel shipped reading
+     "SOFTWAR". scrollWidth/clientWidth are layout-space, so this is honest
+     even when the plate is mid-turn. Runs on mount and on resize only. */
+  function fitWords() {
+    for (const card of filmCards) {
+      const word = card.querySelector(".plate__word");
+      if (!word) continue;
+      word.style.fontSize = "";
+      const have = word.clientWidth;
+      const need = word.scrollWidth;
+      if (!have || need <= have) continue;
+      const base = parseFloat(getComputedStyle(word).fontSize);
+      word.style.fontSize = `${(base * (have / need) * 0.985).toFixed(1)}px`;
+    }
+  }
+  /* Measure ONCE, up front, while nothing is moving. Measuring lazily on the
+     first live frame put a forced layout — two rects, nine scrollWidth reads
+     and nine font-size writes — inside the exact frame the reel starts to
+     travel: a repeatable 50ms hitch at the very moment the film begins to
+     move, which is precisely where the eye is. Waits for fonts, because a
+     word measured in the fallback face is measured wrong. */
+  if (filmCards.length) {
+    const warm = () => { filmPitch = 0; measureFilm(); };
+    if (document.fonts?.ready) document.fonts.ready.then(() => requestAnimationFrame(warm));
+    else requestAnimationFrame(warm);
   }
   /* ── the projector (real 3D, CC0 Poly Haven model) ──
      Yash's sketch: high and behind, cone falling onto the strip below. Mounted
@@ -487,7 +529,17 @@ export function createIntro({ onProgress } = {}) {
       marketExperience.style.setProperty("--market-opacity", marketOpacity.toFixed(3));
       marketExperience.style.setProperty("--market-zoom", (1 + zoomT * 3.75).toFixed(3));
       marketExperience.style.setProperty("--market-copy", Math.max(0, copyOpacity).toFixed(3));
-      marketExperience.style.setProperty("--market-film-opacity", (filmIn * filmOut * marketOpacity).toFixed(3));
+      /* Never exactly zero while ACT 03 is open. An element at opacity 0 is
+         not rasterised at all, so the first non-zero frame had to paint the
+         whole 191vw strip in one go — nine plates, their veils and light
+         pools, both sprocket bands and the end-fade mask. Measured: a
+         repeatable 50–66ms frame at p≈0.539, which is the exact instant the
+         film starts to travel and the only place the eye is looking. A floor
+         of 0.004 is invisible on this background and moves that raster into
+         the quiet editorial beat before it. */
+      const filmVis = filmIn * filmOut * marketOpacity;
+      marketExperience.style.setProperty("--market-film-opacity",
+        (filmVis > 0.004 ? filmVis : (marketOpacity > 0.02 ? 0.004 : 0)).toFixed(3));
       marketExperience.style.setProperty("--market-film-x", `${filmX.toFixed(2)}vw`);
       marketExperience.style.setProperty("--market-film-capture-x", `${(filmX * (1 - cameraCapture)).toFixed(2)}vw`);
 
@@ -504,7 +556,14 @@ export function createIntro({ onProgress } = {}) {
          away and darken (no hard cut at the screen edge, ever); the plate at
          the gate is lit and square to camera. Gate sits right of the
          projector body, where the lamp actually points. */
-      if (filmCards.length && filmIn * filmOut > 0.002) {
+      /* Runs from the moment ACT 03 opens, not from the moment the reel starts
+         moving. The strip's own opacity still gates what is SEEN, so this is
+         visually free — but it means the nine plates get their first transform
+         and their first rasterisation spread across the quiet editorial beat
+         instead of all landing on the single frame the film starts to travel.
+         That one frame measured 50–63ms, repeatably, at the exact instant the
+         eye follows the film. */
+      if (filmCards.length && marketOpacity > 0.002) {
         /* Positions are DERIVED, never measured: a getBoundingClientRect per
            card per frame forced ten layouts a frame and was the real source
            of the "not smooth" (p95 frame time 26ms, worst 225ms). Since the
@@ -513,17 +572,30 @@ export function createIntro({ onProgress } = {}) {
         for (let ci = 0; ci < filmCards.length; ci++) {
           const card = filmCards[ci];
           const d = ((ci - pos) * filmPitch) / innerWidth;   // -1 … +1 from the gate
-          const away = Math.min(Math.abs(d) / 0.52, 1); // 0 at gate, 1 far out
+          const away = Math.min(Math.abs(d) / 0.62, 1); // 0 at gate, 1 far out
           const curve = away * away;
-          const rotY = -Math.sign(d) * curve * 68;
-          const z = -curve * 520;
+          const rotY = -Math.sign(d) * curve * 38;
           const lit = 1 - Math.min(Math.abs(d) / 0.17, 1);
+          /* Depth by scale and turn ONLY — never translateZ. Under the strip's
+             perspective a pushed-back plate is dragged toward the vanishing
+             point, and off-centre plates drift far enough to slide over their
+             neighbours: measured, the CRM plate cut the word "SOFTWARE" in
+             half. A rotateY about a plate's own centre plus a scale ≤ 1 can
+             only ever shrink its footprint, so plates cannot collide. */
           card.style.transform =
-            `translateZ(${z.toFixed(0)}px) rotateY(${rotY.toFixed(1)}deg) scale(${(1 - curve * 0.06).toFixed(3)})`;
+            `perspective(1500px) rotateY(${rotY.toFixed(1)}deg) scale(${(1 - curve * 0.14).toFixed(3)})`;
+          /* nearest the gate paints last, so the lit plate is never overlapped */
+          card.style.zIndex = String(60 - Math.round(Math.min(Math.abs(d), 1) * 50));
           /* Vault rule M2: never animate `filter` — each change re-rasters the
              element, and ten plates a frame was half the jank. A veil layer's
-             opacity gives the same read on the compositor. */
-          card.style.setProperty("--veil", (0.62 - lit * 0.62).toFixed(2));
+             opacity gives the same read on the compositor.
+             Darkening the others is only half of it: the plates' own artwork
+             varies enough in brightness that a dark plate under the lamp still
+             measured DIMMER than a bright plate outside it (SEO 20 vs 25).
+             So the gate plate also gets light ADDED — which is what the lamp
+             is supposed to be doing to it. */
+          card.style.setProperty("--veil", (0.80 - lit * 0.74).toFixed(2));
+          card.style.setProperty("--lit", (lit * lit * 0.62).toFixed(3));
           /* Two separate falloffs: the depth curve is wide so neighbouring
              plates still read as a strip, while visibility dies hard past
              0.26 of the screen so nothing is ever bright at the edge. */

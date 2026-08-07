@@ -4646,3 +4646,53 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
   top: 72%;
   height: clamp(190px, 34vh, 340px);
 }
+
+/* ── the reel runs LEVEL (measured from frames, 7 Aug) ──────────────────
+   The strip still carried the original carousel's `rotate(-2.5deg)` and a
+   base `rotateX(3deg)`. Fine for seven cards pinned in place; wrong the
+   moment the film travels — the plates climbed 98px from the left edge of
+   the screen to the right and the sprocket bars ran downhill. A film is a
+   film: dead horizontal. The ACT 04 capture tilt is untouched. */
+.market-film {
+  transform:
+    translate(-50%, -50%)
+    translateX(var(--market-film-capture-x, var(--market-film-x)))
+    perspective(1600px)
+    rotateX(calc(var(--market-camera-capture, 0) * 12deg))
+    rotateY(calc(var(--market-camera-capture, 0) * -68deg))
+    scale(calc(1 - var(--market-camera-capture, 0) * .86));
+  /* Each plate now carries its OWN perspective (see intro.js), about its own
+     centre. A shared perspective here has its vanishing point at the middle
+     of a 148vw strip, so any plate turned off-centre gets dragged sideways
+     into its neighbour — that was the second half of the overlap bug. */
+  perspective: none;
+}
+.market-frame { transform-style: flat; }
+
+/* The strip was 148vw holding 191vw of plates, and the end-fade mask travels
+   with the element — so the mask's tail landed two plates early and the film
+   stopped dead in mid-air with black either side. The box now matches its own
+   contents, so the fade sits on the real ends of the reel. */
+.market-film { width: 191vw; }
+
+/* ── the plate in the beam is the one that glows ────────────────────────
+   The lamp's pool of light, laid ON the gate plate from above where the cone
+   actually meets the film. Opacity-only so it stays on the compositor (vault
+   M2) — no blend mode, no filter: a warm wash over dark art lifts it just as
+   well and costs nothing per frame. */
+.market-frame--plate::after { z-index: 0; }
+.market-frame--plate::before {
+  display: block;
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;                       /* over the art and the veil, under the text */
+  pointer-events: none;
+  opacity: var(--lit, 0);
+  background:
+    radial-gradient(128% 78% at 50% -6%, rgba(255,238,208,.62), rgba(255,206,150,.20) 46%, transparent 76%);
+}
+
+/* The fixed fan of angles belonged to the static carousel — and only ever
+   covered seven of the nine plates. The reel curves itself now. */
+.market-film .market-frame:nth-child(n) { transform: none; }
