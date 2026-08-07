@@ -134,42 +134,54 @@ const ok = (name, pass, detail) => { results.push({ name, pass }); console.log(`
   // portrait: plate must scale/pan so the glass stays framed, copy on a panel.
   // Re-scroll after the resize — the section moves, and measuring before that
   // reports the copy "outside the viewport" when it is merely off-screen.
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(1200);
-  await page.evaluate(() => {
+  // Portrait gets its OWN page. Resizing mid-session leaves the previous
+  // layout's scroll/pin state behind and measures a phantom; a phone user
+  // arrives at 390px from the first byte, so the test should too.
+  await page.close();
+  const mob = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  mob.on('pageerror', (e) => errs.push('mobile pageerror: ' + e.message));
+  await mob.goto(URL, { waitUntil: 'load' });
+  await mob.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 30000 });
+  await mob.waitForTimeout(1200);
+  await mob.evaluate(() => {
+    const { intro, lenis } = window.__buildanta;
+    if (lenis) lenis.scrollTo(intro.st.end, { immediate: true, force: true });
+    else scrollTo(0, intro.st.end);
+  });
+  await mob.waitForTimeout(3500);
+  await mob.evaluate(() => document.documentElement.classList.remove('bh-final'));
+  await mob.waitForTimeout(900);
+  // Un-hiding <main> changes every trigger's geometry; without this the intro
+  // stays pinned over the room and the capture shows the wrong scene.
+  await mob.evaluate(() => window.__buildanta.ScrollTrigger.refresh()).catch(() => {});
+  await mob.waitForTimeout(800);
+  await mob.evaluate(() => {
     const el = document.getElementById('contact');
     const y = el.getBoundingClientRect().top + scrollY;
     const { lenis } = window.__buildanta;
     if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
     else scrollTo(0, y);
   });
-  await page.waitForTimeout(2500);
-  await page.screenshot({ path: path.join(OUT, 'room-3-mobile.png') });
-  // Park the pointer: [data-magnetic] pulls the email toward the cursor, so a
-  // stale desktop pointer position reads as "copy off-screen" on a phone —
-  // where there is no pointer at all.
-  await page.mouse.move(195, 700);
-  await page.waitForTimeout(500);
-  const m = await page.evaluate(() => {
+  await mob.waitForTimeout(3000);
+  await mob.screenshot({ path: path.join(OUT, 'room-3-mobile.png') });
+  const m = await mob.evaluate(() => {
     const sec = document.getElementById('contact');
     const bh = sec.querySelector('.room__bh');
-    const mail = sec.querySelector('.contact__mail');
+    const ui = sec.querySelector('.room__ui');
     const r = bh ? bh.getBoundingClientRect() : null;
-    const mr = sec.querySelector('.room__ui').getBoundingClientRect();
+    const ur = ui.getBoundingClientRect();
     return {
       glassOnScreen: r ? (r.right > 20 && r.left < innerWidth - 20 && r.width > 60) : false,
-      mailBox: [Math.round(mr.left), Math.round(mr.right), Math.round(mr.top)],
-      vw: innerWidth, vh: innerHeight,
+      uiBox: [Math.round(ur.left), Math.round(ur.right)],
+      vw: innerWidth,
       overflow: document.documentElement.scrollWidth > innerWidth + 1,
-      uiTransform: getComputedStyle(sec.querySelector('.room__ui')).transform,
-      secTransform: getComputedStyle(sec).transform,
-      mainTransform: getComputedStyle(document.querySelector('main')).transform,
-      mailVisible: mr.width > 40 && mr.left >= -1 && mr.right <= innerWidth + 1,
+      drawerClosed: !sec.classList.contains('room--drawer'),
+      uiInside: ur.left >= -1 && ur.right <= innerWidth + 1,
     };
   });
-  ok('portrait', m.glassOnScreen && m.mailVisible && !m.overflow,
-    `glass framed=${m.glassOnScreen}, copy column x ${m.mailBox[0]}–${m.mailBox[1]} in ${m.vw}px, ` +
-    `h-overflow=${m.overflow} | ui:${m.uiTransform} sec:${m.secTransform} main:${m.mainTransform}`);
+  ok('portrait', m.glassOnScreen && m.uiInside && !m.overflow && m.drawerClosed,
+    `glass framed=${m.glassOnScreen}, copy x ${m.uiBox[0]}–${m.uiBox[1]} in ${m.vw}px, ` +
+    `h-overflow=${m.overflow}, drawer closed=${m.drawerClosed}`);
 
   ok('console-clean', errs.length === 0, errs.slice(0, 3).join(' | ') || 'no errors');
 
