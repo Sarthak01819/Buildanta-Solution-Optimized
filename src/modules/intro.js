@@ -66,15 +66,10 @@ export function createIntro({ onProgress } = {}) {
       </a>`).join("");
   }
   const filmCards = filmStrip ? [...filmStrip.querySelectorAll(".market-frame")] : [];
-  /* How much further the strip travels after the last plate's beat, so every
-     plate reaches the corner reel and winds on. Measured, not guessed: the
-     gate is at 50% and the reel sits near 16%, which is ~1.6 plate pitches,
-     plus most of a plate again to finish the wrap. */
-  const RUNOUT_PITCHES = 2.95;
   /* The detent parks a plate in the gate only if the strip advances by exactly
      one card pitch per beat — so measure the pitch, never assume it. (Guessing
      it cost a reel where no plate ever landed in the light.) */
-  let filmC0 = 0, filmPitch = 0, filmCY = 0, filmCW = 0;
+  let filmC0 = 0, filmPitch = 0;
   function measureFilm() {
     if (filmCards.length < 2 || !marketExperience) return;
     /* BOTH offsets have to go to zero. The strip's transform reads
@@ -94,8 +89,6 @@ export function createIntro({ onProgress } = {}) {
     const r1 = filmCards[1].getBoundingClientRect();
     filmC0 = r0.left + r0.width / 2;
     filmPitch = (r1.left + r1.width / 2) - filmC0;
-    filmCY = r0.top + r0.height / 2;   // the line the film runs along, in px
-    filmCW = r0.width;
     filmCards.forEach((c, i) => { c.style.transform = prevT[i]; });
     if (prevX) marketExperience.style.setProperty("--market-film-x", prevX);
     else marketExperience.style.removeProperty("--market-film-x");
@@ -482,34 +475,17 @@ export function createIntro({ onProgress } = {}) {
       const heroReveal = smoothstep((p - 0.472) / 0.028);
       const copyOpacity = heroReveal * (1 - smoothstep((local - 0.12) / 0.16));
       const filmIn = smoothstep((local - 0.24) / 0.09);
-      /* The film no longer EXITS by fading — it exits by being wound onto the
-         reel. This is now only a backstop for the handoff, held off until the
-         run-out has finished so it can never dissolve a plate that is still
-         travelling to the corner. */
-      const filmOut = 1 - smoothstep((local - 0.94) / 0.05);
+      const filmOut = 1 - smoothstep((local - 0.90) / 0.07);
       /* SETTLE AND HOLD (Yash MCQ): the strip is not linear in scroll. A
          detent curve spends most of its time parked with a plate in the gate
          and crosses the gap between plates quickly — a projector's rhythm. */
-      const filmRaw = smoothstep((local - 0.27) / 0.45);   // 9 beats own .27–.72
+      const filmRaw = smoothstep((local - 0.27) / 0.58);   // reel owns .27–.85
       const slots = Math.max(filmCards.length - 1, 1);
-      const posBeats = filmRaw * slots;
-      const idx = Math.floor(posBeats);
-      const frac = posBeats - idx;
+      const pos = filmRaw * slots;
+      const idx = Math.floor(pos);
+      const frac = pos - idx;
       const detent = frac < 0.34 ? 0 : frac > 0.72 ? 1 : smoothstep((frac - 0.34) / 0.38);
       const filmTravel = (idx + detent) / slots;
-      /* RUN-OUT (Yash, 7 Aug): the act ends on a full roll with the film all
-         consumed, so after the last plate has had its beat the strip keeps
-         travelling until every plate has wound on. Without this the reel
-         stopped with IoT still sitting in the gate and three plates never
-         reached the corner at all. */
-      /* Ends at local .86, not .92: `local` only reaches .90 while the act is
-         still fully on screen (it runs past 1 during the fade-out), so a
-         run-out timed to .92 was still winding film when ACT 04 was already
-         washing in — the reel was half full at the handoff. Finishing at .86
-         leaves a real beat where the full roll just sits there, which is the
-         ending that was asked for. */
-      const runOut = smoothstep((local - 0.72) / 0.14);
-      const pos = posBeats + runOut * RUNOUT_PITCHES;
       const humanIn = smoothstep((filmTravel - 0.72) / 0.12);
       const humanPush = smoothstep((filmTravel - 0.72) / 0.28);
       /* Longer capture runway: reel insertion ke baad camera ek frame mein
@@ -518,13 +494,7 @@ export function createIntro({ onProgress } = {}) {
          start at .68 and drag the strip BACKWARDS while plates were still
          queuing — the last three never reached the gate. It now waits until
          the reel has finished. */
-      /* Waits for the run-out, which now finishes at .86 — the capture beat
-         drags the strip bodily via --market-film-capture-x, so starting it
-         while film is still winding yanks it back out of the reel's mouth.
-         It cannot go later than this: `local` only passes .90 once the act is
-         already fading out, so a threshold above that would never fire while
-         the reel is on screen. */
-      const cameraCapture = smoothstep((local - 0.895) / 0.075);
+      const cameraCapture = smoothstep((local - 0.90) / 0.10);
       const cameraDepth = smoothstep((cameraCapture - 0.18) / 0.72);
       const cameraFlash = Math.sin(cameraCapture * Math.PI);
       const cameraRecoil = Math.sin(cameraCapture * Math.PI * 2) * (1 - cameraCapture);
@@ -573,30 +543,11 @@ export function createIntro({ onProgress } = {}) {
       marketExperience.style.setProperty("--market-film-x", `${filmX.toFixed(2)}vw`);
       marketExperience.style.setProperty("--market-film-capture-x", `${(filmX * (1 - cameraCapture)).toFixed(2)}vw`);
 
-      /* ── WHERE THE FILM MEETS THE ROLL ──
-         Read off the reel that is actually being drawn, never a second
-         hand-typed circle: re-hang the machine, resize the window or retune
-         the roll and the film still curls onto the exact thing on screen
-         (vault V10 — a measurement that can drift is a bug waiting).
-         The contact point is kept at the TOP of the roll, so the film always
-         arrives along the tangent and the wrap starts smooth. As the roll
-         fattens its top rises, so the last stretch of the straight run eases
-         up to meet it. */
-      const reelGeo = (!reduced && projector) ? projector.reelScreen() : null;
-      const wrapR = reelGeo ? reelGeo.r + 5 : 0;          // film lies OUTSIDE the roll
-      const contactX = reelGeo ? reelGeo.x : -1e6;
-      const topY = reelGeo ? reelGeo.y - reelGeo.r : filmCY;
-      const runIn = Math.max(filmPitch * 1.5, 1);
-      /* a plate is consumed once it has passed the contact point */
-      const lead = filmPitch ? (gateX - contactX) / filmPitch : 0;
-      const consumed = filmCards.length
-        ? Math.max(0, Math.min(1, (pos - lead) / filmCards.length)) : 0;
-
       /* the machine: present with the act, turning with the film */
       if (!reduced) {
         if (marketOpacity > 0.02) mountProjector();
         projector?.setPresence(lampStrike * filmIn * filmOut * marketOpacity);
-        projector?.setFilm(pos, consumed);
+        projector?.setFilm(pos);
       }
 
       /* CURVE INTO DEPTH + THREAD THROUGH THE MACHINE.
@@ -625,32 +576,6 @@ export function createIntro({ onProgress } = {}) {
           const curve = away * away;
           const rotY = -Math.sign(d) * curve * 38;
           const lit = 1 - Math.min(Math.abs(d) / 0.17, 1);
-
-          /* ── the wind-on ──
-             Left of the contact point the plate stops being a card in a row
-             and becomes film on a spool: it follows the roll's circle, turns
-             with the tangent, foreshortens as it goes over, and is gone by the
-             time it is round the back. `s` is arc length, so the plate travels
-             the circumference at the same rate it was travelling the straight
-             — the film never appears to speed up or stall at the corner. */
-          const natX = gateX + (ci - pos) * filmPitch;
-          let dx = 0, dy = 0, roll = 0, wrapScale = 1, wrapFade = 1;
-          if (reelGeo && natX < contactX + runIn) {
-            if (natX >= contactX) {
-              /* run-in: ease up onto the roll's shoulder, still flat */
-              const u = (natX - contactX) / runIn;          // 1 → far, 0 → contact
-              dy = (topY - filmCY) * (1 - smoothstep(u));
-            } else {
-              const a = Math.PI / 2 + (contactX - natX) / Math.max(wrapR, 1);
-              dx = (reelGeo.x + wrapR * Math.cos(a)) - natX;
-              dy = (reelGeo.y - wrapR * Math.sin(a)) - filmCY;
-              roll = 90 - a * 180 / Math.PI;               // tangent, in degrees
-              const t = Math.min((a - Math.PI / 2) / (Math.PI * 1.05), 1);
-              wrapScale = 1 - t * 0.52;                     // a flat plate cannot
-              wrapFade = 1 - smoothstep((t - 0.55) / 0.45); // truly bend, so it
-            }                                               // shrinks away instead
-          }
-
           /* Depth by scale and turn ONLY — never translateZ. Under the strip's
              perspective a pushed-back plate is dragged toward the vanishing
              point, and off-centre plates drift far enough to slide over their
@@ -658,12 +583,8 @@ export function createIntro({ onProgress } = {}) {
              half. A rotateY about a plate's own centre plus a scale ≤ 1 can
              only ever shrink its footprint, so plates cannot collide. */
           card.style.transform =
-            `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) rotate(${roll.toFixed(2)}deg) ` +
-            `perspective(1500px) rotateY(${rotY.toFixed(1)}deg) ` +
-            `scale(${((1 - curve * 0.14) * wrapScale).toFixed(3)})`;
-          /* nearest the gate paints last, so the lit plate is never overlapped.
-             Film winding on lies on the OUTSIDE of the coil, so a wrapping
-             plate correctly draws over the roll rather than behind it. */
+            `perspective(1500px) rotateY(${rotY.toFixed(1)}deg) scale(${(1 - curve * 0.14).toFixed(3)})`;
+          /* nearest the gate paints last, so the lit plate is never overlapped */
           card.style.zIndex = String(60 - Math.round(Math.min(Math.abs(d), 1) * 50));
           /* Vault rule M2: never animate `filter` — each change re-rasters the
              element, and ten plates a frame was half the jank. A veil layer's
@@ -673,26 +594,13 @@ export function createIntro({ onProgress } = {}) {
              measured DIMMER than a bright plate outside it (SEO 20 vs 25).
              So the gate plate also gets light ADDED — which is what the lamp
              is supposed to be doing to it. */
-          /* Plates heading for the reel keep more of themselves than plates
-             still waiting in the dark: on the left you are watching the
-             mechanism work, and at a veil of 0.80 the wind-on was a black
-             rectangle rotating against a black room. */
-          const veilMax = d < 0 ? 0.58 : 0.80;
-          card.style.setProperty("--veil", (veilMax - lit * (veilMax - 0.06)).toFixed(2));
+          card.style.setProperty("--veil", (0.80 - lit * 0.74).toFixed(2));
           card.style.setProperty("--lit", (lit * lit * 0.62).toFixed(3));
           /* Two separate falloffs: the depth curve is wide so neighbouring
              plates still read as a strip, while visibility dies hard past
              0.26 of the screen so nothing is ever bright at the edge. */
-          /* The edge fade now guards the RIGHT only — film arriving out of the
-             dark. On the left it dissolved plates about 0.34 screen widths
-             out, which is BEFORE the corner reel, so the wind-on would have
-             had nothing left to wind. Past the gate, wrapping is what makes a
-             plate disappear, because that is where it has actually gone. */
-          const edgeFade = d > 0
-            ? 1 - Math.min(Math.max((d - 0.26) / 0.13, 0), 1)
-            : 1;
-          card.style.opacity =
-            ((1 - curve * 0.35) * (0.06 + 0.94 * edgeFade) * wrapFade).toFixed(3);
+          const edgeFade = 1 - Math.min(Math.max((Math.abs(d) - 0.26) / 0.13, 0), 1);
+          card.style.opacity = ((1 - curve * 0.35) * (0.06 + 0.94 * edgeFade)).toFixed(3);
           card.dataset.lit = lit > 0.6 ? "1" : "0";
         }
       }
@@ -902,10 +810,7 @@ export function createIntro({ onProgress } = {}) {
   /* WE MARKET needs room: ten plates each get a readable beat (Yash, 7 Aug).
      Given as EXTRA viewport-heights on that act's own slice of the timeline,
      so every other act keeps exactly the pacing it already had. */
-  /* The nine beats now share .27–.72 of the act instead of .27–.80, because
-     the tail is spent winding the film onto the reel. The act is given more
-     scroll to compensate, so each plate keeps the reading time it had. */
-  const marketStretch = reduced ? 0 : 3.6;
+  const marketStretch = reduced ? 0 : 3.0;   // ~0.42vh of scroll per plate
   const MARKET_P0 = 0.425, MARKET_P1 = 0.696;
   /* Black-hole beat ka apna scroll span, burn ke poora hone ke BAAD —
      intro ka saara purana ganit introScrollLength par hi chalta hai,

@@ -53,14 +53,9 @@ const P0 = 0.425, P1 = 0.696;
   for (const L of [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9]) {
     await goP(P0 + L * (P1 - P0));
     const m = await page.evaluate(() => {
-      /* Only the STRAIGHT RUN is meant to be level. Plates left of the run-in
-         are easing down onto the reel and then wrapping it — they are supposed
-         to be rotated, lowered and overlapping the roll, so including them
-         here measures the wind-on and calls it a defect. */
-      const RUN_IN_X = innerWidth * 0.53;
       const cards = [...document.querySelectorAll('.market-frame')]
         .map((c) => c.getBoundingClientRect())
-        .filter((r) => r.left + r.width / 2 > RUN_IN_X && r.left < innerWidth + 200);
+        .filter((r) => r.right > -200 && r.left < innerWidth + 200);
       /* level = the plate CENTRES sit on one horizontal line. Comparing
          `top` instead measures the depth scale, not the tilt. */
       let tilt = 0, over = 0, worst = 0;
