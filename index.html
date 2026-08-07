@@ -121,6 +121,13 @@
         <img src="/market-cinema-camera-graded.png" alt="" />
       </div>
     </div>
+    <!-- The lens, at full size, drawn at NATIVE RESOLUTION (Yash 20:24).
+         Scaling the camera to 13x was blowing a 785px image up to 2900px and
+         taking the CSS gradients with it, because a transform-scaled layer is
+         rasterised once and then stretched. This element never scales: its
+         radius is a length, so every frame is drawn sharp at whatever size it
+         currently is. -->
+    <div class="market-lens-takeover" aria-hidden="true"></div>
     <!-- ACT 03 → ACT 04 (Yash, 17:46): you go through the lens, the screen
          goes properly BLACK, and then a small green sphere appears and grows
          until it is the world. This layer is the black. It sits at z-index 6,

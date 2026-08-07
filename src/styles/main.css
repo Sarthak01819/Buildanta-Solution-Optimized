@@ -4992,3 +4992,56 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
       #5c5c80 0 7deg, #1b1b2b 7deg 30deg, #14141f 30deg 60deg),
     radial-gradient(circle, #05050c 0 60%, #010103 100%);
 }
+
+/* ── centre the camera as it arrives (Yash, 20:24) ──────────────────────
+   The scale origin is the lens, so the lens stays wherever it started —
+   measured at (683, 341) against a viewport centre of (720, 450). It was
+   off-centre for the entire approach. These offsets sit BEFORE the scale in
+   the transform list, so they act in screen pixels and the scale does not
+   multiply them. */
+.market-pusher {
+  transform:
+    translateX(-50%)
+    translate(var(--market-camera-dx, 0px), var(--market-camera-dy, 0px))
+    perspective(900px)
+    rotateY(calc(var(--market-camera-recoil, 0) * -3deg))
+    rotateX(calc(var(--market-camera-recoil, 0) * 1.4deg))
+    scale(var(--market-camera-scale, 1));
+}
+
+/* ── the lens at full size, drawn sharp ─────────────────────────────────
+   A transform-scaled layer is rasterised ONCE and then stretched, so pushing
+   the camera to 13x blew a 785px image up to 2900px and dragged the CSS
+   gradients down with it. This element is never scaled: its radius is a
+   LENGTH, so the browser redraws it at true resolution at whatever size it
+   currently is. Same gradients, same rotating iris — it simply takes over
+   once the machine has arrived. */
+.market-lens-takeover {
+  position: absolute;
+  z-index: 8;                       /* over the camera, under the black (6→) */
+  left: 50%;
+  top: 50%;
+  width: calc(var(--lens-r, 0) * 2px);
+  height: calc(var(--lens-r, 0) * 2px);
+  margin-left: calc(var(--lens-r, 0) * -1px);
+  margin-top: calc(var(--lens-r, 0) * -1px);
+  border-radius: 50%;
+  opacity: var(--lens-take, 0);
+  pointer-events: none;
+  background:
+    radial-gradient(66% 50% at 31% 21%, rgba(206,220,255,.17), rgba(206,220,255,.04) 44%, transparent 70%),
+    radial-gradient(15% 11% at 27% 17%, rgba(255,255,255,.38), transparent 72%),
+    radial-gradient(circle at 64% 71%, rgba(124,92,255,.20), transparent 48%),
+    radial-gradient(circle at 36% 67%, rgba(64,196,255,.11), transparent 42%),
+    radial-gradient(circle, #010104 0 17%, rgba(1,1,4,.66) 27%, transparent 48%),
+    conic-gradient(from var(--market-camera-shutter-angle, 0deg),
+      rgba(255,255,255,.11) 0deg, rgba(255,255,255,.02) 96deg,
+      rgba(0,0,0,.20) 186deg, rgba(255,255,255,.02) 286deg,
+      rgba(255,255,255,.11) 360deg),
+    repeating-conic-gradient(from var(--market-camera-shutter-angle, 0deg),
+      #5c5c80 0 7deg, #1b1b2b 7deg 30deg, #14141f 30deg 60deg),
+    radial-gradient(circle, #05050c 0 60%, #010103 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(188,200,236,.20),
+    inset 0 0 calc(var(--lens-r, 0) * 0.10px) calc(var(--lens-r, 0) * 0.02px) rgba(0,0,0,.9);
+}

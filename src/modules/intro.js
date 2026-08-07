@@ -82,6 +82,10 @@ export function createIntro({ onProgress } = {}) {
      one card pitch per beat — so measure the pitch, never assume it. (Guessing
      it cost a reel where no plate ever landed in the light.) */
   let filmC0 = 0, filmPitch = 0;
+  /* the camera's own geometry, measured once per resize: its box, and the
+     radius its lens reaches once the machine has finished travelling.
+     43.5% / 30.9% / 30.5%-wide come from the artwork itself. */
+  let camLensW = 0, camLensH = 0, camLensR = 0;
   function measureFilm() {
     if (filmCards.length < 2 || !marketExperience) return;
     /* BOTH offsets have to go to zero. The strip's transform reads
@@ -107,6 +111,13 @@ export function createIntro({ onProgress } = {}) {
     if (prevC) marketExperience.style.setProperty("--market-film-capture-x", prevC);
     else marketExperience.style.removeProperty("--market-film-capture-x");
     fitWords();
+    const cam = root.querySelector(".market-pusher");
+    if (cam) {
+      const r = cam.getBoundingClientRect();
+      camLensW = r.width; camLensH = r.height;
+      /* radius the lens reaches once the camera has finished travelling */
+      camLensR = r.width * 0.305 * 0.5 * 4.2 * 0.72;
+    }
   }
   /* The hero word is the whole point of a plate, so it must never be cut off.
      Widths are MEASURED, not estimated from the character count: caps in Space
@@ -587,8 +598,26 @@ export function createIntro({ onProgress } = {}) {
          camera — and only the ENTER beat pushes past that into the glass. One
          blended curve cannot express a stop, which is why it read as a single
          lunge. */
+      /* The camera travels to 4.2x and STOPS there. It used to carry on to
+         13x, which blew the 785px image up to 2900px on screen — that is the
+         quality Yash saw falling apart (20:24). Past this point the lens
+         takeover does the work at native resolution. */
       marketExperience.style.setProperty("--market-camera-scale",
-        (1 + approach * 3.2 + enter * 8.8).toFixed(3));
+        (1 + approach * 3.2).toFixed(3));
+      /* CENTRE IT. The scale origin is the lens, so the lens stays wherever it
+         started — measured at (683, 341) against a viewport centre of
+         (720, 450), off by (-37, -109) for the whole approach. These
+         translations sit BEFORE the scale in the transform list, so they act
+         in screen pixels and are not multiplied by it. */
+      const lensDX = innerWidth / 2 - (innerWidth / 2 - camLensW * 0.065);
+      const lensDY = innerHeight / 2 - camLensH * 0.309;
+      marketExperience.style.setProperty("--market-camera-dx", `${(lensDX * approach).toFixed(1)}px`);
+      marketExperience.style.setProperty("--market-camera-dy", `${(lensDY * approach).toFixed(1)}px`);
+
+      /* the takeover: a real length, so it is drawn sharp at every size */
+      const takeR = camLensR + enter * (Math.hypot(innerWidth, innerHeight) * 0.52 - camLensR);
+      root.style.setProperty("--lens-r", takeR.toFixed(1));
+      root.style.setProperty("--lens-take", (enter > 0 ? 1 : 0).toFixed(0));
       /* It sits BEHIND the strip while the reel plays, so it can never cover a
          service word — but a machine travelling toward you has to pass the
          film, not stay pinned behind it. It comes forward on the APPROACH. */
