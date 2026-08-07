@@ -8,7 +8,9 @@ let chromium;
 try { ({ chromium } = require('playwright')); }
 catch { ({ chromium } = require('/Users/buildanta/claude code/buildanta-showcase/node_modules/playwright')); }
 
-const URL = process.env.SITE_URL || 'http://127.0.0.1:5280/';
+// 5290 = the DEV server: production strips `window.__buildanta`, which this
+// harness drives. 5280/the tunnel serve the built site for humans.
+const URL = process.env.SITE_URL || 'http://127.0.0.1:5290/';
 const OUT = path.join(__dirname, '..', 'shots-journey');
 
 (async () => {

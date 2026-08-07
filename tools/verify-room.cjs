@@ -161,12 +161,15 @@ const ok = (name, pass, detail) => { results.push({ name, pass }); console.log(`
       mailBox: [Math.round(mr.left), Math.round(mr.right), Math.round(mr.top)],
       vw: innerWidth, vh: innerHeight,
       overflow: document.documentElement.scrollWidth > innerWidth + 1,
+      uiTransform: getComputedStyle(sec.querySelector('.room__ui')).transform,
+      secTransform: getComputedStyle(sec).transform,
+      mainTransform: getComputedStyle(document.querySelector('main')).transform,
       mailVisible: mr.width > 40 && mr.left >= -1 && mr.right <= innerWidth + 1,
     };
   });
   ok('portrait', m.glassOnScreen && m.mailVisible && !m.overflow,
     `glass framed=${m.glassOnScreen}, copy column x ${m.mailBox[0]}–${m.mailBox[1]} in ${m.vw}px, ` +
-    `h-overflow=${m.overflow}`);
+    `h-overflow=${m.overflow} | ui:${m.uiTransform} sec:${m.secTransform} main:${m.mainTransform}`);
 
   ok('console-clean', errs.length === 0, errs.slice(0, 3).join(' | ') || 'no errors');
 
