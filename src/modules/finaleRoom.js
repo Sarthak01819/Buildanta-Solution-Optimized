@@ -123,9 +123,22 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
     const fall = 1 - smoothstep(0.945, 0.999, flight);
     flash.style.opacity = (Math.min(rise, fall) * 0.97).toFixed(3);
 
-    const roomFade = reduced ? (flight > 0.5 ? 1 : 0) : smoothstep(0.90, 0.99, flight);
+    /* THE ENTRY. Rather than a procedural throat in the ship scene (tried,
+       and a bare cylinder reads as another flat wall), the room's OWN plate
+       is the tunnel: it starts far oversized — you are effectively at its
+       threshold, ribbed walls filling the periphery — and settles to its
+       resting frame as you come to rest inside. The walls that "reappear"
+       are the room's real walls, so the two spaces cannot disagree.
+
+       The copy is deliberately late: text riding a 2.3x push-in is nausea,
+       and it belongs to the room you have arrived in, not to the passage. */
+    const roomFade = reduced ? (flight > 0.5 ? 1 : 0) : smoothstep(0.86, 0.99, flight);
     roomSection.style.opacity = roomFade.toFixed(3);
-    roomSection.style.transform = `scale(${(1.055 - 0.055 * roomFade).toFixed(4)})`;
+    roomSection.style.transform = "";
+    roomSection.style.setProperty("--room-zoom",
+      (1 + 1.3 * Math.pow(1 - roomFade, 1.7)).toFixed(4));
+    roomSection.style.setProperty("--ui-in",
+      (reduced ? 1 : smoothstep(0.945, 1, flight)).toFixed(3));
     roomSection.style.pointerEvents = roomFade > 0.85 ? "" : "none";
     roomSection.setAttribute("aria-hidden", roomFade > 0.5 ? "false" : "true");
     roomSection.classList.toggle("room--live", roomFade > 0.002);
