@@ -68,6 +68,13 @@ async function rideToFinale(page) {
       beatLive: document.querySelector('.intro__blackhole')?.classList.contains('solid'),
     };
   });
+  // the airlock is the MODEL's own: assert we found its doors and its port,
+  // so a future model swap that renames them fails loudly instead of quietly
+  // docking at a guessed point with nothing to open
+  const air = await page.evaluate(() => window.__ship || null);
+  ok('airlock-found', !!air && air.doors > 0 && Array.isArray(air.port),
+    air ? `${air.doors} door leaves on the model's port at [${air.port}]` : 'no ship handle');
+
   ok('finale-ship', orbit.shipVisible && orbit.beatLive,
     `ship canvas ${orbit.shipPx?.join('x')} over the live Gargantua beat`);
   // Prove clickability by hit-test rather than by Playwright's click: its
