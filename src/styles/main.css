@@ -1354,7 +1354,7 @@ a { color: inherit; text-decoration: none; }
     perspective(900px)
     rotateY(calc(var(--market-camera-recoil, 0) * -3deg))
     rotateX(calc(var(--market-camera-recoil, 0) * 1.4deg))
-    scale(calc(1 + var(--market-camera-capture, 0) * 4.6 + var(--market-camera-recoil, 0) * .018));
+    scale(calc(1 + var(--market-camera-capture, 0) * 11.5 + var(--market-camera-recoil, 0) * .018));
   transform-origin: 43.5% 31%;
   will-change: opacity, transform;
   overflow: visible;
@@ -4809,3 +4809,36 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
     inset 0 0 5vmax rgba(0, 255, 154, .22);
   opacity: calc((1 - var(--hole, 0)) * var(--blackout, 0));
 }
+
+
+/* ── the camera comes TO you, and its lens becomes the screen (Yash 18:08) ──
+   The black has to arrive FROM the lens, not fade in over the machine. Two
+   things stopped that. The camera only grew 5.6x, which put its lens at about
+   1040px across on a frame whose diagonal is 1700 — the corners never went
+   dark, so a flat black layer had to do the work and the effect read as a
+   dissolve. And the machine faded out with the rest of the act while it was
+   still approaching, so it vanished before it could arrive.
+   It now grows 12.5x, which carries the lens past the diagonal; the act holds
+   at full opacity until the lens owns the frame; and the black layer only
+   takes over afterwards, to make near-black into true black. Scaling about
+   43.5%/30.9% — the lens centre — is what makes it read as going INTO the
+   glass rather than the machine merely getting bigger. */
+.market-camera__lens {
+  transform: translate(-50%, -50%) scale(calc(.72 + var(--market-camera-capture, 0) * .55));
+}
+
+/* The lens was set to FADE OUT as the capture ran (opacity: 1 - camera-depth),
+   handing over to a portal element. So at the exact moment it should have been
+   filling the frame it was disappearing, and what actually covered the screen
+   was the camera's graded metal body — measured, corners at 9.2 with the black
+   layer disabled, when they should have been going dark. The glass stays
+   opaque now and its interior IS the black; the portal is retired, because the
+   reveal is the green sphere and two reveals fight each other. */
+.market-camera__lens { opacity: 1; }
+.market-camera__portal { opacity: 0; }
+
+
+/* The camera sits behind the strip while the reel plays, and has to come in
+   FRONT of it to arrive — otherwise the film draws over the glass and the
+   plates ghost through the lens as it fills the frame. */
+.market-pusher { z-index: calc(4 + var(--market-camera-capture, 0) * 60); }

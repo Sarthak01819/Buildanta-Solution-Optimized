@@ -473,8 +473,12 @@ export function createIntro({ onProgress } = {}) {
          into the world. The act's exit and the lens takeover are the SAME
          curve now, so the machine swallowing the frame is what ends ACT 03,
          and it all happens under the black rather than over the reel. */
-      const lensTake = smoothstep((p - 0.688) / 0.018);   // .688 → .706
-      const marketOut = 1 - lensTake;
+      const lensTake = smoothstep((p - 0.686) / 0.030);   // .686 → .716 : the approach
+      /* The act does NOT fade while the camera is coming forward — it held
+         the machine's own opacity, so the thing travelling toward you
+         disappeared before it arrived. It clears only once the lens owns the
+         frame, and by then the screen is already black. */
+      const marketOut = 1 - smoothstep((p - 0.716) / 0.008);
       const marketOpacity = marketIn * marketOut;
       const local = Math.max(0, Math.min(1, (p - 0.48) / 0.24));
       const zoomT = smoothstep((local - 0.08) / 0.38);
@@ -528,7 +532,7 @@ export function createIntro({ onProgress } = {}) {
       /* LIGHTS DOWN, THEN THE LAMP (Yash MCQ): the code world dims to a dark
          room first; only then does the projector strike and the reel start. */
       const roomIn = smoothstep((p - 0.392) / 0.052);
-      const roomOut = 1 - smoothstep((p - 0.700) / 0.014);
+      const roomOut = 1 - smoothstep((p - 0.716) / 0.008);
       const lampStrike = smoothstep((local - 0.19) / 0.06);   // projector arrives AFTER the opening
       marketExperience.style.setProperty("--market-room",
         (roomIn * roomOut * (0.5 + 0.5 * lampStrike)).toFixed(3));
@@ -538,8 +542,10 @@ export function createIntro({ onProgress } = {}) {
       /* black is fully up by .706 and HOLDS to .722 — a real beat of nothing,
          which is what makes the sphere land. The sphere is the consult world's
          own clip-circle opening (see --zero-reveal below). */
-      const sphere = smoothstep((p - 0.722) / 0.064);      // .722 → .786
-      root.style.setProperty("--blackout", lensTake.toFixed(3));
+      const sphere = smoothstep((p - 0.730) / 0.062);      // .730 → .792
+      /* the layer exists to turn the lens's near-black into TRUE black, so it
+         arrives behind the glass, not instead of it */
+      root.style.setProperty("--blackout", smoothstep((p - 0.706) / 0.012).toFixed(3));
       root.style.setProperty("--hole", sphere.toFixed(3));
 
       root.classList.toggle("market-live", marketOpacity > 0.002);
@@ -554,7 +560,11 @@ export function createIntro({ onProgress } = {}) {
          film starts to travel and the only place the eye is looking. A floor
          of 0.004 is invisible on this background and moves that raster into
          the quiet editorial beat before it. */
-      const filmVis = filmIn * filmOut * marketOpacity;
+      /* The strip clears BEFORE the lens dominates, not in step with it. On
+         the same curve the plates were still 35% visible when the glass had
+         the frame, and they ghosted through it like a double exposure. */
+      const filmVis = filmIn * filmOut * marketOpacity
+        * (1 - smoothstep((p - 0.688) / 0.014));
       marketExperience.style.setProperty("--market-film-opacity",
         (filmVis > 0.004 ? filmVis : (marketOpacity > 0.02 ? 0.004 : 0)).toFixed(3));
       marketExperience.style.setProperty("--market-film-x", `${filmX.toFixed(2)}vw`);
@@ -624,7 +634,15 @@ export function createIntro({ onProgress } = {}) {
       /* Camera remains physically present until the lens has filled the frame.
          The reel can fade, but fading the camera at the same time caused a
          dark gap before ACT 04. */
-      marketExperience.style.setProperty("--market-human-opacity", (filmIn * marketOpacity).toFixed(3));
+      /* Never exactly zero while ACT 03 is open — the same trick as the film
+         strip, for the same reason (vault M9). The camera is an 860KB PNG with
+         a filter chain on it; at opacity 0 it is neither decoded nor
+         rasterised, so the first non-zero frame paid for both at once —
+         measured 43ms on a cold run at p=0.457. A floor of 0.004 is invisible
+         and moves that cost into the quiet editorial beat. */
+      const humanVis = filmIn * marketOpacity;
+      marketExperience.style.setProperty("--market-human-opacity",
+        (humanVis > 0.004 ? humanVis : (marketOpacity > 0.02 ? 0.004 : 0)).toFixed(3));
       marketExperience.style.setProperty("--market-human-drive", filmTravel.toFixed(3));
       marketExperience.style.setProperty("--market-human-exit", humanPush.toFixed(3));
       marketExperience.style.setProperty("--market-camera-capture", cameraCapture.toFixed(3));
@@ -653,12 +671,12 @@ export function createIntro({ onProgress } = {}) {
          cut to black now, so there is nothing to bleed over the reel. */
       const lightFrame = 0;
       /* the sphere: the world's own clip-circle, opening AFTER the black beat */
-      const consultReveal = smoothstep((p - 0.722) / 0.064);
+      const consultReveal = smoothstep((p - 0.730) / 0.062);
       const consultOut = 1 - smoothstep((p - 0.992) / 0.008);
       /* fully painted behind the black before the circle opens, so the circle
          is the ONLY reveal — a world that also fades in reads as a dissolve,
          not as something you entered */
-      const consultOpacity = smoothstep((p - 0.700) / 0.014) * consultOut;
+      const consultOpacity = smoothstep((p - 0.714) / 0.012) * consultOut;
       const consultLocal = Math.max(0, Math.min(1, (p - 0.704) / 0.288));
       // The same palm globe begins around the camera and zooms out into place.
       // Bring its mint world in immediately—there is no separate space scene.
