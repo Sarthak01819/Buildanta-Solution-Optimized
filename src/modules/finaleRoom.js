@@ -30,7 +30,18 @@ const smoothstep = (a, b, x) => {
   return k * k * (3 - 2 * k);
 };
 
-export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced = false, lite = false }) {
+/**
+ * @param {object} o
+ * @param {HTMLElement} o.blackholeHost  layer the ship + sky render into
+ * @param {HTMLElement} o.roomSection    the #contact section
+ * @param {() => boolean} [o.isLive]     "is the Endurance on screen?" — the
+ *   finale asks the intro's beat, the main site asks an observer. Injecting it
+ *   is what lets one module serve both without knowing about either.
+ * @param {boolean} [o.overlay]  true = fixed full-screen (finale), false = the
+ *   room is an ordinary in-flow section and only the flight overlays.
+ */
+export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
+                                   overlay = true, reduced = false, lite = false }) {
   if (!blackholeHost || !roomSection) return null;
 
   /* The portal is the DOOR, not the destination: holding it open rides you
@@ -40,10 +51,14 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
      no second raymarch. (An earlier read of "the beat never becomes visible"
      came from a probe that scrolled to the end without ever riding through.) */
 
-  // Relocate the room out of the hidden <main> and make it a fixed overlay.
-  document.body.appendChild(roomSection);
-  roomSection.classList.add("room--finale");
-  roomSection.setAttribute("aria-hidden", "true");
+  /* Finale: the room is pulled out of the hidden <main> and becomes a fixed
+     overlay. Main site: it stays exactly where it is in the document, an
+     ordinary section you can scroll to, and only the flight overlays it. */
+  if (overlay) {
+    document.body.appendChild(roomSection);
+    roomSection.classList.add("room--finale");
+    roomSection.setAttribute("aria-hidden", "true");
+  }
 
   const cta = document.createElement("button");
   cta.type = "button";
@@ -140,8 +155,15 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
     flash.style.opacity = (reduced ? 0 : Math.min(rise, fall) * 0.97).toFixed(3);
 
     const roomFade = reduced ? (flight > 0.8 ? 1 : 0) : smoothstep(0.74, 0.97, flight);
-    roomSection.style.opacity = roomFade.toFixed(3);
-    roomSection.style.transform = `scale(${(1.055 - 0.055 * roomFade).toFixed(4)})`;
+    if (overlay) {
+      roomSection.style.opacity = roomFade.toFixed(3);
+      roomSection.style.transform = `scale(${(1.055 - 0.055 * roomFade).toFixed(4)})`;
+    } else {
+      /* In-flow: the section itself never moves or hides — it is part of the
+         page. Its CONTENT arrives instead, so the visitor sees the Endurance
+         over space, flies in, and the room resolves around them in place. */
+      roomSection.style.setProperty("--room-in", roomFade.toFixed(3));
+    }
     roomSection.style.setProperty("--room-zoom", "1");
     roomSection.style.setProperty("--ui-in", "1");
     roomSection.style.pointerEvents = roomFade > 0.85 ? "" : "none";
@@ -151,13 +173,13 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
     // the black hole and the ship dim out as the room takes the frame
     const outside = 1 - roomFade;
     blackholeHost.style.opacity = outside.toFixed(3);
+    blackholeHost.style.pointerEvents = "none";
     cta.classList.toggle("finale-cta--gone", flight > 0.02);
     document.documentElement.classList.toggle("finale-inside", roomFade > 0.85);
   }
 
   function syncBeat() {
-    // `solid` is set the moment the ride lands on Gargantua
-    const live = blackholeHost.classList.contains("solid");
+    const live = isLive ? isLive() : blackholeHost.classList.contains("solid");
     if (live === beatLive) return;
     beatLive = live;
     if (live) ship?.load();
@@ -168,12 +190,23 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
   const beatWatch = new MutationObserver(syncBeat);
   beatWatch.observe(blackholeHost, { attributes: true, attributeFilter: ["class"] });
   syncBeat();
+  /* Establish the outside state once. The CSS default is `--room-in: 1`, so a
+     page whose JS never runs still shows an ordinary, readable contact
+     section — never-hide-content. It is this call that hides it for the
+     flight, which means the hiding can only happen when the flight can
+     actually deliver it. */
+  applyFlight(0);
 
   const api = {
     /** kept for the caller; the portal observer is what actually drives this */
     setBeat() {},
     setCursor(nx, ny) { ship?.setCursor(nx, ny); },
     tick(dt) {
+      /* When the caller injects `isLive` (the main site asking "is the contact
+         section on screen?") there is no class mutation to react to, so it is
+         polled here. The finale keeps its observer: polling it universally
+         made that path flaky, because the intro's own class flickers. */
+      if (isLive) syncBeat();
       cta.classList.toggle("finale-cta--in", beatLive && flight <= 0.02);
       if (tweening) {
         const k = Math.min(1, (performance.now() - tweenT0) / tweenDur);

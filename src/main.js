@@ -18,7 +18,16 @@ gsap.registerPlugin(ScrollTrigger);
 /* FINALE MODE: the black hole ends the experience — the blue site below is
    hidden (kept intact in markup). Set to false to restore the full site;
    the contact room then simply stays an in-flow section at the end of it. */
-const FINALE = true;
+/* Switchable at load as well as in source: `?finale=0` boots the ordinary
+   blue site with the Endurance as a section of it, `?finale=1` forces the
+   black-hole finale. Without a parameter the constant below decides. Mode has
+   to be chosen at boot — the finale relocates #contact into <body>, so it
+   cannot be undone by toggling a class afterwards. */
+const FINALE_DEFAULT = true;
+const FINALE = (() => {
+  const q = new URLSearchParams(location.search).get("finale");
+  return q === null ? FINALE_DEFAULT : q !== "0";
+})();
 if (FINALE) document.documentElement.classList.add("bh-final");
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -304,19 +313,33 @@ function boot() {
      orbits beside it, a Contact control flies you in, and this same room
      becomes the site's final surface. Only in finale mode — with the blue
      site restored, the room stays an ordinary section at the end of it. */
-  if (FINALE && roomSection) {
+  {
     const lite = (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
                  (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
-    /* Riding the portal lands on the site's own Gargantua beat — that is the
-       black hole the visitor ends on, so that is where the Endurance orbits
-       and where Contact flies them in from. */
-    finale = createFinaleRoom({
-      blackholeHost: $(".intro__blackhole"),
-      roomSection, shaders: BH_SHADERS, reduced: REDUCED, lite,
-    });
+    if (FINALE && roomSection) {
+      /* Riding the portal lands on the site's own Gargantua beat — that is the
+         black hole the visitor ends on, so that is where the Endurance orbits
+         and where Contact flies them in from. */
+      finale = createFinaleRoom({
+        blackholeHost: $(".intro__blackhole"),
+        roomSection, shaders: BH_SHADERS, reduced: REDUCED, lite,
+      });
+    } else if (roomSection) {
+      /* MAIN SITE. The contact section carries the Endurance itself: the ship
+         renders on a layer inside the section, Contact flies you in, and the
+         room resolves around you in place. Same module, same flight — only the
+         host and the "are we on screen?" test differ. */
+      const shipHost = $("[data-room-ship]", roomSection);
+      let onScreen = false;
+      new IntersectionObserver((es) => { for (const e of es) onScreen = e.isIntersecting; },
+        { threshold: 0.35 }).observe(roomSection);
+      finale = createFinaleRoom({
+        blackholeHost: shipHost,
+        roomSection, shaders: BH_SHADERS, isLive: () => onScreen,
+        overlay: false, reduced: REDUCED, lite,
+      });
+    }
     if (finale) {
-      // the room is fixed-position now; it is always "on screen" for the
-      // window engine, which the flight fades in and out with the section
       room?.setVisible(true);
       addEventListener("pointermove", (e) => {
         finale.setCursor((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);

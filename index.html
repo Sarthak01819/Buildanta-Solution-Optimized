@@ -429,6 +429,9 @@
     <!-- The Endurance's sitting module. Every word and link below is plain
          DOM: with no WebGL it is still a complete contact section. -->
     <section class="section section--room" id="contact" data-room>
+      <!-- Where the Endurance renders when the room is an ordinary section of
+           the main site (finale mode uses the intro's own black-hole layer). -->
+      <div class="room__ship" data-room-ship aria-hidden="true"></div>
       <div class="room__stage" data-room-stage aria-hidden="true">
         <div class="room__plate" data-depth="1"></div>
         <div class="room__breath" data-room-breath></div>
