@@ -4841,4 +4841,18 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 /* The camera sits behind the strip while the reel plays, and has to come in
    FRONT of it to arrive — otherwise the film draws over the glass and the
    plates ghost through the lens as it fills the frame. */
-.market-pusher { z-index: calc(4 + var(--market-camera-capture, 0) * 60); }
+.market-pusher { z-index: calc(4 + var(--market-camera-front, 0) * 60); }
+
+
+/* Scale comes from JS now, piecewise, so the travel and the entry are two
+   separate moves with a stop between them (Yash, 18:20). */
+.market-pusher {
+  transform:
+    translateX(-50%)
+    translateX(calc(var(--market-camera-capture, 0) * 3vw))
+    translateY(calc(var(--market-camera-capture, 0) * 12vh))
+    perspective(900px)
+    rotateY(calc(var(--market-camera-recoil, 0) * -3deg))
+    rotateX(calc(var(--market-camera-recoil, 0) * 1.4deg))
+    scale(var(--market-camera-scale, 1));
+}

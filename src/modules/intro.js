@@ -4,6 +4,7 @@ import { INTRO, BRAND } from "../config.js";
 import { splitChars } from "./splitText.js";
 import { createSound } from "./sound.js";
 import { createCorridor } from "../gl/Corridor.js";
+import { mountOrbHero } from "../gl/orb-hero/index.js";
 import { createConsultHand } from "../gl/ConsultHand.js";
 import { mountBlackholeBeat } from "../gl/blackhole/index.js";
 import { buildObjects, projectObjects } from "./introObjects.js";
@@ -48,6 +49,17 @@ export function createIntro({ onProgress } = {}) {
   const ideaFx = root.querySelector(".intro__ideaTransfer");
   const bigBangEl = ideaFx?.querySelector(".intro__bigBang");
   const catchDrops = [...(ideaFx?.querySelectorAll(".intro__catchDrop") || [])];
+
+  /* ── purana painted core hata do ──
+     ideaCore / ideaSparkle / ideaRipple pre-rendered artwork ke chamakte core
+     ke UPAR baithne ke liye bane the. Ab orb ka apna asli dense core hai, to ye
+     teenon uske upar ek DOOSRA nakli core bana dete the.
+
+     catchDrop JAAN-BOOJHKAR bache hain — wo takra kar Act 02 ka Big Bang
+     jalaate hain. */
+  for (const sel of [".intro__ideaCore", ".intro__ideaSparkle", ".intro__ideaRipple"]) {
+    ideaFx?.querySelector(sel)?.style.setProperty("display", "none");
+  }
   const topBar = root.querySelector(".intro__top");
   const footBar = root.querySelector(".intro__foot");
   const bar = root.querySelector(".intro__bar");
@@ -204,6 +216,24 @@ export function createIntro({ onProgress } = {}) {
       : "#6dc9ff",
   });
   const peaks = corridor.peaks;
+
+  /* ── opening orb (GPGPU) ──
+     Corridor ka apna 46k-particle orb ab bhi maujood hai — ye uske UPAR apne
+     canvas par baithta hai. Ek hi scene mein daalna mumkin nahi tha: corridor
+     `autoClear = false` chalata hai kyunki CodeBuild/MarketGrowth usi
+     framebuffer par doosra pass likhte hain, aur is orb ka poora look uske
+     apne bloom/grain chain se aata hai — composer wahan daalte hi wo passes
+     mit jaate.
+
+     `ok === false` (WebGL2 ya float targets nahi) par ye khud ko mount hi nahi
+     karta aur neeche purana orb waisa hi chalta rehta hai. */
+  const orbHero = mountOrbHero(glCanvas, {
+    paper: palette[steps[0].theme].paper,
+    amber: palette[steps[0].theme].accent,
+  });
+  /* Live scene chal rahi hai to Act 01 ka pre-rendered bubble plane chhupa do —
+     warna do sphere ek saath dikhte hain. */
+  if (orbHero.ok && corridor.station?.[0]?.mesh) corridor.station[0].mesh.visible = false;
 
   /* ── acts ka DOM ──
      Sirf text. Image ab DOM mein nahi hai — wo corridor mein ek 3D plane
@@ -369,7 +399,18 @@ export function createIntro({ onProgress } = {}) {
        hai, act 01 ka text 0.06 par aana shuru hota hai — thoda overlap
        jaan-boojhkar hai, warna do alag scene lagte hain. */
     const orbFade = 1 - smoothstep((p - 0.012) / 0.088);
-    corridor.orb.setFade(orbFade);
+    if (orbHero.ok) {
+      /* Naya orb purane ki JAGAH — dono ek saath nahi. Ye Act 01 ke aakhir tak
+         rehta hai (pehle 0.10 par gayab ho jaata tha): pehle core mein sikudta
+         hai, phir shell khulti hai aur dust dobara form leti hai. Big Bang
+         (p ≈ 0.264) se pehle jagah khaali kar deta hai, isliye Act 02 ka beat
+         bilkul waisa hi hai. */
+      corridor.orb.setFade(0);
+      orbHero.setOpacity(1 - smoothstep((p - 0.2) / 0.045));
+      orbHero.setActProgress(p / 0.244);
+    } else {
+      corridor.orb.setFade(orbFade);   // fallback: purana 46k orb
+    }
     corridor.setFrameFade(1 - orbFade);      // corridor orb ke jaane par banta hai
     root.style.setProperty("--orb-in", orbFade.toFixed(3));
 
@@ -389,8 +430,23 @@ export function createIntro({ onProgress } = {}) {
       const impact = impactIn * impactOut;
       ideaLife = smoothstep((p - 0.070) / 0.034) * win(p, peaks[0]);
 
-      ideaFx.style.setProperty("--drop-x", `${(48.6 + dropT * 1.4 - curve * 1.6).toFixed(3)}vw`);
-      ideaFx.style.setProperty("--drop-y", `${(37.5 + dropT * 26.5).toFixed(3)}vh`);
+      /* Core sampark par bhadakta hai, phir pehle se thoda tez rehta hai — orb
+         ne boond ko sirf jhela nahi, LE liya. Dono p ka seedha function hain,
+         isliye ulta scroll karne par ulte chalte hain. */
+      orbHero.setCoreFlash(
+        smoothstep((p - 0.070) / 0.010) * (1 - smoothstep((p - 0.080) / 0.055)),
+        smoothstep((p - 0.070) / 0.030) * win(p, peaks[0])
+      );
+
+      /* Boond ab ASLI core par girti hai. Pehle (50vw, 64vh) par girti thi — wo
+         purane pre-rendered artwork ke core ki jagah thi, jahan ab kuch hai hi
+         nahi. Naya core apne camera se project hota hai (CodeBuild ke splash
+         droplets wali hi discipline), isliye IDEA_VIEW ya fov badle to boond
+         apne aap peeche jaati hai. */
+      const land = orbHero.ok ? orbHero.coreScreen() : { x: 50.0, y: 64.0 };
+      const dx0 = 48.6, dy0 = 37.5;
+      ideaFx.style.setProperty("--drop-x", `${(dx0 + dropT * (land.x - dx0) - curve * 1.6).toFixed(3)}vw`);
+      ideaFx.style.setProperty("--drop-y", `${(dy0 + dropT * (land.y - dy0)).toFixed(3)}vh`);
       ideaFx.style.setProperty("--drop-o", dropOpacity.toFixed(3));
       ideaFx.style.setProperty("--drop-sx", (0.76 - dropT * 0.14).toFixed(3));
       ideaFx.style.setProperty("--drop-sy", (0.96 + dropT * 0.42).toFixed(3));
@@ -411,14 +467,20 @@ export function createIntro({ onProgress } = {}) {
       const baseY = Number.isFinite(projectedBase?.y)
         ? projectedBase.y
         : narrow ? 76 : 78;
+      /* Teenon boondein ab CORE se nikalti hain, 64vh se nahi — wo purane
+         artwork ke core ki jagah thi. Wahi ±1.5vw ka fan, bas asli jagah par. */
+      const originX = land.x, originY = land.y;
       const paths = [
-        { start: [48.5, 64], control: [narrow ? 34 : 32, 29], target: [baseX, baseY] },
-        { start: [50.0, 64], control: [narrow ? 70 : 72, 31], target: [baseX, baseY] },
-        { start: [51.5, 64], control: [narrow ? 76 : 79, 47], target: [baseX, baseY] },
+        { start: [originX - 1.5, originY], control: [narrow ? 34 : 32, 29], target: [baseX, baseY] },
+        { start: [originX, originY], control: [narrow ? 70 : 72, 31], target: [baseX, baseY] },
+        { start: [originX + 1.5, originY], control: [narrow ? 76 : 79, 47], target: [baseX, baseY] },
       ];
 
       paths.forEach((path, i) => {
-        const start = 0.095 + i * 0.010;
+        /* 0.095 → 0.140: pehle boondein tab nikalti thi jab idea ban hi rahi
+           thi. Ab pehle shell khulti hai aur dust form leti hai, PHIR orb use
+           aage bhejta hai. 0.264 ka takkar-beat waisa hi hai. */
+        const start = 0.140 + i * 0.010;
         const end = 0.264; // All 3 liquid droplets converge & collide at 0.264!
         const travel = smoothstep((p - start) / (end - start));
         const visible =
@@ -473,19 +535,34 @@ export function createIntro({ onProgress } = {}) {
          into the world. The act's exit and the lens takeover are the SAME
          curve now, so the machine swallowing the frame is what ends ACT 03,
          and it all happens under the black rather than over the reel. */
-      const lensTake = smoothstep((p - 0.686) / 0.030);   // .686 → .716 : the approach
-      /* The act does NOT fade while the camera is coming forward — it held
-         the machine's own opacity, so the thing travelling toward you
-         disappeared before it arrived. It clears only once the lens owns the
-         frame, and by then the screen is already black. */
-      const marketOut = 1 - smoothstep((p - 0.716) / 0.008);
+      /* ── THE HANDOVER, IN THREE BEATS (Yash, 18:20) ───────────────────
+         1. APPROACH  .684→.716  the camera travels toward you. The reel is
+            STILL RUNNING behind it — you watch the machine grow against live
+            film, which is what makes it read as coming to you rather than the
+            scene simply ending.
+         2. HOLD      .716→.726  it stops, at rest, filling the frame and
+            still plainly a camera. The film clears behind it here. The pause
+            is what makes entering feel like a choice rather than a fall.
+         3. ENTER     .726→.752  you push into the glass; the lens takes the
+            frame and the screen goes black. */
+      const approach = smoothstep((p - 0.684) / 0.032);
+      const enter = smoothstep((p - 0.726) / 0.026);
+      const lensTake = enter;
+      /* The act wrapper carries the camera, so it has to live until the black
+         is complete — otherwise the machine dissolves mid-journey. */
+      const marketOut = 1 - smoothstep((p - 0.752) / 0.008);
       const marketOpacity = marketIn * marketOut;
       const local = Math.max(0, Math.min(1, (p - 0.48) / 0.24));
       const zoomT = smoothstep((local - 0.08) / 0.38);
       const heroReveal = smoothstep((p - 0.472) / 0.028);
       const copyOpacity = heroReveal * (1 - smoothstep((local - 0.12) / 0.16));
       const filmIn = smoothstep((local - 0.24) / 0.09);
-      const filmOut = 1 - smoothstep((local - 0.90) / 0.07);
+      /* filmOut used to end the strip at local .90 (p=.696) — before the
+         camera had travelled at all, so the reel died and then a machine
+         zoomed at an empty screen. The strip now lives through the whole
+         approach and clears in the HOLD, on p, not on the act's own local
+         clock (which is clamped to 1 by p=0.72 and cannot express this). */
+      const filmOut = 1 - smoothstep((p - 0.714) / 0.012);
       /* SETTLE AND HOLD (Yash MCQ): the strip is not linear in scroll. A
          detent curve spends most of its time parked with a plate in the gate
          and crosses the gap between plates quickly — a projector's rhythm. */
@@ -504,7 +581,18 @@ export function createIntro({ onProgress } = {}) {
          start at .68 and drag the strip BACKWARDS while plates were still
          queuing — the last three never reached the gate. It now waits until
          the reel has finished. */
-      const cameraCapture = smoothstep((local - 0.90) / 0.10);
+      const cameraCapture = enter;
+      /* Scale is piecewise so the two beats are separable: the travel brings
+         the machine to x4.2 — arrived, filling the frame, still readable as a
+         camera — and only the ENTER beat pushes past that into the glass. One
+         blended curve cannot express a stop, which is why it read as a single
+         lunge. */
+      marketExperience.style.setProperty("--market-camera-scale",
+        (1 + approach * 3.2 + enter * 8.8).toFixed(3));
+      /* It sits BEHIND the strip while the reel plays, so it can never cover a
+         service word — but a machine travelling toward you has to pass the
+         film, not stay pinned behind it. It comes forward on the APPROACH. */
+      marketExperience.style.setProperty("--market-camera-front", approach.toFixed(3));
       const cameraDepth = smoothstep((cameraCapture - 0.18) / 0.72);
       const cameraFlash = Math.sin(cameraCapture * Math.PI);
       const cameraRecoil = Math.sin(cameraCapture * Math.PI * 2) * (1 - cameraCapture);
@@ -532,7 +620,7 @@ export function createIntro({ onProgress } = {}) {
       /* LIGHTS DOWN, THEN THE LAMP (Yash MCQ): the code world dims to a dark
          room first; only then does the projector strike and the reel start. */
       const roomIn = smoothstep((p - 0.392) / 0.052);
-      const roomOut = 1 - smoothstep((p - 0.716) / 0.008);
+      const roomOut = 1 - smoothstep((p - 0.752) / 0.008);
       const lampStrike = smoothstep((local - 0.19) / 0.06);   // projector arrives AFTER the opening
       marketExperience.style.setProperty("--market-room",
         (roomIn * roomOut * (0.5 + 0.5 * lampStrike)).toFixed(3));
@@ -542,10 +630,10 @@ export function createIntro({ onProgress } = {}) {
       /* black is fully up by .706 and HOLDS to .722 — a real beat of nothing,
          which is what makes the sphere land. The sphere is the consult world's
          own clip-circle opening (see --zero-reveal below). */
-      const sphere = smoothstep((p - 0.730) / 0.062);      // .730 → .792
+      const sphere = smoothstep((p - 0.768) / 0.056);      // .768 → .824
       /* the layer exists to turn the lens's near-black into TRUE black, so it
          arrives behind the glass, not instead of it */
-      root.style.setProperty("--blackout", smoothstep((p - 0.706) / 0.012).toFixed(3));
+      root.style.setProperty("--blackout", smoothstep((p - 0.738) / 0.014).toFixed(3));
       root.style.setProperty("--hole", sphere.toFixed(3));
 
       root.classList.toggle("market-live", marketOpacity > 0.002);
@@ -560,11 +648,11 @@ export function createIntro({ onProgress } = {}) {
          film starts to travel and the only place the eye is looking. A floor
          of 0.004 is invisible on this background and moves that raster into
          the quiet editorial beat before it. */
-      /* The strip clears BEFORE the lens dominates, not in step with it. On
-         the same curve the plates were still 35% visible when the glass had
-         the frame, and they ghosted through it like a double exposure. */
+      /* The strip survives the whole APPROACH and clears during the hold —
+         it used to fade before the camera had even started moving, so the
+         reel died and then a machine zoomed at an empty screen. */
       const filmVis = filmIn * filmOut * marketOpacity
-        * (1 - smoothstep((p - 0.688) / 0.014));
+        * (1 - smoothstep((p - 0.714) / 0.012));
       marketExperience.style.setProperty("--market-film-opacity",
         (filmVis > 0.004 ? filmVis : (marketOpacity > 0.02 ? 0.004 : 0)).toFixed(3));
       marketExperience.style.setProperty("--market-film-x", `${filmX.toFixed(2)}vw`);
@@ -640,7 +728,7 @@ export function createIntro({ onProgress } = {}) {
          rasterised, so the first non-zero frame paid for both at once —
          measured 43ms on a cold run at p=0.457. A floor of 0.004 is invisible
          and moves that cost into the quiet editorial beat. */
-      const humanVis = filmIn * marketOpacity;
+      const humanVis = filmIn * marketIn * (1 - smoothstep((p - 0.752) / 0.008));
       marketExperience.style.setProperty("--market-human-opacity",
         (humanVis > 0.004 ? humanVis : (marketOpacity > 0.02 ? 0.004 : 0)).toFixed(3));
       marketExperience.style.setProperty("--market-human-drive", filmTravel.toFixed(3));
@@ -671,13 +759,13 @@ export function createIntro({ onProgress } = {}) {
          cut to black now, so there is nothing to bleed over the reel. */
       const lightFrame = 0;
       /* the sphere: the world's own clip-circle, opening AFTER the black beat */
-      const consultReveal = smoothstep((p - 0.730) / 0.062);
+      const consultReveal = smoothstep((p - 0.768) / 0.056);
       const consultOut = 1 - smoothstep((p - 0.992) / 0.008);
       /* fully painted behind the black before the circle opens, so the circle
          is the ONLY reveal — a world that also fades in reads as a dissolve,
          not as something you entered */
-      const consultOpacity = smoothstep((p - 0.714) / 0.012) * consultOut;
-      const consultLocal = Math.max(0, Math.min(1, (p - 0.704) / 0.288));
+      const consultOpacity = smoothstep((p - 0.756) / 0.010) * consultOut;
+      const consultLocal = Math.max(0, Math.min(1, (p - 0.768) / 0.224));
       // The same palm globe begins around the camera and zooms out into place.
       // Bring its mint world in immediately—there is no separate space scene.
       const handBg = smoothstep(consultLocal / 0.10);
@@ -850,19 +938,28 @@ export function createIntro({ onProgress } = {}) {
      Given as EXTRA viewport-heights on that act's own slice of the timeline,
      so every other act keeps exactly the pacing it already had. */
   const marketStretch = reduced ? 0 : 3.0;   // ~0.42vh of scroll per plate
-  const MARKET_P0 = 0.425, MARKET_P1 = 0.696;
+  const MARKET_P0 = 0.425, MARKET_P1 = 0.684;
+  /* THE HANDOVER GETS ITS OWN SCROLL (Yash, 18:20).
+     It used to live in the p-slice between the market and the consult, which
+     carries NO extra vh — 0.008 * baseScrollLength = 0.035vh, a thirtieth of
+     one screen-height for the entire journey from x1 to x12.5. That is why it
+     read as a jump rather than a travel: not too few p, too little scroll.
+     Its own segment, four times the room, three beats inside it: the camera
+     comes forward with the reel still running, it STOPS, then you go in. */
+  const HANDOVER_P1 = 0.768;
+  const handoverStretch = reduced ? 0 : 3.2;
   /* Black-hole beat ka apna scroll span, burn ke poora hone ke BAAD —
      intro ka saara purana ganit introScrollLength par hi chalta hai,
      isliye acts/consult ki pacing ko ye chhoota tak nahi. */
   const beatStretch = beatEnabled ? 1.0 : 0;
-  const consultTimelineStart = 0.704;
+  const consultTimelineStart = HANDOVER_P1;
   /* Piecewise timeline: each row is [pFrom, pTo, extra-vh]. The base cost of a
      p-span is span * baseScrollLength; a stretch simply adds vh to that row. */
   const SEGMENTS = [
     [0, MARKET_P0, 0],
     [MARKET_P0, MARKET_P1, marketStretch],
-    [MARKET_P1, consultTimelineStart, 0],
-    [consultTimelineStart, 1, consultStretch],
+    [MARKET_P1, HANDOVER_P1, handoverStretch],
+    [HANDOVER_P1, 1, consultStretch],
   ].map(([p0, p1, extra]) => ({ p0, p1, vh: (p1 - p0) * baseScrollLength + extra }));
   const introScrollLength = SEGMENTS.reduce((a, seg) => a + seg.vh, 0);
   const totalScrollLength = introScrollLength + beatStretch;
@@ -1090,6 +1187,7 @@ export function createIntro({ onProgress } = {}) {
     last = time;
 
     corridor.render(time);
+    orbHero?.render(time);            // no-ops once handed off (setOpacity 0)
     projector?.render(time);
     consultHand?.render(time);
     blackholeBeat?.tick(dt);          // gas churns on its own clock (hybrid)
