@@ -37,7 +37,20 @@ const OMEGA = 0.14;                 // rad/s ≈ 37 px/s at the module ring
    axis at us, so the last stretch of the flight is a straight run into the
    airlock instead of a curve around to find it. Yash: "we do not have to
    curve while entering it". */
-const POSE = { tiltX: -1.62, tiltZ: 0.30, dist: 81 };
+/* Inverted, per Yash's pick from the four rendered variants (B): the ship is
+   turned over so the hub's spine points up and toward the viewer with the
+   ring below it. This is the RESTING orientation — it is how the Endurance
+   sits before anything happens, not something the flight does to it. */
+const POSE = { tiltX: 1.52, tiltZ: 0.30, dist: 81 };
+/* Pose overrides via the query string, so orientation can be compared side by
+   side without an edit-and-reload for each variant: ?tiltX=&tiltY=&tiltZ=&dist= */
+if (typeof location !== "undefined") {
+  const q = new URLSearchParams(location.search);
+  for (const key of ["tiltX", "tiltZ", "dist"]) {
+    if (q.has(key)) POSE[key] = parseFloat(q.get(key));
+  }
+  POSE.tiltY = q.has("tiltY") ? parseFloat(q.get("tiltY")) : 0;
+}
 const LOOK = [-20.5, 8.85, 0];
 const PARALLAX = [0.55, 0.34];
 const BANK = { maxYaw: 0.16, maxPitch: 0.10, easeIn: 2.4, easeOut: 0.9 };
@@ -261,7 +274,9 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
       bank[1] = ease(bank[1], cursor.has ? cursor.x * BANK.maxYaw : 0, rate, dt);
 
       shipParent.rotation.set(
-        POSE.tiltX + bank[0] * damp, bank[1] * damp, POSE.tiltZ);
+        POSE.tiltX + bank[0] * damp,
+        (POSE.tiltY || 0) + bank[1] * damp,
+        POSE.tiltZ);
       spinGroup.rotation.y = spin;
       shipParent.updateMatrixWorld(true);
 
