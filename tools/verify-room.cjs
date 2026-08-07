@@ -1,6 +1,11 @@
-// Contact-room verification. Rides the intro to the end (main is display:none
-// behind html.bh-final until then — a probe that skips the journey measures a
-// zero-sized section), then checks the room the way a visitor meets it.
+// Finale verification: the Endurance beside the black hole, the flight in,
+// and the contact room as the site's last surface.
+//
+// Two things this harness learned the hard way, both encoded below:
+//  · <main> is display:none behind html.bh-final, so a probe that skips the
+//    journey measures a zero-sized section. Ride the intro for real.
+//  · the finale is the PORTAL's screen, not the Gargantua beat — the beat has
+//    already handed over by then, so the gate is `.intro__portalwrap.on`.
 const fs = require('fs');
 const path = require('path');
 let chromium;
@@ -10,7 +15,27 @@ catch { ({ chromium } = require('/Users/buildanta/claude code/buildanta-showcase
 const URL = process.env.SITE_URL || 'http://127.0.0.1:5297/';
 const OUT = path.join(__dirname, '..', 'shots-journey');
 const results = [];
-const ok = (name, pass, detail) => { results.push({ name, pass }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}  ${detail}`); };
+const ok = (name, pass, detail) => {
+  results.push({ name, pass });
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}  ${detail}`);
+};
+
+const STOPS = [0.60, 0.815, 0.90, 0.96, 1.0];
+
+async function rideToFinale(page) {
+  await page.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 30000 });
+  await page.waitForTimeout(1200);
+  for (const f of STOPS) {
+    await page.evaluate((ff) => {
+      const { intro, lenis } = window.__buildanta;
+      const y = intro.st.start + (intro.st.end - intro.st.start) * ff;
+      if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
+      else scrollTo(0, y);
+    }, f);
+    await page.waitForTimeout(700);
+  }
+  await page.waitForTimeout(6000);   // ship model + portal settle
+}
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -24,164 +49,141 @@ const ok = (name, pass, detail) => { results.push({ name, pass }); console.log(`
 
   await page.goto(URL, { waitUntil: 'load' });
   if (!/^buildanta solutions/i.test(await page.title())) throw new Error('WRONG SERVER on ' + URL);
-  await page.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 30000 });
-  await page.waitForTimeout(1200);
+  await rideToFinale(page);
+  await page.screenshot({ path: path.join(OUT, 'finale-1-orbit.png') });
 
-  // ride the intro to its end, then let the gate dissolve
-  await page.evaluate(() => {
-    const { intro, lenis } = window.__buildanta;
-    const y = intro.st.end;
-    if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
-    else scrollTo(0, y);
+  const orbit = await page.evaluate(() => {
+    const ship = document.querySelector('.finale-ship');
+    const cta = document.querySelector('.finale-cta');
+    const cr = cta ? cta.getBoundingClientRect() : null;
+    return {
+      shipVisible: ship ? ship.style.opacity === '1' && ship.width > 100 : false,
+      shipPx: ship ? [ship.width, ship.height] : null,
+      ctaIn: cta ? cta.classList.contains('finale-cta--in') : false,
+      ctaOnScreen: cr ? (cr.top < innerHeight && cr.bottom > 0 && cr.width > 40) : false,
+      portalLive: document.querySelector('.intro__portalwrap')?.classList.contains('on'),
+    };
   });
-  await page.waitForTimeout(4000);
-
-  // FINALE MODE (Yash, 6 Aug) hides the whole blue site — `html.bh-final`
-  // puts #top (the <main>) at display:none, so the contact room ships inside
-  // hidden markup. Lift it HERE ONLY, so this harness exercises the room the
-  // way a visitor would once the site is restored. Nothing in src/ changes.
-  const finaleMode = await page.evaluate(() => {
-    const on = document.documentElement.classList.contains('bh-final');
-    if (on) document.documentElement.classList.remove('bh-final');
-    return on;
+  ok('finale-ship', orbit.shipVisible && orbit.portalLive,
+    `ship canvas ${orbit.shipPx?.join('x')} over a live portal`);
+  // Prove clickability by hit-test rather than by Playwright's click: its
+  // actionability check scrolls first, and any scroll here rewinds the pinned
+  // finale underneath us. The hit-test is the honest question — is the
+  // control the topmost thing at its own centre?
+  const hit = await page.evaluate(() => {
+    const cta = document.querySelector('.finale-cta');
+    const b = cta.getBoundingClientRect();
+    const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return { isTop: top === cta, top: top ? (top.className || top.tagName).toString().slice(0, 40) : 'none' };
   });
-  if (finaleMode) console.log('NOTE  finale mode is ON — room un-hidden for this test only');
-  await page.waitForTimeout(900);
-  await page.evaluate(() => window.__buildanta.ScrollTrigger.refresh()).catch(() => {});
-  await page.waitForTimeout(700);
+  ok('finale-cta', orbit.ctaIn && orbit.ctaOnScreen && hit.isTop,
+    `Contact control up, on screen, topmost at its centre (${hit.top})`);
 
-  await page.evaluate(() => {
-    const el = document.getElementById('contact');
-    const y = el.getBoundingClientRect().top + scrollY;
-    const { lenis } = window.__buildanta;
-    if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
-    else scrollTo(0, y);
-  });
-  await page.waitForTimeout(4000);
-  await page.screenshot({ path: path.join(OUT, 'room-1-desktop.png') });
+  // the flight in
+  await page.$eval('.finale-cta', (el) => el.click());
+  await page.waitForTimeout(4200);
+  await page.screenshot({ path: path.join(OUT, 'finale-2-approach.png') });
+  const readFlight = () => page.evaluate(() => ({
+    flash: parseFloat(document.querySelector('.finale-flash').style.opacity || '0'),
+    inside: document.documentElement.classList.contains('finale-inside'),
+  }));
+  // ~4s in: pure approach. The bloom starts at flight 0.58, which a 10s
+  // smootherstep does not reach until ~6s — no light here is CORRECT.
+  const approach = await readFlight();
+  await page.waitForTimeout(3200);
+  const bloomPeak = await readFlight();     // ~7.4s: the airlock swell
+  ok('flight-bloom',
+    approach.flash < 0.02 && !approach.inside && bloomPeak.flash > 0.25,
+    `approach clean (${approach.flash.toFixed(2)}) → airlock swells to ${bloomPeak.flash.toFixed(2)}`);
 
-  const s = await page.evaluate(() => {
+  await page.waitForTimeout(5000);
+  await page.screenshot({ path: path.join(OUT, 'finale-3-room.png') });
+  const room = await page.evaluate(() => {
     const sec = document.getElementById('contact');
-    const bh = sec.querySelector('.room__bh');
     const mail = sec.querySelector('.contact__mail');
-    const plate = sec.querySelector('.room__plate');
-    const bloom = sec.querySelector('.room__bloom');
-    const r = sec.getBoundingClientRect();
+    const bh = sec.querySelector('.room__bh');
+    const mr = mail.getBoundingClientRect();
     let engine = null, topOverGlass = '';
     if (bh) {
       const g = bh.getContext('webgl2');
       const px = new Uint8Array(4 * 32 * 32);
       g.readPixels(Math.round(bh.width * 0.06), Math.round(bh.height * 0.6), 32, 32, g.RGBA, g.UNSIGNED_BYTE, px);
-      let a = 0, b2 = 0, c = 0;
-      for (let i = 0; i < px.length; i += 4) { a += px[i]; b2 += px[i + 1]; c += px[i + 2]; }
+      let a = 0, b = 0, c = 0;
+      for (let i = 0; i < px.length; i += 4) { a += px[i]; b += px[i + 1]; c += px[i + 2]; }
       const n = px.length / 4;
-      engine = [a / n, b2 / n, c / n];
+      engine = [a / n, b / n, c / n];
       const br = bh.getBoundingClientRect();
       const el = document.elementFromPoint(br.left + br.width * 0.12, br.top + br.height * 0.25);
       topOverGlass = el ? (el.className || el.tagName).toString() : '';
     }
-    const mr = mail.getBoundingClientRect();
     return {
-      sectionH: Math.round(r.height),
-      bhMounted: !!bh, bhPx: bh ? [bh.width, bh.height] : null,
-      engine, topOverGlass,
-      mailText: mail.textContent.trim(), mailHref: mail.getAttribute('href'),
+      inside: document.documentElement.classList.contains('finale-inside'),
       mailVisible: mr.width > 40 && mr.top < innerHeight && mr.bottom > 0,
-      plateVsBloomSameStage: getComputedStyle(plate).transform === getComputedStyle(bloom).transform,
+      mailHref: mail.getAttribute('href'),
+      bhMounted: !!bh, engine, topOverGlass,
+      flash: parseFloat(document.querySelector('.finale-flash').style.opacity || '0'),
     };
   });
-
-  ok('room-mounted', s.sectionH > 400 && s.mailVisible,
-    `section ${s.sectionH}px, email "${s.mailText}" visible`);
-  ok('room-mail-link', /^mailto:/.test(s.mailHref || ''), s.mailHref);
-  ok('window-blackhole', s.bhMounted && s.bhPx[0] > 100,
-    s.bhMounted ? `canvas ${s.bhPx.join('x')}` : 'not mounted');
-  if (s.engine) {
-    const lum = (s.engine[0] + s.engine[1] + s.engine[2]) / 3;
-    const cast = Math.abs(s.engine[0] - s.engine[2]);
-    ok('window-black', lum < 8 && cast < 3 && !/breath|bloom|lights/.test(s.topOverGlass),
-      `sky lum ${lum.toFixed(1)} cast ${cast.toFixed(1)} | topmost: ${s.topOverGlass || 'grain/vignette'}`);
+  ok('arrived', room.inside && room.mailVisible && /^mailto:/.test(room.mailHref || ''),
+    `inside, email visible (${room.mailHref}), bloom cleared to ${room.flash.toFixed(2)}`);
+  ok('window-blackhole', room.bhMounted, room.bhMounted ? 'mounted behind the glass' : 'missing');
+  if (room.engine) {
+    const lum = (room.engine[0] + room.engine[1] + room.engine[2]) / 3;
+    const cast = Math.abs(room.engine[0] - room.engine[2]);
+    ok('window-black', lum < 8 && cast < 3 && !/breath|bloom|lights/.test(room.topOverGlass),
+      `engine sky lum ${lum.toFixed(1)} cast ${cast.toFixed(1)} | topmost over glass: ${room.topOverGlass}`);
   }
 
   // drawer
-  await page.click('[data-room-open]');
-  await page.waitForTimeout(600);
+  await page.$eval('[data-room-open]', (el) => el.click());
+  await page.waitForTimeout(700);
   const d = await page.evaluate(() => {
     const el = document.querySelector('[data-room-drawer]');
     return { open: el.getBoundingClientRect().left < innerWidth - 40,
              focused: document.activeElement === el.querySelector('input') };
   });
-  ok('drawer', d.open && d.focused, `opens=${d.open} input-focused=${d.focused}`);
-  await page.screenshot({ path: path.join(OUT, 'room-2-drawer.png') });
+  ok('drawer', d.open && d.focused, `opens=${d.open}, input focused=${d.focused}`);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(700);
-  const esc = await page.evaluate(() => {
-    const el = document.querySelector('[data-room-drawer]');
-    const sec = document.getElementById('contact');
-    return {
-      offscreen: el.getBoundingClientRect().left >= innerWidth - 40,
-      hasClass: sec.classList.contains('room--drawer'),
-      active: document.activeElement.tagName,
-      left: Math.round(el.getBoundingClientRect().left),
-      vw: innerWidth,
-    };
-  });
-  // Assert the STATE, not a pixel: the slide is a 0.34s transition and its
-  // mid-flight offset is not evidence of anything.
-  ok('drawer-escape', !esc.hasClass && esc.left > esc.vw * 0.65,
-    `class removed=${!esc.hasClass}, sliding out at ${esc.left}/${esc.vw}, focus→${esc.active}`);
+  const closed = await page.evaluate(() =>
+    !document.getElementById('contact').classList.contains('room--drawer'));
+  ok('drawer-escape', closed, 'Esc closes the drawer, not the room');
 
-  // portrait: plate must scale/pan so the glass stays framed, copy on a panel.
-  // Re-scroll after the resize — the section moves, and measuring before that
-  // reports the copy "outside the viewport" when it is merely off-screen.
-  // Portrait gets its OWN page. Resizing mid-session leaves the previous
-  // layout's scroll/pin state behind and measures a phantom; a phone user
-  // arrives at 390px from the first byte, so the test should too.
+  // leaving: wheel-up flies back out
+  for (let i = 0; i < 14; i++) { await page.mouse.wheel(0, -220); await page.waitForTimeout(60); }
+  await page.waitForTimeout(1200);
+  const out = await page.evaluate(() => ({
+    inside: document.documentElement.classList.contains('finale-inside'),
+    opacity: parseFloat(document.getElementById('contact').style.opacity || '0'),
+  }));
+  ok('exit', !out.inside && out.opacity < 0.5,
+    `scroll-up leaves the room (opacity ${out.opacity.toFixed(2)})`);
+
+  // phone: same journey, fresh context — resizing mid-session leaves phantom
+  // layout behind and measures the wrong thing
   await page.close();
   const mob = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   mob.on('pageerror', (e) => errs.push('mobile pageerror: ' + e.message));
   await mob.goto(URL, { waitUntil: 'load' });
-  await mob.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 30000 });
-  await mob.waitForTimeout(1200);
-  await mob.evaluate(() => {
-    const { intro, lenis } = window.__buildanta;
-    if (lenis) lenis.scrollTo(intro.st.end, { immediate: true, force: true });
-    else scrollTo(0, intro.st.end);
-  });
-  await mob.waitForTimeout(3500);
-  await mob.evaluate(() => document.documentElement.classList.remove('bh-final'));
-  await mob.waitForTimeout(900);
-  // Un-hiding <main> changes every trigger's geometry; without this the intro
-  // stays pinned over the room and the capture shows the wrong scene.
-  await mob.evaluate(() => window.__buildanta.ScrollTrigger.refresh()).catch(() => {});
-  await mob.waitForTimeout(800);
-  await mob.evaluate(() => {
-    const el = document.getElementById('contact');
-    const y = el.getBoundingClientRect().top + scrollY;
-    const { lenis } = window.__buildanta;
-    if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
-    else scrollTo(0, y);
-  });
-  await mob.waitForTimeout(3000);
-  await mob.screenshot({ path: path.join(OUT, 'room-3-mobile.png') });
+  await rideToFinale(mob);
+  await mob.$eval('.finale-cta', (el) => el.click()).catch(() => {});
+  await mob.waitForTimeout(12000);
+  await mob.screenshot({ path: path.join(OUT, 'finale-4-mobile.png') });
   const m = await mob.evaluate(() => {
     const sec = document.getElementById('contact');
+    const ui = sec.querySelector('.room__ui').getBoundingClientRect();
     const bh = sec.querySelector('.room__bh');
-    const ui = sec.querySelector('.room__ui');
     const r = bh ? bh.getBoundingClientRect() : null;
-    const ur = ui.getBoundingClientRect();
     return {
+      inside: document.documentElement.classList.contains('finale-inside'),
+      uiInside: ui.left >= -1 && ui.right <= innerWidth + 1,
+      uiBox: [Math.round(ui.left), Math.round(ui.right)], vw: innerWidth,
       glassOnScreen: r ? (r.right > 20 && r.left < innerWidth - 20 && r.width > 60) : false,
-      uiBox: [Math.round(ur.left), Math.round(ur.right)],
-      vw: innerWidth,
       overflow: document.documentElement.scrollWidth > innerWidth + 1,
-      drawerClosed: !sec.classList.contains('room--drawer'),
-      uiInside: ur.left >= -1 && ur.right <= innerWidth + 1,
     };
   });
-  ok('portrait', m.glassOnScreen && m.uiInside && !m.overflow && m.drawerClosed,
-    `glass framed=${m.glassOnScreen}, copy x ${m.uiBox[0]}–${m.uiBox[1]} in ${m.vw}px, ` +
-    `h-overflow=${m.overflow}, drawer closed=${m.drawerClosed}`);
+  ok('portrait', m.inside && m.uiInside && !m.overflow && m.glassOnScreen,
+    `inside=${m.inside}, copy x ${m.uiBox[0]}–${m.uiBox[1]} in ${m.vw}px, glass framed=${m.glassOnScreen}`);
 
   ok('console-clean', errs.length === 0, errs.slice(0, 3).join(' | ') || 'no errors');
 

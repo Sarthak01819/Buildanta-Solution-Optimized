@@ -4418,7 +4418,7 @@ html.bh-final .sweep { display: none !important; }
    The same #contact markup, relocated to <body> and switched to a fixed
    overlay. Turning finale mode off leaves an ordinary in-flow section. */
 .section--room.room--finale {
-  position: fixed; inset: 0; z-index: 60; min-height: 0;
+  position: fixed; inset: 0; z-index: 320; min-height: 0;
   opacity: 0; pointer-events: none; will-change: opacity, transform;
   padding: clamp(40px, 6vw, 110px) var(--pad);
 }
@@ -4428,7 +4428,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 
 /* Contact control on the finale — the one piece of chrome over the hole */
 .finale-cta {
-  position: fixed; z-index: 61; left: 50%; bottom: clamp(30px, 6vh, 64px);
+  position: fixed; z-index: 330; left: 50%; bottom: clamp(30px, 6vh, 64px);
   transform: translateX(-50%) translateY(14px);
   padding: 13px 30px; border-radius: 999px; cursor: pointer;
   border: 1px solid rgba(255, 217, 160, .45); background: rgba(6, 8, 13, .55);
@@ -4443,7 +4443,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 
 /* Airlock bloom: the light you arrive through */
 .finale-flash {
-  position: fixed; inset: 0; z-index: 62; pointer-events: none;
+  position: fixed; inset: 0; z-index: 340; pointer-events: none;
   background: #fff7ea; opacity: 0;
 }
 
@@ -4543,7 +4543,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 /* Gargantua's own finale stage: rises over the settled portal, carries the
    ship, and dims out as the room takes the frame. */
 .finale-stage {
-  position: fixed; inset: 0; z-index: 55; opacity: 0;
+  position: fixed; inset: 0; z-index: 300; opacity: 0;
   pointer-events: none; background: #000;
 }
 .finale-stage .finale-ship { z-index: 2; }

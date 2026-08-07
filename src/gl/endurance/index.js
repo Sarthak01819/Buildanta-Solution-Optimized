@@ -11,9 +11,9 @@ import up from "../blackhole/shaders/bloom_up.frag.glsl?raw";
 import composite from "../blackhole/shaders/composite.frag.glsl?raw";
 import { createContactRoom } from "./contactRoom.js";
 
+/** The six engine shaders as strings — one place, two consumers. */
+export const BH_SHADERS = { vert, scene, prefilter, down, up, composite };
+
 export function mountContactRoom(section, { reducedMotion = false } = {}) {
-  return createContactRoom(section, {
-    shaders: { vert, scene, prefilter, down, up, composite },
-    reducedMotion,
-  });
+  return createContactRoom(section, { shaders: BH_SHADERS, reducedMotion });
 }

@@ -7,7 +7,8 @@ import { createScene } from "./gl/Scene.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
-import { mountContactRoom } from "./gl/endurance/index.js";
+import { mountContactRoom, BH_SHADERS } from "./gl/endurance/index.js";
+import { createFinaleRoom } from "./modules/finaleRoom.js";
 import { createEntryGate } from "./modules/entryGate.js";
 import { initCursor, initMagnetic, countUp } from "./modules/interactions.js";
 import "lenis/dist/lenis.css";
@@ -15,8 +16,10 @@ import "lenis/dist/lenis.css";
 gsap.registerPlugin(ScrollTrigger);
 
 /* FINALE MODE: the black hole ends the experience — the blue site below is
-   hidden (kept intact in markup). Delete this one line to restore it. */
-document.documentElement.classList.add("bh-final");
+   hidden (kept intact in markup). Set to false to restore the full site;
+   the contact room then simply stays an in-flow section at the end of it. */
+const FINALE = true;
+if (FINALE) document.documentElement.classList.add("bh-final");
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = (s, r = document) => r.querySelector(s);
@@ -282,6 +285,9 @@ function boot() {
   /* Contact room. Its black hole is the SAME engine as the intro's exit beat,
      so it only draws while the section is on screen — two full raymarches at
      once would be paid for by every visitor, and only one is ever visible. */
+  // declared here, not beside the gate below: onIntroProgress reads it and
+  // the finale mounts above that point
+  let finale = null;
   const roomSection = $("[data-room]");
   const room = roomSection
     ? mountContactRoom(roomSection, { reducedMotion: REDUCED })
@@ -292,6 +298,32 @@ function boot() {
     }, { passive: true });
     gsap.ticker.add((_t, dt) => room.tick(Math.min(dt / 1000, 0.05)));
     addEventListener("pagehide", () => room.dispose(), { once: true });
+  }
+
+  /* FINALE MODE: the black hole is not the last thing any more. The Endurance
+     orbits beside it, a Contact control flies you in, and this same room
+     becomes the site's final surface. Only in finale mode — with the blue
+     site restored, the room stays an ordinary section at the end of it. */
+  if (FINALE && roomSection) {
+    const lite = (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
+                 (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+    /* The portal keeps its place earlier in the journey; once it has settled,
+       Gargantua rises over it as the last screen with the Endurance beside
+       it, and Contact flies you inside. */
+    finale = createFinaleRoom({
+      portalWrap: $(".intro__portalwrap"),
+      roomSection, shaders: BH_SHADERS, reduced: REDUCED, lite,
+    });
+    if (finale) {
+      // the room is fixed-position now; it is always "on screen" for the
+      // window engine, which the flight fades in and out with the section
+      room?.setVisible(true);
+      addEventListener("pointermove", (e) => {
+        finale.setCursor((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);
+      }, { passive: true });
+      gsap.ticker.add((_t, dt) => finale.tick(Math.min(dt / 1000, 0.05)));
+      addEventListener("pagehide", () => finale.dispose(), { once: true });
+    }
   }
 
   const progress = $("#progress");
@@ -347,6 +379,9 @@ function boot() {
        .blueprint 0.5) aur unhe seedha `k` set karne par wo apni asli
        value se zyada gehri ho jaati thi. CSS mein multiply hota hai. */
     const beatOn = Boolean(beat?.enabled);
+    // Finale: the Endurance and its Contact control ride the beat's own
+    // progress, so they appear exactly when the hole has settled.
+    if (finale && beatOn) finale.setBeat(beat.local);
     /* Black-hole beat ke saath site ka chrome uski white-out se hi nikalta
        hai — pehle nahi, warna nav black hole ke upar tairta dikhta. */
     const siteIn = beatOn ? handoff * ssStep((beat.local - 0.84) / 0.13) : handoff;
