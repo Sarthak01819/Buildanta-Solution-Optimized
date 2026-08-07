@@ -35,12 +35,11 @@ const OUT = path.join(__dirname, '..', 'shots-journey');
 
   fs.mkdirSync(OUT, { recursive: true });
   const stops = [
-    ['f1-act1', 0.10], ['f2-act2', 0.32], ['f3-act3', 0.60],
-    ['f4-consult-world', 0.72], ['f5-burn', 0.815], ['f6-seam', 0.851],
-    ['f7-beat-emerge', 0.895], ['f8-beat-full', 0.935],
-    ['f9-beat-whiteout', 0.975], ['f10-end-gate-hero', 1.0],
-  ];
-  for (const [name, raw] of stops) {
+    ['f1-act1', 0.10], ['f2-act2', 0.30], ['f3-act3-reel', 0.55],
+    ['f4-consult-world', 0.75], ['f5-burn', 0.965], ['f6-seam', 0.99],
+  ].map(([name, p]) => [name, p]);   // p-space; converted per-stop below
+  for (const [name, pTarget] of stops) {
+    const raw = await page.evaluate(`window.__buildanta.intro.rawForP(${pTarget})`);
     await goRaw(raw);
     await page.screenshot({ path: path.join(OUT, `${name}.png`) });
     console.log('shot', name);
@@ -51,7 +50,8 @@ const OUT = path.join(__dirname, '..', 'shots-journey');
   console.log('shot f11-hero-settled');
 
   // reverse: back into the beat, then into the consult world
-  for (const [name, raw] of [['r1-beat-back', 0.93], ['r2-consult-back', 0.75], ['r3-act2-back', 0.32]]) {
+  for (const [name, pTarget] of [['r1-beat-back', 0.99], ['r2-consult-back', 0.75], ['r3-act2-back', 0.30]]) {
+    const raw = await page.evaluate(`window.__buildanta.intro.rawForP(${pTarget})`);
     await goRaw(raw);
     await page.screenshot({ path: path.join(OUT, `${name}.png`) });
     console.log('shot', name);

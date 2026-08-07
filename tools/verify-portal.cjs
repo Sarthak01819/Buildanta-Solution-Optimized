@@ -31,10 +31,11 @@ const URL = process.env.SITE_URL || 'http://127.0.0.1:5290/';
     else window.scrollTo(0, y);
   }, f);
 
-  // 1 — hit the wall
-  await goRaw(0.84);
+  // 1 — hit the wall (position asked of the page, never hardcoded)
+  const WALL = await page.evaluate('window.__buildanta.intro.wallRaw');
+  await goRaw(WALL - 0.02);
   await page.evaluate(() => new Promise((r) => setTimeout(r, 300)));
-  await goRaw(0.856);
+  await goRaw(WALL + 0.004);
   await page.waitForFunction('document.querySelector(".intro__portalwrap")?.classList.contains("on")', null, { timeout: 5000 });
   await page.waitForFunction('window.__bhp && window.__bhp.ready === true', null, { timeout: 15000 });
   console.log('1. wall engaged, portal module live ✓');
@@ -78,7 +79,7 @@ const URL = process.env.SITE_URL || 'http://127.0.0.1:5290/';
   // 4 — the door is ONE-WAY (Yash MCQ): scrolling back replays the journey
   //     but never rebuilds the portal, and coming forward again passes
   //     straight through into the black hole (no dead end).
-  await goRaw(0.75);
+  await goRaw(WALL - 0.11);
   await page.evaluate(() => new Promise((r) => setTimeout(r, 900)));
   const back = await page.evaluate(() => ({
     beat: document.querySelector('.intro__blackhole canvas')?.style.opacity,
@@ -89,7 +90,7 @@ const URL = process.env.SITE_URL || 'http://127.0.0.1:5290/';
   if (back.door) throw new Error('door rebuilt after entering (must be one-way)');
   console.log('4a. scroll-back replays the journey, no door rebuilt ✓', JSON.stringify(back));
 
-  await goRaw(0.94);
+  await goRaw(WALL + 0.06);
   await page.evaluate(() => new Promise((r) => setTimeout(r, 1200)));
   const through = await page.evaluate(() => ({
     beat: document.querySelector('.intro__blackhole canvas')?.style.opacity,

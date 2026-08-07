@@ -74,6 +74,15 @@ export async function createBlackhole(canvas, opts = {}) {
   //          reduced (bool) }
   function render(state) {
     const C = CONFIG;
+    // Optional per-call grade. Two consumers now share this engine: the intro
+    // beat (full frame — CONFIG's values ARE the tuned look) and the contact
+    // room's window (a small pane, where dust and grain read as dirt and the
+    // deepest bloom mips wash the whole field). Absent → CONFIG, unchanged.
+    const G = state.grade || {};
+    const hazeGain = G.hazeGain ?? C.stars.hazeGain;
+    const wideBoost = G.wideBoost ?? C.bloom.wideBoost;
+    const bloomStrength = G.bloomStrength ?? C.bloom.strength;
+    const grain = G.grain ?? C.post.grain;
     const breathDisk = 1 + (state.breath - 0.5) * 2 * C.breathing.diskDepth;
     const breathBloom = 1 + (state.breath - 0.5) * 2 * C.breathing.bloomDepth;
     const boost = 1 + state.cursorBoost * C.cursor.boost;
@@ -109,7 +118,7 @@ export async function createBlackhole(canvas, opts = {}) {
     gl.uniform1f(pScene.loc('uStarDensity'), C.stars.density);
     gl.uniform1f(pScene.loc('uStarGain'), C.stars.gain);
     gl.uniform1f(pScene.loc('uTwinkle'), state.reduced ? 0 : C.stars.twinkle);
-    gl.uniform1f(pScene.loc('uHazeGain'), C.stars.hazeGain);
+    gl.uniform1f(pScene.loc('uHazeGain'), hazeGain);
     drawFullscreen(gl);
 
     // 2 — bloom prefilter into mip 0
@@ -139,7 +148,7 @@ export async function createBlackhole(canvas, opts = {}) {
       bindTex(1, T.mips[i].tex, pUp.loc('uAdd'));
       gl.uniform2f(pUp.loc('uTexel'), 1 / T.ups[i].w, 1 / T.ups[i].h);
       gl.uniform1f(pUp.loc('uAddWeight'), 1.0);
-      gl.uniform1f(pUp.loc('uTexWeight'), (i === N - 2) ? CONFIG.bloom.wideBoost : 1.0);
+      gl.uniform1f(pUp.loc('uTexWeight'), (i === N - 2) ? wideBoost : 1.0);
       drawFullscreen(gl);
     }
 
@@ -148,13 +157,13 @@ export async function createBlackhole(canvas, opts = {}) {
     pComp.use();
     bindTex(0, T.scene.tex, pComp.loc('uScene'));
     bindTex(1, T.ups[0].tex, pComp.loc('uBloom'));
-    gl.uniform1f(pComp.loc('uBloomStrength'), CONFIG.bloom.strength * breathBloom * boost);
+    gl.uniform1f(pComp.loc('uBloomStrength'), bloomStrength * breathBloom * boost);
     const lean = state.lean || { x: 0, y: 0 };
     gl.uniform2f(pComp.loc('uLean'), lean.x, lean.y);
     gl.uniform1f(pComp.loc('uPulse'), (state.pulse || 0) * CONFIG.cursorLight.pulseGain);
     gl.uniform1f(pComp.loc('uExposure'), CONFIG.post.exposure * (state.exposureMul ?? 1));
     gl.uniform1f(pComp.loc('uVignette'), CONFIG.post.vignette);
-    gl.uniform1f(pComp.loc('uGrain'), CONFIG.post.grain);
+    gl.uniform1f(pComp.loc('uGrain'), grain);
     gl.uniform1f(pComp.loc('uTime'), state.tSec);
     gl.uniform2f(pComp.loc('uRes'), W, H);
     drawFullscreen(gl);

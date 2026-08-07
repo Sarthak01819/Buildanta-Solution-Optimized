@@ -7,6 +7,7 @@ import { createScene } from "./gl/Scene.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
+import { mountContactRoom } from "./gl/endurance/index.js";
 import { createEntryGate } from "./modules/entryGate.js";
 import { initCursor, initMagnetic, countUp } from "./modules/interactions.js";
 import "lenis/dist/lenis.css";
@@ -36,6 +37,10 @@ function hydrate() {
   $$("[data-phone]").forEach((e) => (e.textContent = BRAND.phone));
   $$("[data-year]").forEach((e) => (e.textContent = new Date().getFullYear()));
   $$("[data-email-link]").forEach((e) => (e.href = `mailto:${BRAND.email}`));
+  $$("[data-general-mail]").forEach((e) => {
+    e.href = `mailto:${BRAND.email}?subject=${encodeURIComponent("General — Buildanta")}`;
+  });
+  $$("[data-room-form]").forEach((e) => (e.dataset.mailto = BRAND.email));
   document.title = `${full} — ${BRAND.tagline}`;
 
   $("[data-products]").innerHTML = PRODUCTS.map(
@@ -273,6 +278,21 @@ function boot() {
   initCursor();
   initMagnetic();
   initHUD();
+
+  /* Contact room. Its black hole is the SAME engine as the intro's exit beat,
+     so it only draws while the section is on screen — two full raymarches at
+     once would be paid for by every visitor, and only one is ever visible. */
+  const roomSection = $("[data-room]");
+  const room = roomSection
+    ? mountContactRoom(roomSection, { reducedMotion: REDUCED })
+    : null;
+  if (room) {
+    addEventListener("pointermove", (e) => {
+      room.setCursor((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);
+    }, { passive: true });
+    gsap.ticker.add((_t, dt) => room.tick(Math.min(dt / 1000, 0.05)));
+    addEventListener("pagehide", () => room.dispose(), { once: true });
+  }
 
   const progress = $("#progress");
   ScrollTrigger.create({

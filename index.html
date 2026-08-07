@@ -101,17 +101,21 @@
           <span>SCROLL INTO THIS SIGNAL CORE ↓</span>
         </div>
       </div>
+      <!-- The reel: each plate says what we DO, with the proof. Plates are
+           links — destinations pending real service pages. -->
+      <div class="market-room" aria-hidden="true"><i class="market-room__pool"></i></div>
+      <div class="market-beam" aria-hidden="true"><i></i><b></b></div>
       <div class="market-film">
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/01-seo.jpg)"><small>01 · SEARCH</small><strong>SEO authority</strong><span>+420% organic traffic</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/02-authority.jpg)"><small>02 · TRUST</small><strong>Authority</strong><span>domain rank 78</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/03-paid.jpg)"><small>03 · DEMAND</small><strong>Paid acquisition</strong><span>$14M+ ad spend</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/04-sales.jpg)"><small>04 · REVENUE</small><strong>Sales systems</strong><span>3.8× conversion rate</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/05-creative.jpg)"><small>05 · CREATIVE</small><strong>CRO &amp; creative</strong><span>+185% ROAS uplift</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/06-lifecycle.jpg)"><small>06 · RETENTION</small><strong>Lifecycle growth</strong><span>92% net retention</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/07-momentum.jpg)"><small>07 · BRAND</small><strong>Brand momentum</strong><span>8.5M impressions/mo</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/08-growth.jpg)"><small>08 · INTELLIGENCE</small><strong>Growth analytics</strong><span>100% data precision</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/09-reach.jpg)"><small>09 · REACH</small><strong>Audience reach</strong><span>31M people reached</span></article>
-        <article class="market-frame market-frame--plate" style="background-image:url(/assets/reel/10-ads.jpg)"><small>10 · PLACEMENT</small><strong>Ads</strong><span>1.2B ad impressions</span></article>
+        <a class="market-frame market-frame--plate" href="#" data-service="01-seo" style="background-image:url(/assets/reel/01-seo.jpg)"><small>01 · SEARCH</small><strong>We make you the answer<br>Google trusts.</strong><span>+420% organic traffic</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="02-authority" style="background-image:url(/assets/reel/02-authority.jpg)"><small>02 · TRUST</small><strong>We build the proof that<br>makes buyers choose you.</strong><span>domain rank 78</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="03-paid" style="background-image:url(/assets/reel/03-paid.jpg)"><small>03 · DEMAND</small><strong>We buy attention that<br>pays for itself.</strong><span>$14M+ ad spend</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="04-sales" style="background-image:url(/assets/reel/04-sales.jpg)"><small>04 · REVENUE</small><strong>We turn interest into<br>booked revenue.</strong><span>3.8× conversion rate</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="05-creative" style="background-image:url(/assets/reel/05-creative.jpg)"><small>05 · CREATIVE</small><strong>We make the work people<br>actually act on.</strong><span>+185% ROAS uplift</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="06-lifecycle" style="background-image:url(/assets/reel/06-lifecycle.jpg)"><small>06 · RETENTION</small><strong>We keep customers coming<br>back on their own.</strong><span>92% net retention</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="07-momentum" style="background-image:url(/assets/reel/07-momentum.jpg)"><small>07 · BRAND</small><strong>We make you<br>impossible to forget.</strong><span>8.5M impressions/mo</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="08-growth" style="background-image:url(/assets/reel/08-growth.jpg)"><small>08 · INTELLIGENCE</small><strong>We show you exactly<br>what is working.</strong><span>100% data precision</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="09-reach" style="background-image:url(/assets/reel/09-reach.jpg)"><small>09 · REACH</small><strong>We put you in front of<br>the right crowd.</strong><span>31M people reached</span></a>
+        <a class="market-frame market-frame--plate" href="#" data-service="10-ads" style="background-image:url(/assets/reel/10-ads.jpg)"><small>10 · PLACEMENT</small><strong>We win the spots<br>that matter.</strong><span>1.2B ad impressions</span></a>
       </div>
       <div class="market-pusher">
         <span class="market-camera__reel market-camera__reel--a"></span>
@@ -403,14 +407,48 @@
     </section>
 
     <!-- ══════════ CONTACT ══════════ -->
-    <section class="section" id="contact">
-      <p class="kicker" data-reveal>05 / Establish Link</p>
-      <h2 class="contact__title"><span class="line"><span data-split>Kuch banana hai?</span></span></h2>
-      <a class="contact__mail" data-email-link data-magnetic><span data-email></span></a>
-      <p class="lede" data-reveal>
-        Ek line likh do — kya problem solve karni hai. Hum 48 ghante mein reply karte hain,
-        aur pehli call par hi bata dete hain ki ye humse banega ya nahi.
-      </p>
+    <!-- The Endurance's sitting module. Every word and link below is plain
+         DOM: with no WebGL it is still a complete contact section. -->
+    <section class="section section--room" id="contact" data-room>
+      <div class="room__stage" data-room-stage aria-hidden="true">
+        <div class="room__plate" data-depth="1"></div>
+        <div class="room__breath" data-room-breath></div>
+        <div class="room__bloom" data-depth="1.05"></div>
+        <div class="room__lights" data-room-lights data-depth="1.15"></div>
+      </div>
+      <div class="room__vignette" aria-hidden="true"></div>
+      <div class="room__grain" aria-hidden="true"></div>
+
+      <div class="room__ui">
+        <p class="kicker" data-reveal>05 / Establish Link</p>
+        <h2 class="contact__title"><span class="line"><span data-split>Kuch banana hai?</span></span></h2>
+        <a class="contact__mail" data-email-link data-magnetic><span data-email></span></a>
+        <p class="lede" data-reveal>
+          Ek line likh do — kya problem solve karni hai. Hum 48 ghante mein reply karte hain,
+          aur pehli call par hi bata dete hain ki ye humse banega ya nahi.
+        </p>
+        <div class="room__pills">
+          <button class="room__pill" type="button" data-room-open>New project <span>&#8600;</span></button>
+          <a class="room__pill" data-general-mail>General <span>&#8600;</span></a>
+        </div>
+      </div>
+
+      <aside class="room__drawer" data-room-drawer aria-hidden="true" aria-label="Send a message">
+        <button class="room__close" type="button" data-room-close aria-label="Close">&times;</button>
+        <h3 class="room__drawer-title">Send a message</h3>
+        <form data-room-form data-mailto="">
+          <label>Naam
+            <input name="name" type="text" maxlength="80" autocomplete="name" required>
+          </label>
+          <label>Phone / email
+            <input name="reach" type="text" maxlength="120" autocomplete="email" required>
+          </label>
+          <label>Kya banana hai?
+            <textarea name="msg" maxlength="1000" rows="5" required></textarea>
+          </label>
+          <button type="submit">Transmit</button>
+        </form>
+      </aside>
     </section>
   </main>
 

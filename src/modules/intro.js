@@ -50,6 +50,25 @@ export function createIntro({ onProgress } = {}) {
   const footBar = root.querySelector(".intro__foot");
   const bar = root.querySelector(".intro__bar");
   const marketExperience = root.querySelector(".market-experience");
+  const filmStrip = root.querySelector(".market-film");
+  const filmCards = filmStrip ? [...filmStrip.querySelectorAll(".market-frame")] : [];
+  /* The detent parks a plate in the gate only if the strip advances by exactly
+     one card pitch per beat — so measure the pitch, never assume it. (Guessing
+     it cost a reel where no plate ever landed in the light.) */
+  let filmC0 = 0, filmPitch = 0;
+  function measureFilm() {
+    if (filmCards.length < 2 || !marketExperience) return;
+    const prevX = marketExperience.style.getPropertyValue("--market-film-x");
+    const prevT = filmCards.map((c) => c.style.transform);
+    marketExperience.style.setProperty("--market-film-x", "0px");
+    filmCards.forEach((c) => { c.style.transform = "none"; });
+    const r0 = filmCards[0].getBoundingClientRect();
+    const r1 = filmCards[1].getBoundingClientRect();
+    filmC0 = r0.left + r0.width / 2;
+    filmPitch = (r1.left + r1.width / 2) - filmC0;
+    filmCards.forEach((c, i) => { c.style.transform = prevT[i]; });
+    if (prevX) marketExperience.style.setProperty("--market-film-x", prevX);
+  }
   const consultZero = root.querySelector(".consult-zero");
   const consultHandCanvas = root.querySelector(".consult-zero__hand-canvas");
   const consultHand = !reduced && consultHandCanvas
@@ -382,14 +401,27 @@ export function createIntro({ onProgress } = {}) {
       const zoomT = smoothstep((local - 0.08) / 0.38);
       const heroReveal = smoothstep((p - 0.472) / 0.028);
       const copyOpacity = heroReveal * (1 - smoothstep((local - 0.12) / 0.24));
-      const filmIn = smoothstep((local - 0.34) / 0.14);
-      const filmOut = 1 - smoothstep((local - 0.92) / 0.08);
-      const filmTravel = smoothstep((local - 0.38) / 0.50);
+      const filmIn = smoothstep((local - 0.30) / 0.12);
+      const filmOut = 1 - smoothstep((local - 0.94) / 0.06);
+      /* SETTLE AND HOLD (Yash MCQ): the strip is not linear in scroll. A
+         detent curve spends most of its time parked with a plate in the gate
+         and crosses the gap between plates quickly — a projector's rhythm. */
+      const filmRaw = smoothstep((local - 0.28) / 0.60);   // done by .88
+      const slots = Math.max(filmCards.length - 1, 1);
+      const pos = filmRaw * slots;
+      const idx = Math.floor(pos);
+      const frac = pos - idx;
+      const detent = frac < 0.34 ? 0 : frac > 0.72 ? 1 : smoothstep((frac - 0.34) / 0.38);
+      const filmTravel = (idx + detent) / slots;
       const humanIn = smoothstep((filmTravel - 0.72) / 0.12);
       const humanPush = smoothstep((filmTravel - 0.72) / 0.28);
       /* Longer capture runway: reel insertion ke baad camera ek frame mein
          jump nahi karta; scroll user ko lens tunnel ke andar travel karata hai. */
-      const cameraCapture = smoothstep((local - 0.68) / 0.32);
+      /* The capture beat (camera swallows the reel into WE SCALE) used to
+         start at .68 and drag the strip BACKWARDS while plates were still
+         queuing — the last three never reached the gate. It now waits until
+         the reel has finished. */
+      const cameraCapture = smoothstep((local - 0.90) / 0.10);
       const cameraDepth = smoothstep((cameraCapture - 0.18) / 0.72);
       const cameraFlash = Math.sin(cameraCapture * Math.PI);
       const cameraRecoil = Math.sin(cameraCapture * Math.PI * 2) * (1 - cameraCapture);
@@ -397,11 +429,23 @@ export function createIntro({ onProgress } = {}) {
       const cameraCrank = Math.sin(cameraSpin * Math.PI * 2) * 18;
       // Travel scales with the strip: 10 plates (was 7 originally, briefly
       // 20 during the A/B judging pass).
-      const filmDistance = window.innerWidth <= 720 ? 175 : 118;
-      const filmX = 38 - filmTravel * filmDistance;
+      if (!filmPitch) measureFilm();
+      const gateX = innerWidth * 0.62;            // where the lamp points
+      const filmX = filmPitch
+        ? (gateX - filmC0 - pos * filmPitch) / innerWidth * 100   // → vw, exact
+        : 38 - filmTravel * 118;                                   // pre-measure
       const transitionT = smoothstep((p - 0.425) / 0.095);
       const transitionOpacity = Math.sin(transitionT * Math.PI) * marketIn;
       const marketSceneIn = smoothstep((p - 0.455) / 0.055);
+
+      /* LIGHTS DOWN, THEN THE LAMP (Yash MCQ): the code world dims to a dark
+         room first; only then does the projector strike and the reel start. */
+      const roomIn = smoothstep((p - 0.404) / 0.030);
+      const roomOut = 1 - smoothstep((p - 0.700) / 0.014);
+      const lampStrike = smoothstep((local - 0.245) / 0.055);
+      marketExperience.style.setProperty("--market-room", (roomIn * roomOut).toFixed(3));
+      marketExperience.style.setProperty("--market-lamp",
+        (lampStrike * filmIn * filmOut).toFixed(3));
 
       root.classList.toggle("market-live", marketOpacity > 0.002);
       marketExperience.style.setProperty("--market-opacity", marketOpacity.toFixed(3));
@@ -410,6 +454,31 @@ export function createIntro({ onProgress } = {}) {
       marketExperience.style.setProperty("--market-film-opacity", (filmIn * filmOut * marketOpacity).toFixed(3));
       marketExperience.style.setProperty("--market-film-x", `${filmX.toFixed(2)}vw`);
       marketExperience.style.setProperty("--market-film-capture-x", `${(filmX * (1 - cameraCapture)).toFixed(2)}vw`);
+
+      /* CURVE INTO DEPTH + THREAD THROUGH THE MACHINE.
+         Each plate is transformed by where it sits on screen, not by its index
+         — so the curve travels with the film. Plates far from the gate rotate
+         away and darken (no hard cut at the screen edge, ever); the plate at
+         the gate is lit and square to camera. Gate sits right of the
+         projector body, where the lamp actually points. */
+      if (filmCards.length && filmIn * filmOut > 0.002) {
+        for (const card of filmCards) {
+          const r = card.getBoundingClientRect();
+          const cx = r.left + r.width / 2;
+          const d = (cx - gateX) / innerWidth;          // -1 … +1 from the gate
+          const away = Math.min(Math.abs(d) / 0.52, 1); // 0 at gate, 1 far out
+          const curve = away * away;
+          const rotY = -Math.sign(d) * curve * 68;
+          const z = -curve * 520;
+          const lit = 1 - Math.min(Math.abs(d) / 0.17, 1);
+          card.style.transform =
+            `translateZ(${z.toFixed(0)}px) rotateY(${rotY.toFixed(1)}deg) scale(${(1 - curve * 0.06).toFixed(3)})`;
+          card.style.filter =
+            `brightness(${(0.42 + lit * 1.05).toFixed(2)}) saturate(${(0.65 + lit * 0.7).toFixed(2)}) contrast(${(0.95 + lit * 0.15).toFixed(2)})`;
+          card.style.opacity = (1 - curve * 0.62).toFixed(3);   // neighbours stay in the strip
+          card.dataset.lit = lit > 0.6 ? "1" : "0";
+        }
+      }
       /* Camera remains physically present until the lens has filled the frame.
          The reel can fade, but fading the camera at the same time caused a
          dark gap before ACT 04. */
@@ -613,20 +682,36 @@ export function createIntro({ onProgress } = {}) {
   const perAct = reduced ? 0.6 : (INTRO.scrollPerAct ?? 1.1);
   const baseScrollLength = perAct * n;
   const consultStretch = reduced ? 0 : 1.4;
+  /* WE MARKET needs room: ten plates each get a readable beat (Yash, 7 Aug).
+     Given as EXTRA viewport-heights on that act's own slice of the timeline,
+     so every other act keeps exactly the pacing it already had. */
+  const marketStretch = reduced ? 0 : 1.4;
+  const MARKET_P0 = 0.425, MARKET_P1 = 0.696;
   /* Black-hole beat ka apna scroll span, burn ke poora hone ke BAAD —
      intro ka saara purana ganit introScrollLength par hi chalta hai,
      isliye acts/consult ki pacing ko ye chhoota tak nahi. */
   const beatStretch = beatEnabled ? 1.0 : 0;
-  const introScrollLength = baseScrollLength + consultStretch;
+  const consultTimelineStart = 0.704;
+  /* Piecewise timeline: each row is [pFrom, pTo, extra-vh]. The base cost of a
+     p-span is span * baseScrollLength; a stretch simply adds vh to that row. */
+  const SEGMENTS = [
+    [0, MARKET_P0, 0],
+    [MARKET_P0, MARKET_P1, marketStretch],
+    [MARKET_P1, consultTimelineStart, 0],
+    [consultTimelineStart, 1, consultStretch],
+  ].map(([p0, p1, extra]) => ({ p0, p1, vh: (p1 - p0) * baseScrollLength + extra }));
+  const introScrollLength = SEGMENTS.reduce((a, seg) => a + seg.vh, 0);
   const totalScrollLength = introScrollLength + beatStretch;
   const introRawEnd = introScrollLength / totalScrollLength;
-  const consultTimelineStart = 0.704;
-  const consultRawSplit = (baseScrollLength * consultTimelineStart) / introScrollLength;
   const mapScrollProgress = (raw) => {
-    const r = Math.min(raw / introRawEnd, 1);
-    if (r <= consultRawSplit) return r * introScrollLength / baseScrollLength;
-    return consultTimelineStart
-      + ((r - consultRawSplit) / (1 - consultRawSplit)) * (1 - consultTimelineStart);
+    let v = Math.min(raw / introRawEnd, 1) * introScrollLength;   // vh travelled
+    for (const seg of SEGMENTS) {
+      if (v <= seg.vh || seg === SEGMENTS[SEGMENTS.length - 1]) {
+        return seg.p0 + Math.min(v / seg.vh, 1) * (seg.p1 - seg.p0);
+      }
+      v -= seg.vh;
+    }
+    return 1;
   };
   /* Gargantua sirf ENTER ke baad (Yash, 6 Aug 16:18 MCQ): pehle ka 0.008
      head-start overlap mint flash dhakta tha, par ab wahi kaam PORTAL ka
@@ -874,6 +959,7 @@ export function createIntro({ onProgress } = {}) {
   gsap.ticker.add(tick);
 
   const onResize = () => {
+    filmPitch = 0;                 // re-measure the strip at the new width
     corridor.resize();
     consultHand?.resize();
     blackholeBeat?.resize();
@@ -891,8 +977,26 @@ export function createIntro({ onProgress } = {}) {
 
   applyProgress(0);
 
+  /* Inverse of mapScrollProgress: where in the pin does timeline p live?
+     Tests used to hardcode raw values and broke the moment an act was given
+     more room — they ask for this instead. */
+  const rawForP = (target) => {
+    let v = 0;
+    for (const seg of SEGMENTS) {
+      if (target <= seg.p1 || seg === SEGMENTS[SEGMENTS.length - 1]) {
+        v += ((target - seg.p0) / (seg.p1 - seg.p0)) * seg.vh;
+        break;
+      }
+      v += seg.vh;
+    }
+    return Math.max(0, Math.min(1, (v / introScrollLength) * introRawEnd));
+  };
+
   return {
     corridor, sound, st,
+    rawForP,
+    get wallRaw() { return wallRaw; },
+    get introRawEnd() { return introRawEnd; },
     get progress() { return progress; },
     destroy() {
       gsap.ticker.remove(tick);

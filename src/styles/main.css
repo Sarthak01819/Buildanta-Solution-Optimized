@@ -4111,7 +4111,287 @@ html.bh-final .sweep { display: none !important; }
 .market-frame--plate small,
 .market-frame--plate span { text-shadow: 0 1px 10px rgba(0,0,0,.9); }
 .market-frame--plate strong { text-shadow: 0 2px 22px rgba(0,0,0,.85); }
-/* 10 plates: the strip stays one continuous row, and the 3D fan the
-   original 7 cards had is dropped (it only ever addressed 7 positions). */
-.market-film { width: 155vw; }
-.market-frame { transform: none !important; }
+/* 10 plates threading behind the projector: the strip is a real 3D scene so
+   each plate can be curved by JS according to its position on screen. */
+.market-film {
+  width: 165vw;
+  perspective: 1400px;
+  perspective-origin: 62% 50%;
+  transform-style: preserve-3d;
+  z-index: 5;                    /* under the beam (7) and the machine (9) */
+}
+.market-frame { transform-style: preserve-3d; backface-visibility: hidden; }
+
+/* ─────────── contact room — the Endurance's sitting module ───────────
+   The section becomes a viewport into the ship: photographic plate, the real
+   black hole clipped to the window's measured pane, warm spill on the room's
+   surfaces, then the site's own contact copy on the plate's calm dark third.
+   Every rule here is additive — .contact__title / .contact__mail keep their
+   existing look, they just sit inside the room now. */
+.section--room {
+  position: relative; overflow: hidden; isolation: isolate;
+  min-height: min(94vh, 900px); display: flex; align-items: center;
+}
+/* One aspect-locked box: the plate AND the pane polygon both resolve against
+   it. A plain `cover` background recrops per aspect while a polygon does not,
+   which slides the window hole off the glass. */
+.room__stage {
+  position: absolute; top: 50%; left: 50%; z-index: 0;
+  width: max(105%, 186.67vh); height: max(105%, 59.06vw);
+  transform: translate(-50%, -50%); pointer-events: none;
+}
+.room__stage > * { position: absolute; inset: 0;
+  transition: transform 0.18s ease-out; will-change: transform; }
+.room__plate { background: url("/assets/room/room-2a.jpg") center / 100% 100%; }
+.room__bloom {
+  inset: -1.5%; background: url("/assets/room/room-2a.jpg") center / 100% 100%;
+  filter: blur(16px) brightness(1.55) saturate(1.15);
+  mix-blend-mode: screen; opacity: 0.42;
+}
+/* Light landing on the room's surfaces. Stays BELOW the black-hole canvas
+   (which sits at z-index 2) — letting it paint over the glass turns space
+   into warm brown haze. */
+.room__breath {
+  z-index: 1; mix-blend-mode: screen; opacity: 0.5; transition: none;
+  background:
+    radial-gradient(ellipse 30% 30% at 72% 40%, rgba(255,186,112,.30), transparent 78%),
+    radial-gradient(ellipse 42% 34% at 74% 16%, rgba(255,176,96,.32), transparent 70%),
+    radial-gradient(ellipse 20% 48% at 50% 42%, rgba(255,168,92,.26), transparent 72%),
+    radial-gradient(ellipse 16% 46% at 96% 40%, rgba(255,168,92,.24), transparent 72%),
+    radial-gradient(ellipse 34% 22% at 66% 74%, rgba(255,176,104,.18), transparent 76%);
+  animation: roomBreath 9s ease-in-out infinite;
+}
+.room__breath--live { animation: none; }   /* the real disk drives it instead */
+@keyframes roomBreath { 0%, 100% { opacity: .34; } 50% { opacity: .72; } }
+.room__light {
+  position: absolute; width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,190,110,.95), rgba(255,150,60,0) 70%);
+  animation: roomBlink 3.2s ease-in-out infinite;
+}
+@keyframes roomBlink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+.room__vignette {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse at 58% 45%, transparent 52%, rgba(0,0,0,.62) 100%);
+}
+.room__grain {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .12;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='0.9'/%3E%3C/svg%3E");
+}
+.room__ui { position: relative; z-index: 3; max-width: 46%; }
+.room__ui .lede { max-width: 42ch; margin-top: 22px; }
+.room__pills { display: flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+.room__pill {
+  border: 1px solid rgba(239,232,218,.4); border-radius: 999px; padding: 12px 26px;
+  font: inherit; font-size: 12px; letter-spacing: .1em; color: #efe8da;
+  background: rgba(6,8,13,.42); cursor: pointer; text-decoration: none;
+}
+.room__pill:hover { border-color: var(--amber); }
+.room__pill span { margin-left: 8px; color: var(--amber); }
+
+.room__drawer {
+  position: absolute; inset: 0 0 0 auto; z-index: 5; width: min(440px, 92vw);
+  background: rgba(8,10,16,.96); border-left: 1px solid rgba(255,205,150,.25);
+  padding: 8vh 34px 30px; box-sizing: border-box; color: #e8e2d6;
+  transform: translateX(105%); transition: transform .34s cubic-bezier(.3,.9,.2,1);
+}
+.room--drawer .room__drawer { transform: translateX(0); }
+.room__drawer-title { color: var(--amber); font-size: 14px; letter-spacing: .08em; margin-bottom: 18px; }
+.room__drawer label { display: block; font-size: 11px; color: var(--dim);
+  letter-spacing: .08em; margin-bottom: 12px; }
+.room__drawer input, .room__drawer textarea {
+  display: block; width: 100%; margin-top: 5px; background: #060810; color: #f2ead9;
+  border: 1px solid #2a3040; border-radius: 6px; padding: 9px 10px; font: inherit;
+  font-size: 13px; box-sizing: border-box; resize: vertical;
+}
+.room__drawer button[type="submit"] {
+  background: var(--amber); color: #191104; border: 0; border-radius: 7px;
+  padding: 11px 22px; font: inherit; font-size: 12px; letter-spacing: .12em;
+  font-weight: 700; cursor: pointer; margin-top: 6px;
+}
+.room__close { position: absolute; top: 16px; right: 18px; background: none;
+  border: 0; color: var(--dim); font-size: 26px; line-height: 1; cursor: pointer; }
+
+/* Portrait shows only ~25% of a cover-sized plate's width — less than the
+   window alone spans — so no pan can frame the glass. Scale and offset the
+   stage instead, and put the copy on a solid panel (the plate's calm dark
+   third is cropped away here). */
+@media (max-aspect-ratio: 9/10) {
+  .section--room { align-items: flex-start; min-height: 100vh; }
+  /* Full-bleed on a phone: a 440px panel beside a 390px room shoves the
+     copy off-screen, and there is no room for both. */
+  .room__drawer { width: 100%; border-left: 0; padding: 10vh 24px 30px; }
+  .room__stage {
+    width: 172%; height: 96.75vw; top: 66%;
+    transform: translate(-50%, -50%) translateX(-22%);
+  }
+  .room__ui {
+    max-width: none; padding: 4vh 0 6vh;
+    background: linear-gradient(180deg, rgba(3,5,10,.94) 66%, rgba(3,5,10,0) 100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .room__light, .room__breath { animation: none; }
+  .room__drawer { transition: none; }
+  .room__stage > * { transition: none; }
+}
+
+/* ═══ WE MARKET — the screening room (7 Aug rebuild, 9 MCQs) ═══════════
+   Composition: a dark room; the projector sits left of centre and the film
+   threads BEHIND it; its lamp throws a dusty cone onto the plate at the gate,
+   which is the one you read. The strip's far ends curve away into depth, so
+   the film never ends at a hard screen edge. */
+
+.market-room {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: #04030a;
+  opacity: var(--market-room, 0);
+}
+.market-room__pool {                    /* the light pool on the room floor */
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 45% at 62% 52%, rgba(120, 90, 190, .20), transparent 70%),
+    radial-gradient(38% 30% at 30% 66%, rgba(80, 60, 140, .16), transparent 72%);
+  opacity: calc(var(--market-lamp, 0) * .9);
+}
+
+/* the lamp's cone — a soft wedge from the projector gate to the lit plate */
+.market-beam {
+  position: absolute;
+  z-index: 7;                            /* over the film, under the machine */
+  left: 34%;
+  top: 46%;
+  width: 46vw;
+  height: 34vh;
+  pointer-events: none;
+  opacity: calc(var(--market-lamp, 0) * var(--market-film-opacity, 1));
+  transform: translateY(-50%);
+  mix-blend-mode: screen;
+}
+.market-beam i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 244, 224, .30) 0%, rgba(255, 240, 220, .10) 34%, transparent 72%);
+  clip-path: polygon(0% 42%, 0% 58%, 100% 96%, 100% 4%);
+  filter: blur(6px);
+}
+.market-beam b {                          /* dust drifting in the beam */
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(0% 42%, 0% 58%, 100% 96%, 100% 4%);
+  background-image:
+    radial-gradient(1.5px 1.5px at 18% 44%, rgba(255,246,230,.85), transparent 60%),
+    radial-gradient(1.2px 1.2px at 34% 62%, rgba(255,246,230,.7), transparent 60%),
+    radial-gradient(1.6px 1.6px at 52% 38%, rgba(255,246,230,.8), transparent 60%),
+    radial-gradient(1.2px 1.2px at 68% 70%, rgba(255,246,230,.6), transparent 60%),
+    radial-gradient(1.4px 1.4px at 84% 50%, rgba(255,246,230,.75), transparent 60%);
+  animation: marketDust 9s linear infinite;
+}
+@keyframes marketDust {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-6%, -3%, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .market-beam b { animation: none; } }
+
+/* plates: a link, art behind, copy that says what we do */
+.market-frame--plate {
+  text-decoration: none;
+  justify-content: flex-start;
+  gap: .7rem;
+  background-color: #0a0616;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(255,255,255,.16);
+  transition: filter 220ms ease-out, border-color 220ms ease-out;
+  will-change: transform;
+}
+.market-frame--plate::after { display: none; }
+.market-frame--plate small {
+  color: #f3e6ff;
+  opacity: .85;
+  text-shadow: 0 1px 10px rgba(0,0,0,.95);
+}
+.market-frame--plate strong {
+  align-self: flex-start;
+  margin-top: auto;
+  text-align: left;
+  font: 400 clamp(1.15rem, 1.72vw, 2.1rem)/1.12 "Instrument Serif", Georgia, serif;
+  text-shadow: 0 2px 26px rgba(0,0,0,.92);
+}
+.market-frame--plate span {
+  color: #d9c9ff;
+  text-shadow: 0 1px 10px rgba(0,0,0,.95);
+}
+.market-frame--plate:focus-visible { outline: 2px solid #f0d8a8; outline-offset: 3px; }
+.market-frame--plate:hover { border-color: rgba(255,255,255,.4); }
+
+/* the plate in the gate: brighter, the rest fall back into the dark */
+.market-frame--plate[data-lit="1"] { filter: none; }
+
+
+/* Belt and braces with the depth curve: the strip's last 9% dissolves into
+   the dark at both ends, so the film can never end on a mechanical cut. */
+.market-film {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%);
+}
+
+/* ── screening-room composition fixes (measured from frames, 7 Aug) ──
+   The machine sat centred, covering the very plate its lamp lights. It moves
+   left; the gate (62%) is now clear of it, and the beam actually crosses the
+   room from the lens to the lit plate. */
+.market-pusher { left: 27%; width: min(38vw, 64vh); }
+
+.market-beam {
+  left: 26%;
+  width: 44vw;
+  height: 40vh;
+  opacity: calc(var(--market-lamp, 0) * var(--market-film-opacity, 1));
+}
+.market-beam i {
+  background: linear-gradient(100deg, rgba(255,246,228,.52) 0%, rgba(255,240,218,.20) 38%, rgba(255,238,214,.06) 74%, transparent 100%);
+  filter: blur(8px);
+}
+/* the pool of light where the beam lands, behind the gate plate */
+.market-beam::after {
+  content: "";
+  position: absolute;
+  right: -6vw;
+  top: 50%;
+  width: 30vw;
+  height: 30vw;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,240,214,.22), transparent 62%);
+  filter: blur(10px);
+}
+
+/* sprockets: real film, not a light source — they were out-shining the art */
+.market-film::before,
+.market-film::after { opacity: .34; }
+
+/* The beam belongs BEHIND the film — in front it washed the very plate it was
+   meant to light (measured: gate plate read darker with the beam on top). */
+.market-beam { z-index: 4; }
+.market-beam i { filter: blur(14px); }
+
+/* A whisper of the cone in FRONT too, so you see light travelling through the
+   room — kept at a low alpha that cannot veil the plate it lands on. */
+.market-beam b {
+  z-index: 8;
+  opacity: .5;
+}
+.market-beam::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  clip-path: polygon(0% 44%, 0% 56%, 100% 92%, 100% 8%);
+  background: linear-gradient(100deg, rgba(255,246,228,.16) 0%, rgba(255,242,222,.06) 45%, transparent 85%);
+  filter: blur(10px);
+  pointer-events: none;
+}
