@@ -545,12 +545,12 @@ export function createIntro({ onProgress } = {}) {
             is what makes entering feel like a choice rather than a fall.
          3. ENTER     .726→.752  you push into the glass; the lens takes the
             frame and the screen goes black. */
-      const approach = smoothstep((p - 0.684) / 0.026);
-      const enter = smoothstep((p - 0.722) / 0.028);
+      const approach = smoothstep((p - 0.684) / 0.032);
+      const enter = smoothstep((p - 0.726) / 0.026);
       const lensTake = enter;
       /* The act wrapper carries the camera, so it has to live until the black
          is complete — otherwise the machine dissolves mid-journey. */
-      const marketOut = 1 - smoothstep((p - 0.750) / 0.008);
+      const marketOut = 1 - smoothstep((p - 0.752) / 0.008);
       const marketOpacity = marketIn * marketOut;
       const local = Math.max(0, Math.min(1, (p - 0.48) / 0.24));
       const zoomT = smoothstep((local - 0.08) / 0.38);
@@ -562,7 +562,7 @@ export function createIntro({ onProgress } = {}) {
          zoomed at an empty screen. The strip now lives through the whole
          approach and clears in the HOLD, on p, not on the act's own local
          clock (which is clamped to 1 by p=0.72 and cannot express this). */
-      const filmOut = 1 - smoothstep((p - 0.708) / 0.012);
+      const filmOut = 1 - smoothstep((p - 0.714) / 0.012);
       /* SETTLE AND HOLD (Yash MCQ): the strip is not linear in scroll. A
          detent curve spends most of its time parked with a plate in the gate
          and crosses the gap between plates quickly — a projector's rhythm. */
@@ -604,23 +604,7 @@ export function createIntro({ onProgress } = {}) {
          turns per plate so the movement actually reads at this size — the
          wheels are the thing Yash points at, and half a turn per beat is a
          nudge, not a machine running. */
-      /* ── THE MACHINE MUST NOT STALL (Yash, 18:45) ────────────────────
-         Measured: the reels froze at 11.60 turns from p=0.686 to p=0.724 —
-         the whole approach AND the hold — then jumped back into motion at
-         .732. The two terms driving them were the FILM's travel, which ends
-         when the strip does, and the ENTRY, which had not started yet: a
-         0.04-wide dead zone landing exactly where the machine should look
-         most alive.
-         `handover` is monotonic across the entire journey — approach, hold and
-         entry alike — so it cannot stall, including while the camera is at
-         rest (Yash: it should still be turning then; a machine that stops dead
-         on arrival reads as switched off).
-         4 turns is not a taste number: during the reel the spools run at ~2.8
-         turns per screen-height of scroll, and the journey is ~1.4 screens, so
-         4 keeps the rate continuous across the join. Speed up or down there
-         and the eye sees the machine change gear for no reason. */
-      const handover = Math.max(0, Math.min(1, (p - 0.684) / (0.750 - 0.684)));
-      const cameraSpin = pos * 1.45 + handover * 4.0;
+      const cameraSpin = pos * 1.45 + cameraCapture * 2.25;
       const cameraCrank = Math.sin(cameraSpin * Math.PI * 2) * 18;
       // Travel scales with the strip: 10 plates (was 7 originally, briefly
       // 20 during the A/B judging pass).
@@ -636,7 +620,7 @@ export function createIntro({ onProgress } = {}) {
       /* LIGHTS DOWN, THEN THE LAMP (Yash MCQ): the code world dims to a dark
          room first; only then does the projector strike and the reel start. */
       const roomIn = smoothstep((p - 0.392) / 0.052);
-      const roomOut = 1 - smoothstep((p - 0.750) / 0.008);
+      const roomOut = 1 - smoothstep((p - 0.752) / 0.008);
       const lampStrike = smoothstep((local - 0.19) / 0.06);   // projector arrives AFTER the opening
       marketExperience.style.setProperty("--market-room",
         (roomIn * roomOut * (0.5 + 0.5 * lampStrike)).toFixed(3));
@@ -646,10 +630,10 @@ export function createIntro({ onProgress } = {}) {
       /* black is fully up by .706 and HOLDS to .722 — a real beat of nothing,
          which is what makes the sphere land. The sphere is the consult world's
          own clip-circle opening (see --zero-reveal below). */
-      const sphere = smoothstep((p - 0.768) / 0.040);      // .768 → .808
+      const sphere = smoothstep((p - 0.768) / 0.056);      // .768 → .824
       /* the layer exists to turn the lens's near-black into TRUE black, so it
          arrives behind the glass, not instead of it */
-      root.style.setProperty("--blackout", smoothstep((p - 0.736) / 0.014).toFixed(3));
+      root.style.setProperty("--blackout", smoothstep((p - 0.738) / 0.014).toFixed(3));
       root.style.setProperty("--hole", sphere.toFixed(3));
 
       root.classList.toggle("market-live", marketOpacity > 0.002);
@@ -668,7 +652,7 @@ export function createIntro({ onProgress } = {}) {
          it used to fade before the camera had even started moving, so the
          reel died and then a machine zoomed at an empty screen. */
       const filmVis = filmIn * filmOut * marketOpacity
-        * (1 - smoothstep((p - 0.708) / 0.012));
+        * (1 - smoothstep((p - 0.714) / 0.012));
       marketExperience.style.setProperty("--market-film-opacity",
         (filmVis > 0.004 ? filmVis : (marketOpacity > 0.02 ? 0.004 : 0)).toFixed(3));
       marketExperience.style.setProperty("--market-film-x", `${filmX.toFixed(2)}vw`);
@@ -744,7 +728,7 @@ export function createIntro({ onProgress } = {}) {
          rasterised, so the first non-zero frame paid for both at once —
          measured 43ms on a cold run at p=0.457. A floor of 0.004 is invisible
          and moves that cost into the quiet editorial beat. */
-      const humanVis = filmIn * marketIn * (1 - smoothstep((p - 0.750) / 0.008));
+      const humanVis = filmIn * marketIn * (1 - smoothstep((p - 0.752) / 0.008));
       marketExperience.style.setProperty("--market-human-opacity",
         (humanVis > 0.004 ? humanVis : (marketOpacity > 0.02 ? 0.004 : 0)).toFixed(3));
       marketExperience.style.setProperty("--market-human-drive", filmTravel.toFixed(3));
@@ -755,9 +739,7 @@ export function createIntro({ onProgress } = {}) {
       marketExperience.style.setProperty("--market-camera-recoil", cameraRecoil.toFixed(3));
       marketExperience.style.setProperty("--market-camera-spin", cameraSpin.toFixed(3));
       marketExperience.style.setProperty("--market-camera-crank", `${cameraCrank.toFixed(2)}deg`);
-      /* readable blades, not a blur: 900deg over the journey is ~15 blade
-         passes against this lens's 6-blade gradient */
-      marketExperience.style.setProperty("--market-camera-shutter-angle", `${(filmTravel * 240 + handover * 900).toFixed(1)}deg`);
+      marketExperience.style.setProperty("--market-camera-shutter-angle", `${(filmTravel * 240 + cameraCapture * 540).toFixed(1)}deg`);
       marketExperience.style.setProperty("--market-transition-t", transitionT.toFixed(3));
       marketExperience.style.setProperty("--market-transition-opacity", Math.max(0, transitionOpacity).toFixed(3));
       marketExperience.style.setProperty("--market-transition-y", `${(94 - transitionT * 46).toFixed(2)}vh`);
@@ -777,12 +759,12 @@ export function createIntro({ onProgress } = {}) {
          cut to black now, so there is nothing to bleed over the reel. */
       const lightFrame = 0;
       /* the sphere: the world's own clip-circle, opening AFTER the black beat */
-      const consultReveal = smoothstep((p - 0.768) / 0.040);
+      const consultReveal = smoothstep((p - 0.768) / 0.056);
       const consultOut = 1 - smoothstep((p - 0.992) / 0.008);
       /* fully painted behind the black before the circle opens, so the circle
          is the ONLY reveal — a world that also fades in reads as a dissolve,
          not as something you entered */
-      const consultOpacity = smoothstep((p - 0.754) / 0.010) * consultOut;
+      const consultOpacity = smoothstep((p - 0.756) / 0.010) * consultOut;
       const consultLocal = Math.max(0, Math.min(1, (p - 0.768) / 0.224));
       // The same palm globe begins around the camera and zooms out into place.
       // Bring its mint world in immediately—there is no separate space scene.
@@ -965,11 +947,7 @@ export function createIntro({ onProgress } = {}) {
      Its own segment, four times the room, three beats inside it: the camera
      comes forward with the reel still running, it STOPS, then you go in. */
   const HANDOVER_P1 = 0.768;
-  /* Halved (Yash 18:45): the handover was 4.1 screen-heights of scrolling —
-     longer than most visitors spend on a whole act. ~2 now. The APPROACH gives
-     up the most, per his answer, but is deliberately still half a screen so it
-     reads as travel and not as a snap. */
-  const handoverStretch = reduced ? 0 : 1.35;
+  const handoverStretch = reduced ? 0 : 3.2;
   /* Black-hole beat ka apna scroll span, burn ke poora hone ke BAAD —
      intro ka saara purana ganit introScrollLength par hi chalta hai,
      isliye acts/consult ki pacing ko ye chhoota tak nahi. */
