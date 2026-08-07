@@ -4899,3 +4899,62 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
    a dark set and it was buying almost nothing for 7 dropped frames. */
 .market-pusher img { filter: none; }
 .market-pusher { filter: none; }
+
+/* ─────────── the Endurance inside the main site's contact section ───────────
+   In finale mode the ship renders on the intro's black-hole layer. In the
+   ordinary site it needs a home of its own, scoped to the section, and the
+   room's own content waits behind it until the flight lands. */
+.room__ship { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.section--room.room--finale .room__ship { display: none; }
+/* Before the flight, the section shows the ship over space; the plate and the
+   copy arrive as you do. `--room-in` is driven by the flight's own progress. */
+.section--room:not(.room--finale) .room__stage,
+.section--room:not(.room--finale) .room__ui,
+.section--room:not(.room--finale) .room__vignette,
+.section--room:not(.room--finale) .room__grain { opacity: var(--room-in, 1); }
+.section--room:not(.room--finale) { background: #01020a; }
+@media (prefers-reduced-motion: reduce) {
+  .section--room:not(.room--finale) .room__stage,
+  .section--room:not(.room--finale) .room__ui { opacity: 1; }
+}
+
+/* ── the lens, made of glass (Yash, 20:06) ──────────────────────────────
+   It was one flat conic gradient — a diagram of a shutter rather than a lens.
+   Real glass has four things a gradient does not: a specular reflection of the
+   room that does NOT rotate with the blades, the violet-cyan flare that coated
+   optics throw, a pupil that gives nothing back, and a barrel that falls away
+   into shadow at the rim.
+   Only the iris layer carries --market-camera-shutter-angle, so the blades turn
+   underneath a reflection that stays put — which is what makes it read as
+   something seen THROUGH glass rather than a painted disc. The uneven blade
+   spacing is kept exactly: it is what stops the rotation aliasing (19:26). */
+.market-camera__lens {
+  background:
+    /* the room, reflected in the front element — fixed, never turns */
+    radial-gradient(66% 50% at 31% 21%, rgba(206,220,255,.17), rgba(206,220,255,.04) 44%, transparent 70%),
+    radial-gradient(15% 11% at 27% 17%, rgba(255,255,255,.38), transparent 72%),
+    /* coating flare: real multicoated glass throws violet and cyan */
+    radial-gradient(circle at 64% 71%, rgba(124,92,255,.20), transparent 48%),
+    radial-gradient(circle at 36% 67%, rgba(64,196,255,.11), transparent 42%),
+    /* the pupil — light does not come back out of the middle. Kept tight:
+       every percent of it is area the blades cannot be seen through. */
+    radial-gradient(circle, #010104 0 17%, rgba(1,1,4,.66) 27%, transparent 48%),
+    /* THE IRIS — the only layer that turns. Wide bright leading edges on dark
+       faces, the way overlapping steel leaves catch light. Measured: at 4deg
+       edges under this much glass only 8% of the lens changed between frames,
+       which is rotation you have to hunt for. At 9deg it is 20-26% and reads
+       at a glance, without touching the uneven spacing that keeps it from
+       aliasing. */
+    conic-gradient(from var(--market-camera-shutter-angle, 0deg),
+      #5c5c80 0 9deg,   #171725 9deg 100deg,
+      #64648a 100deg 109deg, #12121e 109deg 206deg,
+      #55557a 206deg 215deg, #0e0e18 215deg 348deg,
+      #4c4c6e 348deg 357deg, #10101a 357deg 360deg),
+    /* the well */
+    radial-gradient(circle, #05050c 0 60%, #010103 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(188,200,236,.20),   /* retaining ring */
+    inset 0 2px 9px rgba(255,255,255,.055),  /* light on the ring's top edge */
+    inset 0 0 26px 5px rgba(0,0,0,.9),       /* barrel falling away */
+    0 0 12px rgba(0,0,0,.55);
+}
