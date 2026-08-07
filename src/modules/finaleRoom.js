@@ -19,9 +19,11 @@
 import { createShip } from "../gl/endurance/ship.js";
 import { mountFlightSky } from "../gl/endurance/flightSky.js";
 
-/* At :5291 the visitor scrubs this; 8s is about the rate a steady scroll
-   covers it, and with progress now linear that is what sets the pace. */
-const FLIGHT_SECONDS = 8;
+/* At :5291 the visitor scrubs this; with progress linear, duration sets the
+   pace. The corner framing starts ~2.7x further out than the reference did,
+   so the same 8s would cover that extra ground as a rush — 11s keeps the
+   apparent speed close to the reference's while still arriving promptly. */
+const FLIGHT_SECONDS = 11;
 
 const smoothstep = (a, b, x) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));

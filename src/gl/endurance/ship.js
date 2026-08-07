@@ -282,10 +282,19 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
         // Ring sweep stays on screen for most of the flight; the close-in to
         // the featureless spine happens late, under the dock flash
         const lat = new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion);
+        /* The reference's waypoints were absolute, and tuned for its start at
+           dist 30. Now that the resting framing parks the ship in the corner
+           at dist 81, those points sit almost on top of the ship — the flight
+           would jump most of the way in on its first stride. So they are
+           expressed as FRACTIONS of the reference's own start distance and
+           scaled to ours: identical curve shape, just begun from further out.
+           The last two stay dock-relative, because they are the approach to
+           the port and belong in ship units, not camera ones. */
+        const k = POSE.dist / 30;
         const curve = new CatmullRomCurve3([
           orbitEye,
-          new Vector3(-4.6, 1.6, 20),
-          new Vector3(2.4, 2.6, 12.5),
+          new Vector3(-4.6 * k, 1.6 * k, 20 * k),
+          new Vector3(2.4 * k, 2.6 * k, 12.5 * k),
           dock.clone().addScaledVector(axis, 4.6).addScaledVector(lat, 1.1),
           dock.clone().addScaledVector(axis, 1.25).addScaledVector(lat, 0.4),
         ]);
