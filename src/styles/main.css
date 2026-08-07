@@ -4958,3 +4958,37 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
     inset 0 0 26px 5px rgba(0,0,0,.9),       /* barrel falling away */
     0 0 12px rgba(0,0,0,.55);
 }
+
+/* ── even blades (Yash, 20:13: "the lines are not in the symmetry") ─────
+   He is right, and it was mine: I spaced the blades unevenly on 7 Aug to stop
+   the rotation aliasing. That fixed the motion and broke the object — a real
+   iris has identical leaves at identical angles, and lopsided ones read as a
+   fault.
+   The uneven spacing is no longer needed. Aliasing depends on how far the
+   pattern turns between FRAMES against how far apart its features are, and
+   the shutter now runs 1:1 with the spools — 1.45 turns per plate, ~16.8deg
+   per frame. Six even blades sit 60deg apart, so that is 0.28 of a period per
+   frame, comfortably under the half-period limit. It was only marginal back
+   when the shutter ran at 2:1 against a 90deg repeat.
+   The one-cycle sheen underneath is belt and braces: it turns WITH the blades
+   but has a 360deg period, so even if a visitor scrolls fast enough to push
+   the blades past the limit, the iris as a whole still has a unique
+   orientation at every angle. It is also just true — light falls unevenly
+   across a real iris, brighter on the leaves facing the window. */
+.market-camera__lens {
+  background:
+    radial-gradient(66% 50% at 31% 21%, rgba(206,220,255,.17), rgba(206,220,255,.04) 44%, transparent 70%),
+    radial-gradient(15% 11% at 27% 17%, rgba(255,255,255,.38), transparent 72%),
+    radial-gradient(circle at 64% 71%, rgba(124,92,255,.20), transparent 48%),
+    radial-gradient(circle at 36% 67%, rgba(64,196,255,.11), transparent 42%),
+    radial-gradient(circle, #010104 0 17%, rgba(1,1,4,.66) 27%, transparent 48%),
+    /* the sheen: one cycle per turn, so the iris is unique at every angle */
+    conic-gradient(from var(--market-camera-shutter-angle, 0deg),
+      rgba(255,255,255,.11) 0deg, rgba(255,255,255,.02) 96deg,
+      rgba(0,0,0,.20) 186deg, rgba(255,255,255,.02) 286deg,
+      rgba(255,255,255,.11) 360deg),
+    /* SIX EVEN LEAVES — identical, 60deg apart, as an iris actually is */
+    repeating-conic-gradient(from var(--market-camera-shutter-angle, 0deg),
+      #5c5c80 0 7deg, #1b1b2b 7deg 30deg, #14141f 30deg 60deg),
+    radial-gradient(circle, #05050c 0 60%, #010103 100%);
+}
