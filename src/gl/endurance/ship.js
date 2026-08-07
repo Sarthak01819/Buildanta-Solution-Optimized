@@ -139,6 +139,11 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
      the camera's turn each frame and the caller shifts that canvas to match. */
   const bgShift = { x: 0, y: 0 };
   let lastYaw = null, lastPitch = null, turnYaw = 0, turnPitch = 0;
+  /* What the flight camera is looking at, in the black-hole engine's own
+     terms. The engine takes yaw/pitch/distance rather than a matrix, so this
+     is the handshake that lets the hole be rendered from where we actually
+     are — instead of sitting still on a separate canvas while we travel. */
+  const view = { yaw: 0, pitch: 0, distMul: 1 };
   const cursor = { has: false, x: 0, y: 0 };
   let hoverEased = 0, spin = 0, t = 0, flyIn = 0;
   const parallax = [0, 0], bank = [0, 0];
@@ -243,58 +248,42 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
       shipParent.updateMatrixWorld(true);
 
       const fit = Math.min(Math.max(1.45 / camera.aspect, 1), 1.9);
-      // Beside the hole, not on it: Gargantua owns the centre, so the eye
-      // and its look target are pushed far apart on X to throw the ship out
-      // to the right of frame.
+      /* ── COPIED VERBATIM from the standalone module (~/claude code/endurance,
+         src-three/main.js). Yash: "make it exactly like that: the movement and
+         all". Every constant below is that file's, not a re-derivation — the
+         waypoints, the pow(0.62) rail easing, the dock on the hub's fore port,
+         the roll, the target lerp. The only site-specific part is the starting
+         framing, which stays the finale's own (hole centre, ship beside it). */
       const orbitEye = new Vector3(parallax[0] * damp - 2.6, parallax[1] * damp + 1.4, POSE.dist * fit);
       const orbitLook = new Vector3(-10.8 / fit, 1.7, 0);
 
-      if (flyIn <= 0.001) {
+      if (flyIn <= 0.02) {
         camera.up.set(0, 1, 0);
         camera.position.copy(orbitEye);
         camera.lookAt(orbitLook);
       } else {
-        /* Head-on down the ring's axis, and THROUGH it — this is the shape
-           the standalone module flies (localhost:5291), and the reason that
-           one reads as travel: the ring fills the frame, modules sweep past on
-           both sides, and you pass between them. Arcing around the outside to
-           a side port reads as orbiting, which is what Yash kept seeing.
-           The axis is the spin axis, so the approach is perpendicular to the
-           ring plane and passes through its centre. */
+        // Dock at the hub spine's fore port — an on-axis point, so the ship's
+        // spin rolls it in place instead of sweeping it away from the camera
+        const dock = spinGroup.localToWorld(new Vector3(0, 1.62, 0));
         const axis = new Vector3(0, 1, 0).applyQuaternion(shipParent.quaternion).normalize();
-        const centre = new Vector3();
-        shipParent.getWorldPosition(centre);
-        // come in from whichever side the camera already sits on
-        const side = axis.dot(orbitEye.clone().sub(centre)) >= 0 ? 1 : -1;
-        const app = axis.clone().multiplyScalar(side);
-        const dock = centre.clone().addScaledVector(app, 0.45);
-
-        const path = new CatmullRomCurve3([
+        // Ring sweep stays on screen for most of the flight; the close-in to
+        // the featureless spine happens late, under the dock flash
+        const lat = new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion);
+        const curve = new CatmullRomCurve3([
           orbitEye,
-          // swing onto the axis EARLY and close: in the reference the ship is
-          // the subject within the first couple of seconds, centred and
-          // filling frame. Hanging back leaves the black hole as the subject
-          // and the ship as a detail creeping in from the side.
-          centre.clone().addScaledVector(app, 17).addScaledVector(
-            new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion), 3.5),
-          // lined up, ring filling the frame
-          centre.clone().addScaledVector(app, 9),
-          // through the ring plane, modules sweeping past both sides
-          centre.clone().addScaledVector(app, 4.2),
-          dock,
+          new Vector3(-4.6, 1.6, 20),
+          new Vector3(2.4, 2.6, 12.5),
+          dock.clone().addScaledVector(axis, 4.6).addScaledVector(lat, 1.1),
+          dock.clone().addScaledVector(axis, 1.25).addScaledVector(lat, 0.4),
         ]);
-        path.curveType = "catmullrom";
-        path.tension = 0.4;
-
-        const e = Math.min(1, flyIn / HOLD_AT);
-        const eye = path.getPoint(e);
-        /* Put the ship at frame centre almost immediately. The look target
-           starts on the black hole (the finale's own composition) and must
-           hand over fast, or the whole approach is spent watching the hole
-           while the ship creeps in from the edge — which is exactly how the
-           site version differed from the reference. */
-        const target = new Vector3().lerpVectors(orbitLook, centre, smoothstep(0.01, 0.16, e));
-        const roll = 0.30 * smoothstep(0.55, 1, e);
+        // Gentle departure (smoothstep) then a LONG deceleration into the dock:
+        // pow < 1 spends most of the travel early and crawls the last stretch,
+        // so arrival reads as slowing down, not as a jump cut.
+        const e = Math.pow(smoothstep(0.02, 0.88, flyIn), 0.62);
+        const eye = curve.getPoint(e);
+        const target = new Vector3().lerpVectors(
+          shipParent.position, dock, smoothstep(0.25, 0.75, e));
+        const roll = 0.35 * smoothstep(0.55, 1, e);
         camera.up.set(Math.sin(roll), Math.cos(roll), 0);
         camera.position.copy(eye);
         camera.lookAt(target);
@@ -340,6 +329,13 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
         const capX = w * 0.2, capY = h * 0.2;
         bgShift.x = Math.max(-capX, Math.min(capX, -(turnYaw / hFov) * w * GAIN));
         bgShift.y = Math.max(-capY, Math.min(capY, (turnPitch / vFov) * h * GAIN));
+
+        /* The same turn, handed to the black-hole engine. Its camera orbits a
+           fixed centre, so our travel maps to its yaw/pitch; distance grows a
+           little as we leave, which is what pulls the hole away behind us. */
+        view.yaw = turnYaw * 0.85;
+        view.pitch = Math.max(-0.5, Math.min(0.5, turnPitch * 0.7));
+        view.distMul = 1 + 0.55 * smoothstep(0, 0.9, flyIn);
       }
 
       // Window emissive must sit BELOW the ACES knee or the rows clip to
@@ -368,6 +364,8 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
     },
     /** Pixels the far background must move so it tracks the camera's turn. */
     backgroundShift() { return bgShift; },
+    /** The flight camera expressed for the black-hole engine. */
+    skyView() { return view; },
     state() {
       return { ready, spin, hover: hoverEased, flyIn, bgShift: { ...bgShift },
                centerPx: [...metrics.centerPx], radiusPx: metrics.radiusPx,

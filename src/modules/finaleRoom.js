@@ -17,6 +17,7 @@
  * legible — that is what turns a dissolve into an arrival.
  */
 import { createShip } from "../gl/endurance/ship.js";
+import { mountFlightSky } from "../gl/endurance/flightSky.js";
 
 const FLIGHT_SECONDS = 14;   // Yash's call: a real voyage
 const ARRIVE_AT = 0.90;      // travel at which the white-out is triggered
@@ -27,7 +28,7 @@ const smoothstep = (a, b, x) => {
   return k * k * (3 - 2 * k);
 };
 
-export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, lite = false }) {
+export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced = false, lite = false }) {
   if (!blackholeHost || !roomSection) return null;
 
   /* The portal is the DOOR, not the destination: holding it open rides you
@@ -63,6 +64,15 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
   let beatLive = false;      // has the visitor ridden through to Gargantua?
   let bgShifted = false;     // is the black-hole canvas currently offset?
   let arriveT0 = 0;          // wall-clock start of the white-out beat
+  let sky = null, skyPending = false, t = 21;   // the flight's own black hole
+
+  function ensureSky() {
+    if (sky || skyPending || reduced || !shaders) return;
+    skyPending = true;
+    mountFlightSky(blackholeHost, { shaders, reducedMotion: reduced, lite })
+      .then((s2) => { sky = s2; })
+      .catch(() => {});
+  }
   let flight = 0;            // 0 = outside, 1 = fully inside the room
   let tweenFrom = 0, tweenTo = 0, tweenT0 = 0, tweenDur = 0, tweening = false;
 
@@ -76,6 +86,7 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
 
   cta.addEventListener("click", () => {
     ship?.load();
+    ensureSky();
     if (reduced) { applyFlight(1); return; }   // no cinematic for reduced motion
     startFlight(1, FLIGHT_SECONDS);
   });
@@ -205,23 +216,34 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
          else travels — the single strongest "nothing is moving" tell. Shifting
          that canvas by the camera's own turn makes the one far landmark in
          frame behave like a far landmark. transform only, so it composites. */
-      const beatCanvas = blackholeHost.querySelector("canvas:not(.finale-ship)");
-      if (beatCanvas && ship && flight > 0.0005) {
+      const beatCanvas = blackholeHost.querySelector("canvas:not(.finale-ship):not(.finale-sky)");
+      const flying = flight > 0.0005;
+
+      if (flying && sky && !sky.retired) {
+        /* The swap Yash chose: the moment the flight starts, the site's fixed
+           black hole hands over to one rendered from the flight camera. Same
+           engine, same framing at the handover point, so the change is
+           invisible — and from then on the hole moves because it is genuinely
+           being viewed from where we are. */
+        t += dt;
+        sky.draw(t, ship.skyView());
+        sky.setVisible(true);
+        if (beatCanvas) beatCanvas.style.opacity = "0";
+        bgShifted = true;
+      } else if (flying && beatCanvas) {
+        // no flight sky (weak device, or it retired): fall back to nudging
+        // the static canvas rather than leaving it dead still
         const s2 = ship.backgroundShift();
-        // the CANVAS slides, not its host: moving the host would drag its own
-        // black backing with it and expose the page behind at the edges
-        /* Scale gives the drift somewhere to go without showing the canvas
-           edge; the fade is the honest half of it — you are turning away from
-           the hole, so it leaves. Together they read as "that landmark is
-           behind me now" instead of "the backdrop is nailed to my screen". */
-        const zoom = 1 + 0.5 * smoothstep(0, 0.12, flight);
         beatCanvas.style.transform =
-          `translate3d(${s2.x.toFixed(1)}px, ${s2.y.toFixed(1)}px, 0) scale(${zoom.toFixed(3)})`;
+          `translate3d(${s2.x.toFixed(1)}px, ${s2.y.toFixed(1)}px, 0) scale(1.5)`;
         beatCanvas.style.opacity = (1 - smoothstep(0.18, 0.62, flight)).toFixed(3);
         bgShifted = true;
-      } else if (bgShifted && beatCanvas) {
-        beatCanvas.style.transform = "";
-        beatCanvas.style.opacity = "";
+      } else if (bgShifted) {
+        sky?.setVisible(false);
+        if (beatCanvas) {
+          beatCanvas.style.transform = "";
+          beatCanvas.style.opacity = "";
+        }
         bgShifted = false;
       }
     },
@@ -230,6 +252,7 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
       beatWatch.disconnect();
       removeEventListener("wheel", onWheel);
       removeEventListener("keydown", onKey);
+      sky?.dispose();
       ship?.dispose();
       cta.remove();
       flash.remove();

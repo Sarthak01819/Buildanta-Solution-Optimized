@@ -7,7 +7,7 @@ import { createScene } from "./gl/Scene.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
-import { mountContactRoom } from "./gl/endurance/index.js";
+import { mountContactRoom, BH_SHADERS } from "./gl/endurance/index.js";
 import { createFinaleRoom } from "./modules/finaleRoom.js";
 import { createEntryGate } from "./modules/entryGate.js";
 import { initCursor, initMagnetic, countUp } from "./modules/interactions.js";
@@ -312,7 +312,7 @@ function boot() {
        and where Contact flies them in from. */
     finale = createFinaleRoom({
       blackholeHost: $(".intro__blackhole"),
-      roomSection, reduced: REDUCED, lite,
+      roomSection, shaders: BH_SHADERS, reduced: REDUCED, lite,
     });
     if (finale) {
       // the room is fixed-position now; it is always "on screen" for the
