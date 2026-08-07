@@ -79,8 +79,8 @@
   -->
   <section id="intro" aria-label="Introduction">
     <canvas class="intro__gl" aria-hidden="true"></canvas>
-    <div class="market-experience" aria-hidden="true">
-      <div class="market-space">
+    <div class="market-experience">
+      <div class="market-space" aria-hidden="true">
         <div class="market-orbit market-orbit--outer"></div>
         <div class="market-orbit market-orbit--mid"></div>
         <div class="market-orbit market-orbit--inner"></div>
@@ -89,11 +89,11 @@
         <div class="market-planet market-planet--small"></div>
         <div class="market-signal-core"><i></i><b></b></div>
       </div>
-      <div class="market-transition">
+      <div class="market-transition" aria-hidden="true">
         <div class="market-transition__core"><i></i><i></i><i></i></div>
         <div class="market-transition__stream"></div>
       </div>
-      <div class="market-editorial">
+      <div class="market-editorial" aria-hidden="true">
         <p>GROWTH MARKETING STUDIO · SEO / PAID / SALES</p>
         <h2 class="market-editorial__title"><span>We market</span></h2>
         <div class="market-editorial__foot">
@@ -278,6 +278,22 @@
     <!-- WE SCALE exit beat: the burned note's ember dilates into a black
          hole; the site emerges from its light. Sits above every act layer,
          below the intro chrome and the Franklin gate. -->
+
+    <!-- Service sheet: opens when a reel plate is clicked. Placeholder body —
+         the real service copy drops in here later without touching the build. -->
+    <div class="service-sheet" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Service detail">
+      <div class="service-sheet__card">
+        <div class="service-sheet__art" data-sheet-art aria-hidden="true"></div>
+        <div class="service-sheet__body">
+          <p class="service-sheet__eyebrow" data-sheet-eyebrow></p>
+          <h3 class="service-sheet__title" data-sheet-title></h3>
+          <p class="service-sheet__proof" data-sheet-proof></p>
+          <p class="service-sheet__note">Full details for this service are being written. Tell us what you need and we will send the plan.</p>
+          <a class="service-sheet__cta" data-general-mail href="mailto:">Start a conversation ↗</a>
+        </div>
+        <button class="service-sheet__close" type="button" data-sheet-close aria-label="Close">✕</button>
+      </div>
+    </div>
     <div class="intro__blackhole" aria-hidden="true"></div>
 
     <!-- Black-hole PORTAL wall (sealed module from black-hole-bg): appears

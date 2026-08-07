@@ -429,7 +429,11 @@ export function createIntro({ onProgress } = {}) {
       const cameraDepth = smoothstep((cameraCapture - 0.18) / 0.72);
       const cameraFlash = Math.sin(cameraCapture * Math.PI);
       const cameraRecoil = Math.sin(cameraCapture * Math.PI * 2) * (1 - cameraCapture);
-      const cameraSpin = filmTravel * 6 + cameraCapture * 2.25;
+      /* Spools/crank follow the FILM, not their own clock — they used to turn
+         on a separate curve, so the machine looked disconnected from the reel
+         it was supposedly pulling (Yash, 7 Aug). `pos` is the exact card
+         position, so the projector parks when a plate parks. */
+      const cameraSpin = pos * 0.62 + cameraCapture * 2.25;
       const cameraCrank = Math.sin(cameraSpin * Math.PI * 2) * 18;
       // Travel scales with the strip: 10 plates (was 7 originally, briefly
       // 20 during the A/B judging pass).
@@ -467,10 +471,14 @@ export function createIntro({ onProgress } = {}) {
          the gate is lit and square to camera. Gate sits right of the
          projector body, where the lamp actually points. */
       if (filmCards.length && filmIn * filmOut > 0.002) {
-        for (const card of filmCards) {
-          const r = card.getBoundingClientRect();
-          const cx = r.left + r.width / 2;
-          const d = (cx - gateX) / innerWidth;          // -1 … +1 from the gate
+        /* Positions are DERIVED, never measured: a getBoundingClientRect per
+           card per frame forced ten layouts a frame and was the real source
+           of the "not smooth" (p95 frame time 26ms, worst 225ms). Since the
+           strip is placed so card `pos` sits in the gate, card i is exactly
+           (i - pos) pitches away from it. */
+        for (let ci = 0; ci < filmCards.length; ci++) {
+          const card = filmCards[ci];
+          const d = ((ci - pos) * filmPitch) / innerWidth;   // -1 … +1 from the gate
           const away = Math.min(Math.abs(d) / 0.52, 1); // 0 at gate, 1 far out
           const curve = away * away;
           const rotY = -Math.sign(d) * curve * 68;
@@ -478,8 +486,10 @@ export function createIntro({ onProgress } = {}) {
           const lit = 1 - Math.min(Math.abs(d) / 0.17, 1);
           card.style.transform =
             `translateZ(${z.toFixed(0)}px) rotateY(${rotY.toFixed(1)}deg) scale(${(1 - curve * 0.06).toFixed(3)})`;
-          card.style.filter =
-            `brightness(${(0.42 + lit * 1.05).toFixed(2)}) saturate(${(0.65 + lit * 0.7).toFixed(2)}) contrast(${(0.95 + lit * 0.15).toFixed(2)})`;
+          /* Vault rule M2: never animate `filter` — each change re-rasters the
+             element, and ten plates a frame was half the jank. A veil layer's
+             opacity gives the same read on the compositor. */
+          card.style.setProperty("--veil", (0.62 - lit * 0.62).toFixed(2));
           /* Two separate falloffs: the depth curve is wide so neighbouring
              plates still read as a strip, while visibility dies hard past
              0.26 of the screen so nothing is ever bright at the edge. */
@@ -966,6 +976,40 @@ export function createIntro({ onProgress } = {}) {
     hint.setAttribute("data-on", wantHint ? "true" : "false");
   };
   gsap.ticker.add(tick);
+
+  /* ── service sheet ──
+     Each plate is a door: clicking opens a detail surface for that discipline.
+     The copy is a placeholder until the real service pages are written; the
+     structure is final so filling it in later is a content job, not a build. */
+  const sheet = root.querySelector(".service-sheet");
+  let sheetOpen = false, sheetLast = null;
+  function openSheet(card) {
+    if (!sheet || sheetOpen) return;
+    sheetOpen = true;
+    sheetLast = card;
+    sheet.querySelector("[data-sheet-eyebrow]").textContent = card.querySelector("small").textContent;
+    sheet.querySelector("[data-sheet-title]").innerHTML = card.querySelector("strong").innerHTML;
+    sheet.querySelector("[data-sheet-proof]").textContent = card.querySelector("span").textContent;
+    sheet.querySelector("[data-sheet-art]").style.backgroundImage = card.style.backgroundImage;
+    sheet.classList.add("on");
+    sheet.setAttribute("aria-hidden", "false");
+    window.__lenis?.stop();
+    sheet.querySelector("[data-sheet-close]")?.focus({ preventScroll: true });
+  }
+  function closeSheet() {
+    if (!sheet || !sheetOpen) return;
+    sheetOpen = false;
+    sheet.classList.remove("on");
+    sheet.setAttribute("aria-hidden", "true");
+    window.__lenis?.start();
+    sheetLast?.focus({ preventScroll: true });
+  }
+  filmCards.forEach((card) => {
+    card.addEventListener("click", (e) => { e.preventDefault(); openSheet(card); });
+  });
+  sheet?.querySelector("[data-sheet-close]")?.addEventListener("click", closeSheet);
+  sheet?.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && sheetOpen) closeSheet(); });
 
   const onResize = () => {
     filmPitch = 0;                 // re-measure the strip at the new width
