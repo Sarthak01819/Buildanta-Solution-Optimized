@@ -395,9 +395,9 @@ export function createIntro({ onProgress } = {}) {
       const cameraRecoil = Math.sin(cameraCapture * Math.PI * 2) * (1 - cameraCapture);
       const cameraSpin = filmTravel * 6 + cameraCapture * 2.25;
       const cameraCrank = Math.sin(cameraSpin * Math.PI * 2) * 18;
-      // Travel scales with the strip: 20 plates need ~3x the old distance
-      // or the last dozen never reach the viewport.
-      const filmDistance = window.innerWidth <= 720 ? 330 : 250;
+      // Travel scales with the strip: 10 plates (was 7 originally, briefly
+      // 20 during the A/B judging pass).
+      const filmDistance = window.innerWidth <= 720 ? 175 : 118;
       const filmX = 38 - filmTravel * filmDistance;
       const transitionT = smoothstep((p - 0.425) / 0.095);
       const transitionOpacity = Math.sin(transitionT * Math.PI) * marketIn;

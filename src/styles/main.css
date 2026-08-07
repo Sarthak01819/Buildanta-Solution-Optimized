@@ -4111,6 +4111,7 @@ html.bh-final .sweep { display: none !important; }
 .market-frame--plate small,
 .market-frame--plate span { text-shadow: 0 1px 10px rgba(0,0,0,.9); }
 .market-frame--plate strong { text-shadow: 0 2px 22px rgba(0,0,0,.85); }
-/* the strip is ~3x longer now — it must still be one continuous row */
-.market-film { width: 300vw; }
-.market-frame:nth-child(n+8) { transform: none; }
+/* 10 plates: the strip stays one continuous row, and the 3D fan the
+   original 7 cards had is dropped (it only ever addressed 7 positions). */
+.market-film { width: 155vw; }
+.market-frame { transform: none !important; }
