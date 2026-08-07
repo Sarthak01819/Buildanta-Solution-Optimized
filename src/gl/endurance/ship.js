@@ -32,7 +32,12 @@ const OMEGA = 0.14;                 // rad/s ≈ 37 px/s at the module ring
    and its radius scales as 1/dist. Solving for ~82% / ~76% of the frame at
    ~7% of the width gives these. The flight still departs from here, so the
    rail's opening waypoints will want re-checking after any change. */
-const POSE = { tiltX: -0.80, tiltZ: 0.45, dist: 81 };
+/* Turned so the DOCKING PORT faces the camera. The port sits on the hub's
+   spin axis (local +Y); tilting the ship back toward the viewer aims that
+   axis at us, so the last stretch of the flight is a straight run into the
+   airlock instead of a curve around to find it. Yash: "we do not have to
+   curve while entering it". */
+const POSE = { tiltX: -1.62, tiltZ: 0.30, dist: 81 };
 const LOOK = [-20.5, 8.85, 0];
 const PARALLAX = [0.55, 0.34];
 const BANK = { maxYaw: 0.16, maxPitch: 0.10, easeIn: 2.4, easeOut: 0.9 };
@@ -290,15 +295,20 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
            scaled to ours: identical curve shape, just begun from further out.
            The last two stay dock-relative, because they are the approach to
            the port and belong in ship units, not camera ones. */
+        /* Curve early, then dead straight in. The last three points all sit
+           ON the port's own axis, so once the camera lines up it runs at the
+           airlock in a straight line — a CatmullRom through collinear points
+           IS a straight segment. The lateral offsets that used to be here are
+           exactly what made the entry swing sideways. */
         const k = POSE.dist / 30;
         const curve = new CatmullRomCurve3([
           orbitEye,
-          // curve OUT before closing (Yash's pick), so the ship is seen from
-          // changing angles rather than growing on a straight line
+          // curve OUT before closing, so the ship is seen from changing
+          // angles rather than growing on a straight line
           new Vector3(-9.5 * k, 3.4 * k, 22 * k),
-          new Vector3(2.4 * k, 2.6 * k, 12.5 * k),
-          dock.clone().addScaledVector(axis, 4.6).addScaledVector(lat, 1.1),
-          dock.clone().addScaledVector(axis, 1.25).addScaledVector(lat, 0.4),
+          dock.clone().addScaledVector(axis, 15),
+          dock.clone().addScaledVector(axis, 6),
+          dock.clone().addScaledVector(axis, 1.25),
         ]);
         // Gentle departure (smoothstep) then a LONG deceleration into the dock:
         // pow < 1 spends most of the travel early and crawls the last stretch,
