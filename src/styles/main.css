@@ -4856,3 +4856,13 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
     rotateX(calc(var(--market-camera-recoil, 0) * 1.4deg))
     scale(var(--market-camera-scale, 1));
 }
+
+
+/* Four blades, not six (Yash 19:18). The shutter now turns twice as fast as
+   the spools, and a 59deg repeat at that speed crosses Nyquist against 60fps —
+   the blades alias into standing still or turning backwards, which is the
+   opposite of synced. A 90deg repeat at the same speed stays well under it. */
+.market-camera__lens {
+  background: repeating-conic-gradient(from var(--market-camera-shutter-angle, 0deg),
+    #020205 0 34deg, #15151b 35deg 60deg, #050506 61deg 90deg);
+}

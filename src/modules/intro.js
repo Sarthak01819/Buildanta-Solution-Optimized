@@ -596,15 +596,30 @@ export function createIntro({ onProgress } = {}) {
       const cameraDepth = smoothstep((cameraCapture - 0.18) / 0.72);
       const cameraFlash = Math.sin(cameraCapture * Math.PI);
       const cameraRecoil = Math.sin(cameraCapture * Math.PI * 2) * (1 - cameraCapture);
-      /* Spools/crank follow the FILM, not their own clock — they used to turn
-         on a separate curve, so the machine looked disconnected from the reel
-         it was supposedly pulling (Yash, 7 Aug). `pos` is the exact card
-         position, so the projector parks when a plate parks. */
-      /* The reels turn by the film that passes them. Raised from 0.62 to 1.45
-         turns per plate so the movement actually reads at this size — the
-         wheels are the thing Yash points at, and half a turn per beat is a
-         nudge, not a machine running. */
-      const cameraSpin = pos * 1.45 + cameraCapture * 2.25;
+      /* ══ ONE DRIVER FOR THE WHOLE MACHINE (Yash, 19:18) ══════════════
+         The parts: the two wheels on top are the FEED spool (left, paying film
+         out) and the TAKE-UP spool (right, winding it in). The thing turning
+         at the centre of the lens is the SHUTTER.
+
+         They were running off TWO DIFFERENT NUMBERS. The spools followed
+         `pos` — the film's travel in plate-pitches, which is also what moves
+         the strip. The shutter followed `filmTravel`, a different quantity
+         entirely: detented AND normalised to 0-1. So the shutter was on a
+         different curve from the film it is supposed to be exposing and from
+         the wheels feeding it, and nothing could stay in step.
+
+         Everything now comes from `pos` alone: one number, three constants, a
+         fixed ratio. The strip, the spools and the shutter cannot drift apart,
+         because there is nothing left for them to drift against.
+
+         The 2:1 is chosen, not physical. A real shutter turns once per FRAME,
+         so it runs hundreds of times faster than a spool — at this scroll rate
+         that lands well past Nyquist against a 60fps display and the blades
+         alias into standing still or turning backwards. 2:1 is the fastest
+         ratio that still reads as rotation (measured below). */
+      const SPOOL_TURNS_PER_PLATE = 1.45;
+      const SHUTTER_TURNS_PER_PLATE = SPOOL_TURNS_PER_PLATE * 2;
+      const cameraSpin = pos * SPOOL_TURNS_PER_PLATE + cameraCapture * 2.25;
       const cameraCrank = Math.sin(cameraSpin * Math.PI * 2) * 18;
       // Travel scales with the strip: 10 plates (was 7 originally, briefly
       // 20 during the A/B judging pass).
@@ -739,7 +754,10 @@ export function createIntro({ onProgress } = {}) {
       marketExperience.style.setProperty("--market-camera-recoil", cameraRecoil.toFixed(3));
       marketExperience.style.setProperty("--market-camera-spin", cameraSpin.toFixed(3));
       marketExperience.style.setProperty("--market-camera-crank", `${cameraCrank.toFixed(2)}deg`);
-      marketExperience.style.setProperty("--market-camera-shutter-angle", `${(filmTravel * 240 + cameraCapture * 540).toFixed(1)}deg`);
+      /* same driver as the spools and the strip, same ratio through the
+         handover, so the lock never breaks */
+      marketExperience.style.setProperty("--market-camera-shutter-angle",
+        `${(pos * SHUTTER_TURNS_PER_PLATE * 360 + cameraCapture * 2.25 * 2 * 360).toFixed(1)}deg`);
       marketExperience.style.setProperty("--market-transition-t", transitionT.toFixed(3));
       marketExperience.style.setProperty("--market-transition-opacity", Math.max(0, transitionOpacity).toFixed(3));
       marketExperience.style.setProperty("--market-transition-y", `${(94 - transitionT * 46).toFixed(2)}vh`);
