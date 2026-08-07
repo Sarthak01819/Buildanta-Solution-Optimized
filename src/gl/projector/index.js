@@ -26,7 +26,9 @@
  */
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, AmbientLight, PointLight,
-  Mesh, MeshBasicMaterial, SphereGeometry, ConeGeometry, ShaderMaterial,
+  Mesh, MeshBasicMaterial, MeshStandardMaterial, SphereGeometry, ConeGeometry,
+  CircleGeometry, CylinderGeometry, BoxGeometry, TubeGeometry, BufferGeometry,
+  Float32BufferAttribute, CatmullRomCurve3, ShaderMaterial,
   AdditiveBlending, Color, DoubleSide, MathUtils, Box3, Matrix4, Vector3, Quaternion,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -43,6 +45,12 @@ const BEAM_RADIUS = 0.86;  // ≈ one plate wide where it lands
 /* the beam ends AT the film — it is a projector, not a searchlight. World Y of
    the top edge of the strip in this camera's units. */
 const BEAM_STOP_Y = -0.22;
+
+/* Yash, 17:03: the machine dominates the top half. Expressed as the share of
+   the frame's WIDTH its body should span, so it holds at any viewport. */
+const MACHINE_WIDTH_FRACTION = 0.36;
+const MACHINE_Y = 1.62;
+const MACHINE_Z = -0.35;
 
 const BEAM_VERT = `
   varying vec2 vUv;
@@ -197,17 +205,32 @@ export async function createProjector(canvas, opts = {}) {
   model.quaternion.setFromRotationMatrix(mWorld.multiply(mLocal.transpose()));
   model.position.set(0, 0, 0);
 
+  /* ── size it to the FRAME, not to a number I liked ──
+     Yash: the machine should dominate the top half. That is a statement about
+     screen fraction, so solve for it: work out how many world units the camera
+     sees across at the machine's depth, and scale the body until its own
+     bounding box spans the target share of that. Typing a scale instead means
+     re-guessing it every time the camera, the lens or the model changes. */
   const holder = new Group();
   holder.add(model);
-  holder.scale.setScalar(opts.scale ?? 3.1);
-  holder.position.set(-0.02, 1.16, -0.35);
+  {
+    const raw = new Box3().setFromObject(model).getSize(new Vector3());
+    const depth = camera.position.z - MACHINE_Z;
+    const worldH = 2 * Math.tan(MathUtils.degToRad(camera.fov / 2)) * depth;
+    const worldW = worldH * (canvas.clientWidth / Math.max(canvas.clientHeight, 1) || 1.6);
+    holder.scale.setScalar(opts.scale ?? (worldW * MACHINE_WIDTH_FRACTION) / Math.max(raw.x, raw.z, 1e-3));
+  }
+  holder.position.set(-0.02, MACHINE_Y, MACHINE_Z);
   rig.add(holder);
   scene.updateMatrixWorld(true);
 
-  /* recentre the machine on its own bounding box so scale/roll can be retuned
-     without the body wandering sideways off the beam */
-  const wMid = new Box3().setFromObject(model).getCenter(new Vector3());
-  holder.position.x -= wMid.x;
+  /* Centre the machine on its LENS, not on its bounding box. The gate — the
+     plate the lamp is lighting — sits at screen centre, so the thing that has
+     to be at screen centre is the lens. Centring the body instead left the
+     lens off to one side and the cone landed beside the lit plate rather than
+     on it, which only became obvious once the machine was big. */
+  scene.updateMatrixWorld(true);
+  holder.position.x -= model.localToWorld(lensLocal.clone()).x;
   scene.updateMatrixWorld(true);
 
   /* the lens, in world space, now that the machine is aimed and placed */
@@ -259,7 +282,164 @@ export async function createProjector(canvas, opts = {}) {
   beam.renderOrder = 2;
   rig.add(beam);
 
-  const state = { pos: 0, presence: 0, shutter: 0, lastPos: 0 };
+  /* ══ THE MECHANISM ══════════════════════════════════════════════════════
+     None of this is in the model. I searched: no free film-projector model
+     ships with a shutter, a claw, a flywheel or threaded film — they are all
+     static bodies with separable reels, meant to be animated by whoever uses
+     them. So the moving parts are built here, and every one of them is driven
+     by THE FILM'S OWN TRAVEL. That is what makes the motion real: the machine
+     starts, slows and stops exactly when the strip does. A baked animation
+     clip would run on its own clock and keep spinning while a plate is parked
+     in the gate, which is a machine disconnected from its own film.
+
+     Everything is sized and placed off the body's measured bounding box and
+     the derived lens axis, so swapping the body model later does not strand
+     the mechanism in mid-air. */
+  const bodyBox = new Box3().setFromObject(model);
+  const S = bodyBox.getSize(new Vector3()).y || 1;      // the machine's own unit
+  const fwd = lensDir.clone();
+  const upv = new Vector3(0, 1, 0).sub(fwd.clone().multiplyScalar(fwd.dot(new Vector3(0, 1, 0)))).normalize();
+  const side = new Vector3().crossVectors(upv, fwd).normalize();
+  /* a point in the machine's own frame: forward of the lens, up, and sideways */
+  const at = (f, u, s) => lensW.clone()
+    .addScaledVector(fwd, f * S).addScaledVector(upv, u * S).addScaledVector(side, s * S);
+
+  const steel = new MeshStandardMaterial({ color: 0x2b2438, metalness: 0.88, roughness: 0.30 });
+  const dark = new MeshStandardMaterial({ color: 0x14111d, metalness: 0.55, roughness: 0.52 });
+
+  /* ── the shutter blade ──
+     Two opposed blades on the lens axis: 50% duty, the same as a real
+     two-blade shutter. Mounted just PROUD of the lens rather than buried
+     behind it, because inside the body it would be invisible and the point of
+     building it is to see the light being chopped. */
+  const shutter = new Group();
+  shutter.position.copy(at(0.055, 0, 0));
+  shutter.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), fwd);
+  rig.add(shutter);
+  for (const start of [0, Math.PI]) {
+    shutter.add(new Mesh(new CircleGeometry(S * 0.085, 24, start, Math.PI / 2), dark));
+  }
+  shutter.add(new Mesh(new CylinderGeometry(S * 0.010, S * 0.010, S * 0.03, 10), steel)
+    .rotateX(Math.PI / 2));
+
+  /* ── the claw (intermittent movement) ──
+     Grabs a perforation, yanks the frame down, retracts, rises, re-engages.
+     A real claw traces a D; a circle reads the same at this size and cannot
+     ever snag. This is the motion that makes film advance in jerks instead of
+     gliding — the single most recognisable thing a projector does. */
+  const claw = new Mesh(new BoxGeometry(S * 0.045, S * 0.16, S * 0.035), steel);
+  rig.add(claw);
+  const clawHome = at(0.20, 0.30, -0.16);
+  const CLAW_PULL = S * 0.14, CLAW_REACH = S * 0.05;
+
+  /* ── flywheel and drive belt ──
+     The wheel that smooths the intermittent pull, and the belt that takes
+     power to the spool. Static belt, turning pulleys — a belt whose surface
+     also crawls is detail nobody reads at this distance. */
+  const flywheel = new Mesh(new CylinderGeometry(S * 0.13, S * 0.13, S * 0.030, 30), steel);
+  flywheel.position.copy(at(-0.34, -0.06, 0.30));
+  flywheel.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), side);
+  rig.add(flywheel);
+  const pulley = new Mesh(new CylinderGeometry(S * 0.060, S * 0.060, S * 0.026, 20), steel);
+  pulley.position.copy(at(-0.26, 0.30, 0.30));
+  pulley.quaternion.copy(flywheel.quaternion);
+  rig.add(pulley);
+  {
+    const a = flywheel.position, b = pulley.position;
+    const n = new Vector3().subVectors(b, a).normalize();
+    const perp = new Vector3().crossVectors(n, side).normalize().multiplyScalar(S * 0.095);
+    const belt = new CatmullRomCurve3([
+      a.clone().add(perp), b.clone().add(perp),
+      b.clone().addScaledVector(n, S * 0.10), b.clone().sub(perp),
+      a.clone().sub(perp), a.clone().addScaledVector(n, -S * 0.10),
+    ], true);
+    rig.add(new Mesh(new TubeGeometry(belt, 90, S * 0.011, 8, true), dark));
+  }
+
+  /* ── the threaded film ──
+     Feed spool → down the front of the body → through the gate at the lens →
+     out and away toward the strip below. Built as a ribbon rather than a tube
+     so it has a face to put perforations on, and offset PROUD of the body so
+     it is never buried inside it. Without this the machine and the reel are
+     two objects that merely share a screen. */
+  const FILM_W = S * 0.075;
+  function ribbon(points, segs) {
+    const curve = new CatmullRomCurve3(points);
+    const g = new BufferGeometry();
+    const P = [], UV = [], IX = [];
+    for (let i = 0; i <= segs; i++) {
+      const t = i / segs;
+      const p = curve.getPointAt(t);
+      const a = p.clone().addScaledVector(side, -FILM_W / 2);
+      const b = p.clone().addScaledVector(side, FILM_W / 2);
+      P.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      UV.push(0, t, 1, t);
+      if (i < segs) { const k = i * 2; IX.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+    }
+    g.setAttribute("position", new Float32BufferAttribute(P, 3));
+    g.setAttribute("uv", new Float32BufferAttribute(UV, 2));
+    g.setIndex(IX);
+    g.computeVertexNormals();
+    return { geo: g, len: curve.getLength() };
+  }
+  const filmMat = new ShaderMaterial({
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `
+      uniform float uScroll; uniform float uReps; uniform float uLamp;
+      varying vec2 vUv;
+      void main(){
+        float v = vUv.y * uReps + uScroll;
+        vec3 col = vec3(0.055, 0.048, 0.085);
+        /* two rows of perforations, catching the lamp */
+        float row = max(1.0 - smoothstep(0.045, 0.080, abs(vUv.x - 0.13)),
+                        1.0 - smoothstep(0.045, 0.080, abs(vUv.x - 0.87)));
+        float hole = 1.0 - smoothstep(0.26, 0.40, abs(fract(v) - 0.5));
+        col = mix(col, vec3(0.78, 0.75, 0.88) * (0.55 + uLamp * 0.6), row * hole);
+        /* frame line between exposures */
+        col += (1.0 - smoothstep(0.0, 0.05, abs(fract(v) - 0.5))) * 0.045;
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+    uniforms: { uScroll: { value: 0 }, uReps: { value: 1 }, uLamp: { value: 1 } },
+    side: DoubleSide,
+  });
+  /* Kept SHORT and tight to the body. The first pass ran it from +0.92 to
+     -0.70 of the body's height, which at this scale was a six-unit band
+     sweeping diagonally across the whole frame and straight over the plates.
+     The film's job is to connect the spool to the gate and then leave. */
+  const PROUD = 0.20;   // in front of the body, so the path is always readable
+  const threaded = ribbon([
+    at(PROUD, 0.50, -0.20),   // off the feed spool
+    at(PROUD, 0.36, -0.19),
+    at(PROUD, 0.22, -0.17),   // into the gate
+    at(PROUD, 0.10, -0.15),   // the gate itself, beside the claw
+    at(PROUD, -0.02, -0.11),
+    at(PROUD + 0.05, -0.13, -0.04),
+    at(PROUD + 0.10, -0.22, 0.04),   // and away, well clear of the strip
+  ], 100);
+  filmMat.uniforms.uReps.value = Math.max(6, Math.round(threaded.len / (FILM_W * 0.78)));
+  rig.add(new Mesh(threaded.geo, filmMat));
+
+  const state = { pos: 0, presence: 0, shutter: 0, lastPos: 0, blade: 0, trans: 1 };
+
+  /* Average light transmitted past a 2-blade shutter as it sweeps from a to b.
+     Integrating over the frame is what a real eye and a real camera do, and it
+     is also what stops the light aliasing: scroll fast and the blade sweeps
+     many turns per frame, so the average smooths to steady; scroll slowly and
+     you see it flicker. Sampling the blade position instead would strobe at
+     whatever rate happened to beat against 60fps. */
+  const dutyIntegral = (a) => {
+    const period = Math.PI;                    // two blades
+    const n = Math.floor(a / period), f = a - n * period;
+    return n * (period * 0.5) + Math.min(f, period * 0.5);
+  };
+  const transmitted = (a, b) => {
+    const d = b - a;
+    if (Math.abs(d) < 1e-6) {
+      return (a % Math.PI + Math.PI) % Math.PI < Math.PI * 0.5 ? 0 : 1;
+    }
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    return 1 - (dutyIntegral(hi) - dutyIntegral(lo)) / (hi - lo);
+  };
 
   function resize() {
     const w = canvas.clientWidth || canvas.parentElement?.clientWidth || 1;
@@ -294,9 +474,41 @@ export async function createProjector(canvas, opts = {}) {
       if (spoolFeed) spoolFeed.rotation.z -= travel * 1.9;
       if (spoolTake) spoolTake.rotation.z -= travel * 1.55;
       if (roller) roller.rotation.z -= travel * 6.4;
-      /* shutter: a brief darkening each time a frame is pulled through */
-      state.shutter = Math.min(state.shutter + Math.abs(travel) * 5.5, 1);
+
+      /* ── everything below turns because FILM WENT PAST IT ──
+         FRAMES_PER_PLATE sets the mechanism's gearing: how many exposures the
+         claw pulls for one plate of travel. It is the only number here that is
+         a taste call; every other rate follows from it. */
+      const FRAMES_PER_PLATE = 5;
+      const frames = pos * FRAMES_PER_PLATE;
+
+      /* shutter: one revolution per frame pulled, so blade and claw are locked
+         to each other the way a real drive shaft locks them */
+      const blade0 = state.blade;
+      state.blade = frames * Math.PI * 2;
+      shutter.rotation.z = state.blade;
+      state.trans = transmitted(blade0, state.blade);
+
+      /* claw: down-out-up-in, once per frame. A circular cam — the pull is the
+         downstroke, and the film only moves while the claw is in the gate. */
+      const ph = frames * Math.PI * 2;
+      claw.position.copy(clawHome)
+        .addScaledVector(upv, -CLAW_PULL * Math.sin(ph))
+        .addScaledVector(fwd, -CLAW_REACH * (1 - Math.cos(ph)) * 0.5);
+
+      flywheel.rotation.y += travel * 3.1;
+      pulley.rotation.y += travel * 7.3;
+
+      /* the threaded film crawls by exactly the distance the strip travelled */
+      filmMat.uniforms.uScroll.value -= travel * FRAMES_PER_PLATE;
+
+      /* legacy dip, kept as the lamp's own settling — the blade now does the
+         real chopping */
+      state.shutter = Math.min(state.shutter + Math.abs(travel) * 2.0, 1);
     },
+    /** 0..1 — how much light is getting past the blade right now, so the plate
+     *  in the gate can pulse with the REAL shutter instead of a made-up sine */
+    transmission() { return state.trans; },
     setPresence(a) {
       state.presence = Math.max(0, Math.min(1, a));
       canvas.style.opacity = state.presence.toFixed(3);
@@ -306,8 +518,15 @@ export async function createProjector(canvas, opts = {}) {
       state.shutter *= 0.86;
       /* lamp flicker: a real bulb never sits perfectly still */
       const flicker = 0.93 + 0.07 * Math.sin(t * 11.3) + 0.035 * Math.sin(t * 27.7);
-      const shutterDip = 1 - state.shutter * 0.42;
-      const power = flicker * shutterDip * state.presence;
+      const shutterDip = 1 - state.shutter * 0.22;
+      /* the BLADE now sets how much light leaves the machine. Depth is capped
+         at 34%: a real two-blade shutter cuts to zero, but a scroll-driven
+         blackout would strobe at whatever rate the visitor happens to scroll,
+         and that is both ugly and a photosensitivity risk. Bounded, it reads
+         as flicker; unbounded it reads as a fault. */
+      const blade = 1 - (1 - state.trans) * 0.34;
+      const power = flicker * shutterDip * blade * state.presence;
+      filmMat.uniforms.uLamp.value = blade;
       lampLight.intensity = 2.6 * power;
       lensGlow.material.opacity = 0.95 * power;
       halo.material.opacity = 0.28 * power;
