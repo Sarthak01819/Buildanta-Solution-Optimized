@@ -11,9 +11,10 @@
  * caller's word — 4.1MB must never be part of first paint.
  */
 import {
-  ACESFilmicToneMapping, AmbientLight, Box3, CatmullRomCurve3, Color,
-  DirectionalLight, Group, PerspectiveCamera, PointLight, Scene, Vector3,
-  WebGLRenderer,
+  ACESFilmicToneMapping, AmbientLight, CatmullRomCurve3, Color,
+  DirectionalLight, Group,
+  PerspectiveCamera,
+  PointLight, Scene, Vector3, WebGLRenderer,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
@@ -84,16 +85,13 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
      is what the bloom and the hold are already selling. The mount point and
      the `iris` ramp below stay, so dropping a modelled hatch in is a
      parent-and-animate, not a rewrite. */
-  const innerGlow = new PointLight(new Color(1.0, 0.76, 0.46), 0, 2.2, 2);
+  const innerGlow = new PointLight(new Color(1.0, 0.76, 0.46), 0, 6, 2);
   innerGlow.position.set(0, 0, -0.25);
   airlock.add(innerGlow);
   const leaves = [];
 
   let ready = false;
   let emissives = [];
-  const doors = [];            // the model's own airlock leaves
-  let portDoors = [];          // the ones on the port we dock at
-  let portLocal = null;        // that port's position, in ship-local space
   const cursor = { has: false, x: 0, y: 0 };
   let hoverEased = 0, spin = 0, t = 0, flyIn = 0;
   const parallax = [0, 0], bank = [0, 0];
@@ -123,47 +121,8 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
           emissives.push(m);
         }
       });
-      /* The model ships its own airlock: seven `Doors` objects and modelled
-         `DockingHub_Port` geometry (devPilot even names a `RollingShuttle`
-         material). Animating the artist's doors beats hand-building an iris —
-         two attempts at that read as a wedge fan and a washer. Node
-         translations are all zero (Sketchfab bakes transforms into the
-         vertices), so positions come from geometry bounding boxes. */
-      const localOf = (o) => {
-        o.geometry.computeBoundingBox();
-        const c = o.geometry.boundingBox.getCenter(new Vector3());
-        return o.localToWorld(c.clone());        // world == ship-local here
-      };
-      const ports = [];
-      gltf.scene.traverse((o) => {
-        if (!o.isMesh || !o.geometry) return;
-        const n = `${o.name} ${o.parent?.name || ""}`;
-        if (/^Doors|Doors\./.test(n)) {
-          const c = localOf(o);
-          doors.push({ mesh: o, home: o.position.clone(), centre: c });
-        } else if (/DockingHub_Port/.test(n)) {
-          ports.push({ mesh: o, centre: localOf(o) });
-        }
-      });
-      // the port the flight aims at: the one furthest along the spin axis
-      if (ports.length) {
-        ports.sort((a, b) => b.centre.y - a.centre.y);
-        portLocal = ports[0].centre.clone();
-        airlock.position.copy(portLocal);
-      }
-      // doors that belong to THAT port travel with it
-      const near = doors.filter((d) => d.centre.distanceTo(portLocal ?? new Vector3()) < 3.2);
-      portDoors = near.length ? near : doors;
-
       spinGroup.add(gltf.scene);
       ready = true;   // visibility is the owner's call, not the loader's
-      if (typeof window !== "undefined") {
-        window.__ship = {
-          doors: portDoors.length, allDoors: doors.length,
-          port: portLocal ? portLocal.toArray().map((v) => +v.toFixed(2)) : null,
-          doorPos: () => portDoors.map((d) => +d.mesh.position.length().toFixed(3)),
-        };
-      }
     }, undefined, () => { canvas.remove(); });
   }
 
@@ -208,16 +167,10 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
       }
 
       // Airlock: leaves retract, then the interior light escapes
-      /* The airlock opens: the model's own door leaves retract outward from
-         the port's centre, and the interior light escapes behind them. */
+      // The port "opens": interior light grows on final approach and washes
+      // the hull around the dock just before the hold.
       const iris = smoothstep(IRIS_FROM, 0.93, flyIn);
-      for (const d of portDoors) {
-        const dir = d.centre.clone().sub(portLocal || d.centre);
-        if (dir.lengthSq() < 1e-6) dir.set(1, 0, 0);
-        dir.normalize();
-        d.mesh.position.copy(d.home).addScaledVector(dir, iris * 0.62);
-      }
-      innerGlow.intensity = iris * 3.2;
+      innerGlow.intensity = iris * 14;
 
       // rails take over on approach — drift/parallax/bank fade out
       const damp = 1 - smoothstep(0, 0.30, flyIn);
@@ -253,19 +206,10 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
            the camera ends up inside dark hull — that was the roughness Yash
            saw. Waypoints are built in the ship's own frame so they follow
            its tilt. */
-        /* Dock at the MODEL'S OWN port (found at load), not a guessed point —
-           the doors and the interior light live there. The approach runs
-           along the port's own outward normal, i.e. from the hub through it. */
-        const dockLocal = portLocal || new Vector3(0, AIRLOCK_Y, 0);
-        const dock = spinGroup.localToWorld(dockLocal.clone());
-        const outward = dockLocal.clone();
-        if (outward.lengthSq() < 1e-6) outward.set(0, 1, 0);
-        outward.normalize();
-        const axis = outward.clone().applyQuaternion(shipParent.quaternion).normalize();
-        // any two vectors perpendicular to the approach, for the arc's width
-        const lat = new Vector3(0, 1, 0).cross(axis).normalize();
-        if (lat.lengthSq() < 1e-6) lat.set(1, 0, 0);
-        const up = axis.clone().cross(lat).normalize();
+        const dock = spinGroup.localToWorld(new Vector3(0, AIRLOCK_Y, 0));
+        const axis = new Vector3(0, 1, 0).applyQuaternion(shipParent.quaternion).normalize();
+        const lat = new Vector3(1, 0, 0).applyQuaternion(shipParent.quaternion).normalize();
+        const up = new Vector3(0, 0, 1).applyQuaternion(shipParent.quaternion).normalize();
 
         const path = new CatmullRomCurve3([
           orbitEye,
