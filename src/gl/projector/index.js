@@ -61,8 +61,8 @@ const BEAM_STOP_Y = 0.30;
    the hub is deliberately fat so an EMPTY spool's top is not so far below the
    film that the run-in reads as the strip falling off a shelf. */
 const REEL_POS = new Vector3(-2.04, -0.85, 0.30);
-const REEL_HUB_R = 0.26;   // bare spool, nothing wound yet  (≈ 57px)
-const REEL_FULL_R = 0.49;  // the whole reel wound on        (≈ 107px)
+const REEL_HUB_R = 0.21;   // the hollow core                   (≈ 46px)
+const REEL_FULL_R = 0.55;  // the whole reel wound on        (≈ 120px)
 
 const BEAM_VERT = `
   varying vec2 vUv;
@@ -143,26 +143,62 @@ const ROLL_VERT = `
   }
 `;
 const ROLL_FRAG = `
-  uniform float uHub;      // hub radius as a fraction of the disc
-  uniform float uTurn;     // spool angle, so the coil turns with the film
+  uniform float uHub;      // hollow core, as a fraction of the coil
+  uniform float uTurn;
+  uniform float uWraps;    // visible layers — grows as more film winds on
   uniform vec3  uLight;
   varying vec2 vXY;
   varying vec3 vN;
+
   void main() {
-    float r = length(vXY);
-    if (r > 1.0 || r < uHub) discard;              // outside the coil / inside the hub
-    /* coil lines, tightening toward the hub like real wound film */
-    float bands = sin((r - uHub) / max(1.0 - uHub, 0.001) * 46.0 + uTurn * 0.6);
-    float coil = 0.5 + 0.5 * bands;
-    /* one bright seam so the roll visibly ROTATES rather than just growing */
-    float a = atan(vXY.y, vXY.x) + uTurn;
-    float seam = smoothstep(0.86, 1.0, cos(a));
-    /* dark, with the coil doing the work — film is nearly black stock, and a
-       flat bright disc reads as plastic rather than a thousand wraps of film */
-    float shade = 0.17 + coil * 0.26 + seam * 0.15;
-    /* a soft edge highlight where the newest wrap catches the room */
-    shade += smoothstep(0.88, 1.0, r) * 0.40;
-    gl_FragColor = vec4(uLight * shade, 1.0);
+    vec2  q = vXY;
+    float r = length(q);
+    if (r > 1.0 || r < uHub) discard;      // outside the coil / inside the core
+    float ang = atan(q.y, q.x) + uTurn;
+    float span = max(1.0 - uHub, 1e-3);
+    float t = (r - uHub) / span;           // 0 at the core, 1 at the outer wrap
+
+    /* ── the coil: film wound on itself ──
+       Each layer is dark stock with a bright line where the next wrap begins.
+       That line is the whole trick: one flat disc is a washer, many visible
+       layers is a roll of film. */
+    float layer = t * uWraps;
+    float f = fract(layer);
+    float seam  = 1.0 - smoothstep(0.0, 0.34, min(f, 1.0 - f) * 2.0);
+    /* SOLID stock. At 0.11 the layers read as a wireframe spirograph — the
+       roll has to be a lump of material with lines in it, not lines alone. */
+    /* contrast between wraps, not a uniform grey donut: film stock is dark and
+       it is the highlight rolling over each layer that says "many wraps" */
+    float stock = 0.24 + 0.22 * (0.5 + 0.5 * cos(f * 6.2831853));
+    float shade = stock - seam * 0.19;
+
+    /* ── the outer wrap carries the SPROCKET HOLES ──
+       On a real roll you see the film's WIDTH on the outside of the coil, and
+       that is the surface the perforations are punched through. The flat face
+       shows only layer edges — putting holes across the whole disc would read
+       as a doily, not as film. Hole pitch is set in ARC LENGTH, so the
+       perforations stay the same physical size however big the roll gets. */
+    float rimT = (t - 0.80) / 0.20;
+    if (rimT > 0.0) {
+      float rowDist = min(abs(rimT - 0.20), abs(rimT - 0.80));
+      float row  = 1.0 - smoothstep(0.060, 0.100, rowDist);
+      float hx   = abs(fract(ang * r / 0.085) - 0.5) * 2.0;
+      float hole = 1.0 - smoothstep(0.38, 0.60, hx);
+      /* the outer surface catches the room a little more than the face does */
+      shade += 0.16 * smoothstep(0.0, 0.25, rimT) * (1.0 - smoothstep(0.75, 1.0, rimT));
+      shade = mix(shade, 0.96, row * hole);
+    }
+
+    /* volume: a coil is a cylinder, so light it from one side rather than
+       leaving it a flat cut-out */
+    float lam = dot(normalize(q + vec2(1e-5)), normalize(vec2(0.55, 0.83)));
+    shade *= 0.74 + 0.34 * (0.5 + 0.5 * lam);
+    /* the core falls into shadow the way the inside of a roll does */
+    shade *= 0.45 + 0.55 * smoothstep(0.0, 0.22, t);
+
+    /* soft silhouette so the coil has no jagged edge at any size */
+    float a = smoothstep(0.0, 0.012, 1.0 - r) * smoothstep(0.0, 0.010, r - uHub);
+    gl_FragColor = vec4(uLight * shade, a);
   }
 `;
 
@@ -317,57 +353,36 @@ export async function createProjector(canvas, opts = {}) {
   beam.renderOrder = 2;
   rig.add(beam);
 
-  /* ── the take-up reel in the corner ──
-     The machine's OWN take-up spool, cloned and scaled up: same geometry, same
-     material, so it reads as the other end of the same projector rather than a
-     prop dropped next to it. Sized from its measured bounding box, so changing
-     REEL_FULL_R alone re-proportions the whole assembly. */
+  /* ── the roll in the corner ──
+     NO SPOOL. Yash's reference is a length of film wound on ITSELF: a loose
+     coil with a hollow core, the wraps visible as layers, sprocket holes
+     running through every one of them, and the tail trailing away. The first
+     build put the machine's cloned take-up spool here — flanges, spokes, a hub
+     — which is a projector part, not a roll of film, and it read as a washer.
+     The coil is drawn entirely in the shader now. */
   const reel = new Group();
   reel.position.copy(REEL_POS);
   rig.add(reel);
 
-  if (spoolTake) {
-    const flange = spoolTake.clone(true);
-    flange.position.set(0, 0, 0);
-    flange.rotation.set(0, 0, 0);
-    flange.scale.setScalar(1);
-    flange.visible = true;
-    flange.traverse((o) => { if (o.isMesh) o.visible = true; });
-    const fb = new Box3().setFromObject(flange);
-    const fs = fb.getSize(new Vector3());
-    const spokeR = Math.max(fs.x, fs.y, fs.z) * 0.5 || 1;
-    /* flanges sit a touch proud of a full roll, the way a real spool does */
-    flange.scale.setScalar((REEL_FULL_R * 1.16) / spokeR);
-    const fc = new Box3().setFromObject(flange).getCenter(new Vector3());
-    flange.position.sub(fc);
-    reel.add(flange);
-    reel.userData.flange = flange;
-  }
-
-  /* the wound film — a disc that grows from bare hub to full reel */
   const rollMat = new ShaderMaterial({
     vertexShader: ROLL_VERT,
     fragmentShader: ROLL_FRAG,
     uniforms: {
       uHub: { value: REEL_HUB_R / REEL_FULL_R },
       uTurn: { value: 0 },
-      uLight: { value: new Color(0x9a89cf) },
+      uLight: { value: new Color(0xb6aed2) },
+      uWraps: { value: 1 },
     },
     side: DoubleSide,
-    transparent: false,
+    transparent: true,
   });
   /* A unit disc in the XY plane, scaled to the current roll radius. Scaling
      beats rebuilding geometry every frame, and because the shader works in
-     OBJECT space the coil pattern turns with the spool for free. */
-  const roll = new Mesh(new CircleGeometry(1, 96), rollMat);
-  /* IN FRONT of the flange. Behind it, the spool's dark cheek hid the very
-     thing that is supposed to be growing — the roll read as a black disc.
-     The flange is sized 1.16× a full roll, so its rim still shows all round
-     and you can see what the film is winding onto. */
-  roll.position.z = 0.52;
+     OBJECT space the coil turns with the film for free. */
+  const roll = new Mesh(new CircleGeometry(1, 128), rollMat);
   reel.add(roll);
 
-  /* the corner needs its own light or the reel is a black hole next to a lamp */
+  /* the corner needs its own light or the roll is a black hole next to a lamp */
   const reelLight = new PointLight(0xb9a4ff, 15, 5.0, 2);
   reelLight.position.copy(REEL_POS).add(new Vector3(0.7, 0.9, 1.5));
   rig.add(reelLight);
@@ -429,6 +444,8 @@ export async function createProjector(canvas, opts = {}) {
       state.rollR = Math.sqrt(a0 + (a1 - a0) * state.consumed);
       roll.scale.set(state.rollR, state.rollR, 1);
       rollMat.uniforms.uHub.value = REEL_HUB_R / Math.max(state.rollR, 1e-4);
+      /* more film on the roll = more visible wraps, not just a bigger disc */
+      rollMat.uniforms.uWraps.value = 3 + state.consumed * 6;
       /* the spool turns by the film it swallows, so it stops when the film
          stops — the same contract as the machine's own spools */
       reel.rotation.z += travel * 0.92;
