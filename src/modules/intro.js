@@ -630,6 +630,24 @@ export function createIntro({ onProgress } = {}) {
       const lensTakeOn = smoothstep((p - 0.724) / 0.006)
         * (1 - smoothstep((p - 0.744) / 0.012));
       root.style.setProperty("--lens-take", lensTakeOn.toFixed(3));
+      /* ── THE IRIS OPENS AS YOU FALL IN (Yash, 20:54) ──────────────────
+         He asked why the lens stops. It never did — the angle advances a
+         constant 148deg per step the whole way. What stops is the VISIBLE
+         motion: rotation displaces a pixel by radius x angle, and once the
+         lens fills the frame you are only seeing its centre, where the radius
+         is tiny and the blades converge. Measured, the proportion of pixels
+         changing per frame collapses as it grows:
+             574px wide  37.5%      1727px  4.6%
+             976px       38.5%      2553px  2.1%
+         Spinning faster would fix the symptom and break the 1:1 lock with the
+         spools. Opening the aperture fixes the cause: radial motion is
+         strongest exactly where rotation is weakest — at the centre, which is
+         all you can see by then. The rotation is untouched; this is an extra
+         motion on top, which is how he asked for it.
+         Timed with the blackout so the opening aperture reveals the dark
+         rather than the inside of a scaled photograph. */
+      const irisOpen = smoothstep((p - 0.732) / 0.018);
+      root.style.setProperty("--iris-open", `${(irisOpen * 82).toFixed(2)}%`);
       /* It sits BEHIND the strip while the reel plays, so it can never cover a
          service word — but a machine travelling toward you has to pass the
          film, not stay pinned behind it. It comes forward on the APPROACH. */
@@ -707,9 +725,11 @@ export function createIntro({ onProgress } = {}) {
          which is what makes the sphere land. The sphere is the consult world's
          own clip-circle opening (see --zero-reveal below). */
       const sphere = smoothstep((p - 0.768) / 0.056);      // .768 → .824
-      /* the layer exists to turn the lens's near-black into TRUE black, so it
-         arrives behind the glass, not instead of it */
-      root.style.setProperty("--blackout", smoothstep((p - 0.738) / 0.014).toFixed(3));
+      /* The layer turns the lens's near-black into TRUE black. It is full
+         BEFORE the aperture opens, so what you pass through into is the dark
+         and not the inside of a scaled photograph — it is hidden behind the
+         lens until the iris parts, so arriving early costs nothing. */
+      root.style.setProperty("--blackout", smoothstep((p - 0.726) / 0.012).toFixed(3));
       root.style.setProperty("--hole", sphere.toFixed(3));
 
       root.classList.toggle("market-live", marketOpacity > 0.002);

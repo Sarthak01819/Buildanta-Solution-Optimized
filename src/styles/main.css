@@ -5049,3 +5049,13 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 /* The camera's OWN lens hides while the sharp one is showing, or you get the
    blurry upscaled copy sitting behind the crisp one. */
 .market-camera__lens { opacity: calc(1 - var(--lens-take, 0)); }
+
+/* The aperture opening. A mask, not another gradient layer: the centre has to
+   become genuinely transparent so you pass THROUGH it to the dark beyond,
+   rather than having a dark circle painted on top of the blades. */
+.market-lens-takeover {
+  -webkit-mask-image: radial-gradient(circle,
+    transparent 0 var(--iris-open, 0%), #000 calc(var(--iris-open, 0%) + 3%));
+  mask-image: radial-gradient(circle,
+    transparent 0 var(--iris-open, 0%), #000 calc(var(--iris-open, 0%) + 3%));
+}
