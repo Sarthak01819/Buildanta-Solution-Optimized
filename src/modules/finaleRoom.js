@@ -167,7 +167,7 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
   beatWatch.observe(blackholeHost, { attributes: true, attributeFilter: ["class"] });
   syncBeat();
 
-  return {
+  const api = {
     /** kept for the caller; the portal observer is what actually drives this */
     setBeat() {},
     setCursor(nx, ny) { ship?.setCursor(nx, ny); },
@@ -243,4 +243,8 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, reduced 
       flash.remove();
     },
   };
+
+  // dev handle — the finale's framing is tuned by measuring, not by eye
+  if (import.meta.env?.DEV) window.__finale = api;
+  return api;
 }

@@ -24,8 +24,16 @@ const OMEGA = 0.14;                 // rad/s ≈ 37 px/s at the module ring
 // [-1.55, 0.1, 0]). Yash: the entry ANGLE was wrong — the site had pushed the
 // ship far to the right of frame and started 46 units out, so the flight
 // began off-axis and distant. This is the framing the reference flies from.
-const POSE = { tiltX: -0.80, tiltZ: 0.45, dist: 30 };
-const LOOK = [-1.55, 0.1, 0];
+/* Resting framing: Yash wants the Endurance parked small in the BOTTOM-RIGHT
+   corner. Derived, not guessed — the ship sits at the world origin, so its
+   screen position is the angle between the view axis and the origin:
+     x offset = atan(-LOOK[0] / dist) / (hFov/2) * 0.5
+     y offset = atan( LOOK[1] / dist) / (vFov/2) * 0.5
+   and its radius scales as 1/dist. Solving for ~82% / ~76% of the frame at
+   ~7% of the width gives these. The flight still departs from here, so the
+   rail's opening waypoints will want re-checking after any change. */
+const POSE = { tiltX: -0.80, tiltZ: 0.45, dist: 81 };
+const LOOK = [-20.5, 8.85, 0];
 const PARALLAX = [0.55, 0.34];
 const BANK = { maxYaw: 0.16, maxPitch: 0.10, easeIn: 2.4, easeOut: 0.9 };
 const HOVER = { radiusFactor: 1.18, spinBoost: 1.6, easeIn: 3.0, easeOut: 0.8 };
