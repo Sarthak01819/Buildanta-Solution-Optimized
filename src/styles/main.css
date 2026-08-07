@@ -4615,3 +4615,16 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
   text-transform: uppercase;
   color: #cdbcff;
 }
+
+/* The projector is gone (Yash, 7 Aug) — so is its beam. Any beam rule left in
+   this file above is dead; this makes that explicit and safe. */
+.market-beam { display: none !important; }
+
+/* The room's light pool was aimed at the machine's old position; centre it so
+   the film sits in the middle of the darkness. */
+.market-room__pool {
+  background:
+    radial-gradient(58% 44% at 50% 50%, rgba(120, 90, 190, .20), transparent 72%),
+    radial-gradient(34% 26% at 50% 74%, rgba(80, 60, 140, .14), transparent 74%);
+  opacity: .85;
+}

@@ -451,7 +451,7 @@ export function createIntro({ onProgress } = {}) {
       // Travel scales with the strip: 10 plates (was 7 originally, briefly
       // 20 during the A/B judging pass).
       if (!filmPitch) measureFilm();
-      const gateX = innerWidth * 0.62;            // where the lamp points
+      const gateX = innerWidth * 0.5;             // dead centre: no machine to clear
       const filmX = filmPitch
         ? (gateX - filmC0 - pos * filmPitch) / innerWidth * 100   // → vw, exact
         : 38 - filmTravel * 118;                                   // pre-measure
