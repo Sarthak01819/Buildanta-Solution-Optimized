@@ -19,6 +19,8 @@
 import { createShip } from "../gl/endurance/ship.js";
 
 const FLIGHT_SECONDS = 14;   // Yash's call: a real voyage
+const ARRIVE_AT = 0.90;      // travel at which the white-out is triggered
+const ARRIVE_MS = 1100;      // and how long the whole swap takes — Yash: quick
 
 const smoothstep = (a, b, x) => {
   const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -60,6 +62,7 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
      portal is what the visitor is looking at). */
   let beatLive = false;      // has the visitor ridden through to Gargantua?
   let bgShifted = false;     // is the black-hole canvas currently offset?
+  let arriveT0 = 0;          // wall-clock start of the white-out beat
   let flight = 0;            // 0 = outside, 1 = fully inside the room
   let tweenFrom = 0, tweenTo = 0, tweenT0 = 0, tweenDur = 0, tweening = false;
 
@@ -116,21 +119,30 @@ export function createFinaleRoom({ blackholeHost, roomSection, reduced = false, 
 
     // Bloom carries the handover: a long swell, peaking on the crossfade's
     // midpoint, then a shorter clear.
-    /* THE ARRIVAL, as Yash asked for it twice: close on the airlock, white
-       fills the screen, and it clears straight into the meeting room —
-       already settled, nothing zooming. Everything that made this fiddly
-       before (a push-in through the room's walls, a procedural throat) is
-       gone; the white-out IS the transition, and its only job is to be
-       complete at the moment the two scenes swap.
+    /* THE ARRIVAL. The white-out runs on its OWN short clock, not on flight
+       progress: the flight curve decelerates hard into the dock, so anything
+       keyed to its last stretch of travel stretches over five or six seconds
+       — which is exactly why this felt slow. Here it is a fixed 1.1s beat,
+       kicked once the approach is essentially complete.
 
-       Order matters: the room reaches full opacity BEHIND the white, while
-       it is at peak. If the white cleared first you would watch the room
-       fade up, which is a dissolve — the thing this replaces. */
-    const white = reduced ? (flight > 0.86 ? 1 : 0)
-      : Math.min(smoothstep(0.78, 0.90, flight), 1 - smoothstep(0.945, 1, flight));
+       Order is the whole trick: the room reaches full opacity BEHIND the
+       white while it is at peak. If the white cleared first you would watch
+       the room fade up, which is a dissolve — the thing this replaces. */
+    let white = 0;
+    let roomFade = 0;
+    if (reduced) {
+      white = 0;
+      roomFade = flight > 0.86 ? 1 : 0;
+    } else {
+      if (flight >= ARRIVE_AT && arriveT0 === 0) arriveT0 = performance.now();
+      if (flight < ARRIVE_AT - 0.02) arriveT0 = 0;      // flying back out
+      if (arriveT0) {
+        const a = Math.min(1, (performance.now() - arriveT0) / ARRIVE_MS);
+        white = a < 0.42 ? a / 0.42 : 1 - (a - 0.42) / 0.58;
+        roomFade = a >= 0.38 ? 1 : 0;                   // swaps under the white
+      }
+    }
     flash.style.opacity = white.toFixed(3);
-
-    const roomFade = reduced ? (flight > 0.86 ? 1 : 0) : smoothstep(0.845, 0.915, flight);
     roomSection.style.opacity = roomFade.toFixed(3);
     roomSection.style.transform = "";
     roomSection.style.setProperty("--room-zoom", "1");
