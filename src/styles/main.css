@@ -4737,8 +4737,19 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
    It was: only the MARKUP had been deleted (12:37, "remove the projector") —
    the CSS and the --market-camera-* variables never stopped running, which is
    why putting the markup back brought the motion back with it.
-   It sits LEFT of the gate rather than dead centre. Centred it covers the very
-   plate the act is trying to make you read, and the whole point of the reel is
-   the word on the plate. Verified by measurement: the camera's box does not
-   intersect the lit plate's box at any parked beat. */
-.market-pusher { left: 22%; width: min(31vw, 54vh); }
+   POSITION (Yash 17:38): upper half, centred — the framing already agreed for
+   the machine. Moving it left to clear the plates was solving the wrong axis.
+   The camera image is 785x1511, so anything big enough to dominate the top
+   half must run its tripod down through the strip; the answer is to separate
+   them in DEPTH, not sideways. The camera now sits BEHIND the film (z-index 4
+   against the strip's 6), so the strip passes in front of it and the tripod is
+   hidden by the film's own black backing, and the tail fades out below that.
+   Nothing can cover a service word, because the words are drawn on top. */
+.market-pusher {
+  left: 50%;                 /* centred, the way Yash framed it */
+  top: 0;
+  width: min(40vw, 70vh);
+  z-index: 4;                /* BEHIND the strip (6), above the room (2) */
+  -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent 78%);
+  mask-image: linear-gradient(180deg, #000 60%, transparent 78%);
+}
