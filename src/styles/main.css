@@ -4880,3 +4880,22 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
       #05050c 352deg 360deg),
     radial-gradient(circle, #08080f 0 30%, transparent 31%);
 }
+
+
+/* ── the reverse-scroll glitches (Yash, 19:44) ──────────────────────────
+   Measured by scrubbing the act BACKWARDS: 10 frames over 33ms and a worst of
+   112ms, against 2 and 66ms going forward. Bisected by disabling one thing at
+   a time — both were `filter` on the camera:
+     filter off on the image  -> 10 frames over 33ms became 3
+     drop-shadow off          -> worst 112ms became 41ms
+   The cause is not that filters are slow, it is that this element is SCALED TO
+   13x during the handover. A filtered element has to be re-rasterised at its
+   new size, and at 13x that is a 7500x14000 raster through a five-stage chain,
+   every time the scale changes. Vault rule M2 says never animate a filter;
+   this is the same fault reached by a different road — scaling a filtered
+   element is animating the filter's input.
+   The colour grade is baked into the PNG instead (tools/bake-camera-grade.cjs
+   reproduces the exact chain), and the shadow is gone: the machine is dark on
+   a dark set and it was buying almost nothing for 7 dropped frames. */
+.market-pusher img { filter: none; }
+.market-pusher { filter: none; }
