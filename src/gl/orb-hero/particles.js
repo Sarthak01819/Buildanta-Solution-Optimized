@@ -148,6 +148,7 @@ export class ParticleSystem {
     const commonUniforms = {
       tPosition: { value: null },
       uParticleSize: { value: params.particleSize * (params.sizeUnit ?? 1) },
+      uDotSolid: { value: params.dotSolid ?? 0.25 },
       uScaleRange: { value: new THREE.Vector2(...params.scaleRange) },
       uSunPosition: { value: new THREE.Vector3() },
       uOpacity: { value: params.opacity ?? 1 },

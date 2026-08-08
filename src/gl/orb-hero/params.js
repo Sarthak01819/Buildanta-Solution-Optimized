@@ -101,6 +101,20 @@ export const LANDING = {
     detail: 0.5,
     // render (program 12, 43 uniforms)
     particleSize: 0.35,
+    /* How much of each dot is SOLID before its edge starts fading, 0..1.
+       Each particle is drawn as smoothstep(1.0, uDotSolid, d), so at 0.25 —
+       the original, and still the value — only the inner quarter is solid and
+       the outer 75% is gradient. That genuinely is "mostly blur", and it is
+       the obvious suspect for Yash's "the dots are not sharp points".
+       ⚠️ BUT RAISING IT CHANGED NOTHING MEASURABLE. At the blown-up state
+       where the dots are largest: 0.62 scored 30.80 and 0.25 scored 30.95 —
+       the ORIGINAL is fractionally crisper. The metric is dominated by the
+       film grain, not by dot edges, and with 65k overlapping sprites the
+       individual sprite shape averages out anyway.
+       Left at the original value: no behaviour change. The knob exists so the
+       call can be made by eye on a real screen, which is the only instrument
+       that has actually worked today. */
+    dotSolid: 0.25,
     // The unit uParticleSize is expressed in was never measurable — only the
     // RESULT was: the 4× zooms resolve the speckle into discrete 1–3 px
     // sprites. Derivation: at the reference framing (812px tall, fov 50, orb at

@@ -6,6 +6,7 @@ import { BRAND, PRODUCTS, CAPABILITIES, INFRA, PROCESS, STATS } from "./config.j
 import { createScene } from "./gl/Scene.js";
 import { idleGate } from "./gl/visible.js";
 import { mountDiag } from "./modules/diag.js";
+import { createPreloader } from "./modules/preloader.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
@@ -456,7 +457,22 @@ function boot() {
     }
   }
 
+  /* THE ENTRANCE. Created BEFORE the intro so it is already covering the
+     screen while the scenes build — the whole point is that none of the
+     warm-up is ever seen. See modules/preloader.js. */
+  const preload = createPreloader({
+    onReveal: (ms) => console.info(`[preload] revealed after ${ms}ms`),
+  });
+
   const intro = createIntro({ onProgress: onIntroProgress });
+
+  /* Warm every shader behind the entrance, then reveal. Guarded and capped:
+     the preloader reveals on its own timer regardless, so a warm-up that
+     hangs can never trap anyone on a loading screen. */
+  Promise.resolve()
+    .then(() => intro.warm?.((p) => preload.set(p * 0.96)))
+    .catch((e) => console.info("[preload] warm-up skipped:", e?.message || e))
+    .finally(() => preload.reveal());
   entryGate = createEntryGate({
     lenis,
     ScrollTrigger,

@@ -83,6 +83,7 @@ uniform float uFlash;
 uniform vec3 uCloudNoiseScale;
 uniform float uCloudNoiseSpeed;
 uniform vec2 uCloudsSmoothstep;
+uniform float uDotSolid;   // how much of each dot is solid before the rim fades
 uniform float uOpacity;
 uniform float uTime;
 
@@ -99,7 +100,7 @@ void main() {
   // Soft round sprite. At 1–3px on screen this is what stops the cloud reading
   // as a grid of squares.
   float d = length(vUv - 0.5) * 2.0;
-  float alpha = smoothstep(1.0, 0.25, d);
+  float alpha = smoothstep(1.0, uDotSolid, d);
   if (alpha <= 0.001) discard;
 
   vec3 col = mix(uBaseColor, uBaseColor2, vRandom);

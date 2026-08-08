@@ -1460,6 +1460,59 @@ export function createIntro({ onProgress } = {}) {
   return {
     corridor, sound, st,
     rawForP,
+
+    /**
+     * Force every shader in the intro to compile NOW, behind the loader.
+     *
+     * three links a program the frame its material is first DRAWN, so the
+     * compiles land mid-scroll otherwise — one was measured still linking at
+     * p=0.02, inside the opening. Rendering each scene here, while the
+     * entrance still covers the screen, moves all of that off the visitor's
+     * timeline. Nobody sees these frames.
+     *
+     * Walks a few progress values because the acts swap what is visible as
+     * they advance, and a program only compiles once its own material draws.
+     * Deliberately EXCLUDES the finale (Yash's call: it is the heaviest and
+     * it comes last, so it warms during the journey instead).
+     *
+     * Every step is guarded — a scene that will not warm must not stop the
+     * site from loading. This is an optimisation, never a gate.
+     */
+    async warm(onProgress, budgetMs = 2600) {
+      /* ⚠️ THE LOOP LIMITS ITSELF — a timer cannot. The preloader also holds a
+         reveal timer, but a setTimeout only fires when the main thread is
+         free, and this loop IS what makes it busy: measured revealing after
+         11.6s against a 3s cap on a slow machine, because the timer could not
+         get a word in. Checking the clock between steps is the only cap that
+         actually caps. Whatever is not warmed in the budget simply compiles
+         later, exactly as it did before — the site is never worse for it. */
+      const started = performance.now();
+      const stops = [0.0, 0.08, 0.16, 0.30, 0.50, 0.66, 0.80, 0.92];
+      for (let i = 0; i < stops.length; i++) {
+        if (performance.now() - started > budgetMs) {
+          onProgress?.(1);
+          break;
+        }
+        const p = stops[i];
+        try {
+          corridor.setProgress(p);
+          corridor.render(i * 0.016);
+          if (orbHero.ok) { orbHero.setActProgress(Math.min(1, p / 0.244)); orbHero.render(i * 0.016); }
+          projector?.render(i * 0.016);
+          consultHand?.setProgress?.(p);
+          consultHand?.render(i * 0.016);
+        } catch (e) {
+          console.info("[preload] warm step skipped:", e?.message || e);
+        }
+        onProgress?.((i + 1) / stops.length);
+        /* yield so the browser can paint the loader's progress and, on
+           engines that compile asynchronously, get on with it in parallel */
+        await new Promise((r) => requestAnimationFrame(() => r()));
+      }
+      /* leave the scenes exactly where the timeline expects them */
+      try { corridor.setProgress(0); } catch { /* ignore */ }
+    },
+
     get wallRaw() { return wallRaw; },
     get introRawEnd() { return introRawEnd; },
     get progress() { return progress; },
