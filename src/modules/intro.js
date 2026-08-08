@@ -1509,8 +1509,34 @@ export function createIntro({ onProgress } = {}) {
            engines that compile asynchronously, get on with it in parallel */
         await new Promise((r) => requestAnimationFrame(() => r()));
       }
-      /* leave the scenes exactly where the timeline expects them */
-      try { corridor.setProgress(0); } catch { /* ignore */ }
+      /* ⚠️ PUT EVERY SCENE BACK, NOT JUST THE CORRIDOR.
+         The first version reset only corridor, so the orb was left at the
+         progress of the LAST warm stop — 0.92, fully formed, hot core — while
+         the page sat at the top. Yash saw exactly that on reload: the opening
+         frame with an already-formed core, then a snap as the timeline took
+         over on the first real frame. Anything driven by progress has to be
+         wound back here or the warm-up leaks into the visitor's first view. */
+      try {
+        corridor.setProgress(0);
+        if (orbHero.ok) { orbHero.setActProgress(0); orbHero.setCoreFlash(0, 0); }
+        consultHand?.setProgress?.(0);
+      } catch (e) {
+        console.info("[preload] rewind skipped:", e?.message || e);
+      }
+
+      /* SETTLE. Yash's choice for the entrance: the orb should be alive and
+         coming to rest as the site appears, not a frozen frame that starts
+         moving. The sim has just been driven all over the act, so a few frames
+         at the opening shape let the cloud EASE back into it — by the time the
+         loader fades, the motion is already underway and there is nothing to
+         snap. Cheap: these are frames nobody sees. */
+      for (let i = 0; i < 6; i++) {
+        try {
+          corridor.render(1 + i * 0.016);
+          if (orbHero.ok) orbHero.render(1 + i * 0.016);
+        } catch { /* a scene that will not settle must not block the reveal */ }
+        await new Promise((r) => requestAnimationFrame(() => r()));
+      }
     },
 
     get wallRaw() { return wallRaw; },

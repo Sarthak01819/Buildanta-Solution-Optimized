@@ -18,7 +18,7 @@ export const BRAND = {
   designation: "SYS.BLD-01",          // HUD mein dikhne wala unit id
   tagline: "We build the systems businesses run on.",
   intro:
-    "Field ke sensors se lekar boardroom ke dashboards tak — hum wo infrastructure banate hain jispe rozana ka kaam chalta hai. Paanch deployed systems, ek engineering standard.",
+    "From sensors in the field to dashboards in the boardroom — we build the infrastructure the daily work runs on. Five deployed systems, one engineering standard.",
   since: "2019",
   location: "IN · 19.07°N 72.87°E",
   email: "hello@buildanta.com",       // TODO: asli email
@@ -116,7 +116,7 @@ export const INTRO = {
         { kind: "idea-glass-marble", count: 1 },
         { kind: "idea-light-spark", count: 1 },
       ],
-      sub: "Aap problem laate ho. Hum sawaal poochte hain — jab tak asli wajah saamne na aa jaye.",
+      sub: "You bring the problem. We keep asking questions until the real reason surfaces.",
     },
     {
       n: "02",
@@ -133,7 +133,7 @@ export const INTRO = {
         { kind: "code-git-branch", count: 1 },
         { kind: "code-glass-card-stack", count: 1 },
       ],
-      sub: "Ra.One x Matrix Code — Micro-matter voxel assembly, live binary streams, dual-layer atmosphere, aur scroll-driven core fly-through.",
+      sub: "Inventory, billing, ledgers, field teams — the systems a business runs on every day. Built once, and owned by you.",
     },
     {
       n: "03",
@@ -166,7 +166,7 @@ export const INTRO = {
         { kind: "consult-chess-knight", count: 1 },
         { kind: "consult-magnifying-glass", count: 1 },
       ],
-      sub: "Launch end nahi hai. Monitoring, iteration aur support chalti rehti hai.",
+      sub: "Launch is not the finish line. We stay on it — monitoring, iterating, and growing acquisition, conversion and retention.",
     },
   ],
 };
