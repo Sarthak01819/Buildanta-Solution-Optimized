@@ -7,7 +7,6 @@ import { createCorridor } from "../gl/Corridor.js";
 import { mountOrbHero } from "../gl/orb-hero/index.js";
 import { createConsultHand } from "../gl/ConsultHand.js";
 import { mountBlackholeBeat } from "../gl/blackhole/index.js";
-import { mountPeachPicker } from "./peachPicker.js";
 import { buildObjects, projectObjects } from "./introObjects.js";
 import { SERVICES } from "./services.js";
 import { createProjector } from "../gl/projector/index.js";
@@ -246,17 +245,19 @@ export function createIntro({ onProgress } = {}) {
 
      `ok === false` (WebGL2 ya float targets nahi) par ye khud ko mount hi nahi
      karta aur neeche purana orb waisa hi chalta rehta hai. */
+  /* Only `paper` comes from CSS — that token is the page's own ground and the
+     orb's gradient top stop, one surface, so it must be read from the single
+     place that defines it. The rest of the orb's palette (ember, warm, cool,
+     amber) stays in BUILDANTA_HERO, derived from the same chosen hue.
+     `amber` used to be passed as the CSS --brass, which is the TEXT accent and
+     a different job; doing that overrode the orb's glow with the type colour
+     and was half of why the dust read as a separate scheme from the ground. */
   const orbHero = mountOrbHero(glCanvas, {
     paper: palette[steps[0].theme].paper,
-    amber: palette[steps[0].theme].accent,
   });
   /* Live scene chal rahi hai to Act 01 ka pre-rendered bubble plane chhupa do —
      warna do sphere ek saath dikhte hain. */
   if (orbHero.ok && corridor.station?.[0]?.mesh) corridor.station[0].mesh.visible = false;
-
-  /* TEMPORARY — four peach hues, switchable live, so the colour is chosen on
-     a real screen instead of guessed from an image. See modules/peachPicker.js. */
-  mountPeachPicker(root, { orbHero });
 
   /* ── acts ka DOM ──
      Sirf text. Image ab DOM mein nahi hai — wo corridor mein ek 3D plane

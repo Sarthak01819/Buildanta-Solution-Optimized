@@ -66,12 +66,18 @@ import { easeInOutQuad, clamp01 } from './curves.js';
  *                   amber; this is the site's existing cool token, so the one
  *                   deliberately "wrong" colour in the scene is still ours.
  */
+/* PINK, chosen 8 Aug from the live picker (hue 12). The whole family is
+   derived from that one hue so the orb and the ground cannot drift apart:
+   paper is the ground and the gradient's top stop, ember the frame's bottom,
+   warm/cool/amber the dust, rim and glow. Leaving these on the old orange
+   while the ground went pink was what made the orb read as a separate
+   colour scheme — the dust has to be lit by the same light as the room. */
 export const BUILDANTA_HERO = {
-  paper: '#F2E6D7',
-  amber: '#FFA629',
-  ember: '#BD6741',
-  warm: '#FF9A5C',
-  cool: '#F6E2CF',
+  paper: '#FAC1B2',   // hsl(12, 88%, 84%)
+  amber: '#FF7029',   // hsl(20, 100%, 58%)
+  ember: '#BA3F2C',   // hsl(8, 62%, 45%)
+  warm: '#FF825C',    // hsl(14, 100%, 68%)
+  cool: '#F7DBCF',    // hsl(18, 70%, 89%)
   cyan: '#4AE0F5',
 };
 
