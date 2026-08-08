@@ -23,13 +23,14 @@
  *
  * Three things keep this cheap and safe:
  *   - an IntersectionObserver handles the scrolled-away case for free
- *   - waking is checked EVERY frame, so a scene that fades back in is drawing
- *     on the first frame it is visible. A throttled check would show up to
- *     100ms of stale frame at the start of every fade-in — the one place where
- *     this optimisation could be seen. It is affordable precisely because a
- *     sleeping scene is not rendering: the check replaces work, it doesn't add
- *     to it. While awake the check throttles, since going to sleep 100ms late
- *     costs nothing
+ *   - the visibility check runs on a TIMER, never inside the render loop.
+ *     It was per-frame at first, for instant wake — and that cost far more
+ *     than it saved: checkVisibility() forces a style recalculation, so it
+ *     landed between intro.js's per-frame CSS writes and the paint. Textbook
+ *     layout thrash, measured at 1.0 forced read per frame through ACT 01,
+ *     and it made the opening judder on scroll with no cursor involved.
+ *     Wake is now up to 100ms late, which nobody can see; the judder,
+ *     everybody could
  *   - sleep waits 500ms. Without that lag, a scene sitting exactly on an
  *     opacity threshold would reallocate its buffer every frame, which costs
  *     far more than the render it saves
@@ -65,7 +66,6 @@ function styleVisible(c) {
 export function idleGate(canvas, onWake) {
   let onScreen = true;                 // set by the observer below
   let seen = true;                     // last polled answer
-  let polledAt = -1e9;
   let hiddenSince = -1;
   let asleep = false;
   let saved = null;
@@ -78,15 +78,28 @@ export function idleGate(canvas, onWake) {
     ).observe(canvas);
   }
 
+  /* ⚠️ THE VISIBILITY POLL LIVES ON A TIMER, NOT IN THE RENDER LOOP.
+     checkVisibility() forces a synchronous style recalculation. Called from
+     awake() it landed inside the frame, immediately after intro.js writes
+     dozens of CSS custom properties — write-then-read in one frame is textbook
+     layout thrash. The first version did it EVERY FRAME while asleep, for
+     instant wake; measured at 1.0 forced read per frame right through ACT 01's
+     core formation, which is precisely the judder Yash reported on scroll with
+     no cursor near the orb. It was smooth before this gate existed.
+
+     A timer runs it outside the frame instead, so the render path does no
+     style work whatever. The cost is up to POLL ms of wake latency, which for
+     a scene arriving from off screen nobody can perceive — and a stutter in
+     the opening, which everybody can, is not worth trading for it. */
+  const poll = () => { seen = onScreen && styleVisible(canvas); };
+  poll();
+  setInterval(poll, POLL);
+
   return {
     awake() {
       const now = performance.now();
-      /* asleep: check every frame so a fade-in is never a frame late.
-         awake: throttle — being slow to notice a scene has gone costs nothing */
-      if (asleep || hiddenSince >= 0 || now - polledAt >= POLL) {
-        polledAt = now;
-        seen = onScreen && styleVisible(canvas);
-      }
+      /* `seen` is refreshed by a TIMER, never here — see the note on the poll
+         below. This function does no style work at all. */
 
       if (seen) {
         hiddenSince = -1;
