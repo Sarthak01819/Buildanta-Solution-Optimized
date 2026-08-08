@@ -97,6 +97,15 @@ export const LANDING = {
     lerpSpeed: 0.204,
     lerpSpeed2: 0.384,
     fluidStrength: 0.8, // measured 0.1 — see the coupled-trio note under `fluid`
+    /* Ceiling on how far the fluid may shove ONE particle in ONE frame, as a
+       fraction of the orb radius. Measured frame-by-frame off the GPU: while
+       hovering, the median particle moved 0.021 but the worst moved 1.24 — 42%
+       of the whole orb in a single frame, on a radius of 2.95. The bulk drifts
+       and a handful teleport, and that incoherence is what reads as flicker.
+       0.05 leaves the median completely untouched (0.021 is far below
+       2.95*0.05 = 0.147) and only clips the outliers, so the interaction keeps
+       its strength and loses its jumps. */
+    fluidMaxStep: 0.05,
     roughness: 0.65,
     detail: 0.5,
     // render (program 12, 43 uniforms)
