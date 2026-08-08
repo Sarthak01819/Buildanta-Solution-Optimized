@@ -69,6 +69,27 @@ export function mountCrashWatch() {
     } catch { /* private mode, or storage full — nothing useful to do */ }
   };
 
+  /* ⚠️ FREEZE IT BEFORE THIS SESSION TOUCHES IT. write() merges into the same
+     record, so the new page's own numbers — secondsAlive 0, its fresh canvas
+     count — were overwriting the crashed session's within moments of loading,
+     and the report showed the survivor's readings under the victim's heading.
+     The crashed record is moved aside intact and the live key started clean.
+     ⚠️ AND IT MUST RUN BEFORE THE FIRST sample(): the first version sat below
+     it and was polluted by the very first write of the new session — which is
+     exactly the bug it was written to prevent, one line too late. */
+  const prev = (() => {
+    const r = read();
+    if (r && r.verdict && r.verdict !== 'left normally') {
+      try {
+        localStorage.setItem(KEY + '-last', JSON.stringify(r));
+        localStorage.removeItem(KEY);
+      } catch { /* ignore */ }
+      return r;
+    }
+    try { return JSON.parse(localStorage.getItem(KEY + '-last') || 'null'); }
+    catch { return null; }
+  })();
+
   /* ── the prime suspect ──────────────────────────────────────────────────
      Every WebGL canvas, including ones created later, gets watched. Patching
      getContext is the only way to catch canvases this module never sees. */
@@ -114,11 +135,50 @@ export function mountCrashWatch() {
 
   addEventListener('pagehide', () => write({ verdict: read().verdict || 'left normally' }));
 
-  /* Surface the PREVIOUS run's record, so a crash is visible on the next load
-     without anyone having to go looking for it. */
-  const prev = read();
+  /* ── SURFACE IT ON SCREEN, NOT IN THE CONSOLE ────────────────────────────
+     The record lives in the PHONE's storage, which I cannot reach — I can only
+     read the Mac's browser. A console.warn is invisible on a phone, so the
+     evidence would have been written perfectly and never seen by anyone. It is
+     printed as large TEXT instead, so one photo carries the whole answer. Same
+     lesson as the colour work: text survives a camera, nothing else does. */
   if (prev && prev.verdict && prev.verdict !== 'left normally') {
     console.warn('[crash-watch] previous session ended badly:', prev);
+    const show = () => {
+      const box = document.createElement('div');
+      box.style.cssText =
+        'position:fixed;left:0;right:0;top:0;z-index:100000;background:#1a0f0c;color:#fff;' +
+        'font:500 13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:14px 16px;' +
+        'border-bottom:2px solid #ba3f2c;max-height:60vh;overflow:auto;-webkit-overflow-scrolling:touch';
+      const rows = [
+        ['what happened', prev.verdict],
+        ['which scene', prev.lostOn || '—'],
+        ['how far in', (prev.lostAtPct ?? prev.lastSeenPct) + '%'],
+        ['seconds alive', prev.secondsAlive],
+        ['canvas Mpx', prev.canvasMpx],
+        ['peak heap MB', prev.peakHeapMb ?? 'n/a'],
+        ['screen', prev.screen],
+      ];
+      box.innerHTML =
+        '<div style="color:#ff9a7d;letter-spacing:.14em;font-size:11px;margin-bottom:8px">' +
+        'LAST SESSION ENDED BADLY — PHOTOGRAPH THIS</div>' +
+        rows.map(([k, v]) =>
+          `<div><span style="color:#a89088;display:inline-block;min-width:118px">${k}</span>${v}</div>`).join('') +
+        (prev.events && prev.events.length
+          ? '<div style="margin-top:8px;color:#a89088">' + prev.events.slice(-6).join('<br>') + '</div>' : '') +
+        '<button style="margin-top:12px;background:#ba3f2c;color:#fff;border:0;border-radius:6px;' +
+        'padding:10px 16px;font:inherit;min-height:44px">Dismiss and clear</button>';
+      box.querySelector('button').addEventListener('click', () => {
+        try { localStorage.removeItem(KEY); localStorage.removeItem(KEY + '-last'); } catch { /* ignore */ }
+        box.remove();
+      });
+      document.body.appendChild(box);
+    };
+    if (document.body) show();
+    else addEventListener('DOMContentLoaded', show, { once: true });
   }
-  return { dump: () => read(), clear: () => { try { localStorage.removeItem(KEY); } catch { /* ignore */ } } };
+  return {
+    dump: () => read(),
+    last: () => { try { return JSON.parse(localStorage.getItem(KEY + '-last') || 'null'); } catch { return null; } },
+    clear: () => { try { localStorage.removeItem(KEY); localStorage.removeItem(KEY + '-last'); } catch { /* ignore */ } },
+  };
 }
