@@ -20,7 +20,7 @@ const path = require('path');
 const zlib = require('zlib');
 const { decode } = require('./png.cjs');
 
-const SRC = path.join(__dirname, '..', 'public', 'market-cinema-camera-front.png');
+const SRC = path.join(__dirname, '..', 'art-source', 'market-cinema-camera-front.png');
 const OUT = path.join(__dirname, '..', 'public', 'market-cinema-camera-graded.png');
 
 const mul = (a, b) => {

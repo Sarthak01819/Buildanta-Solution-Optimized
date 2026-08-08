@@ -385,6 +385,9 @@ export function createCorridor(canvas, opts = {}) {
   return {
     render, resize, setProgress, setColours, setFrameFade, project, camera, orb,
     peaks, stationZ, reduced, codeBuild,
+    // Exposed so the live Act 01 orb scene can hide the pre-rendered idea plane
+    // while it is running (and leave it alone when it is the fallback).
+    station,
     codeBase() {
       return codeBuild?.projectBase() ?? null;
     },
