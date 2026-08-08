@@ -33,6 +33,20 @@ const FINALE = (() => {
 })();
 if (FINALE) document.documentElement.classList.add("bh-final");
 
+/* ── ALWAYS OPEN AT THE TOP ────────────────────────────────────────────────
+   Browsers restore the previous scroll position on reload. On a scroll-driven
+   film that means a refresh drops you into the middle of an act, and then the
+   timeline corrects toward it — which is the lurch Yash sees on every refresh,
+   and why a reload "stays on the same page" instead of starting over.
+   Turning restoration off is not enough on its own: Chrome can still apply a
+   restore after this script runs, so the position is forced again on load and
+   on pageshow (which is what fires when coming back via the bfcache). */
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+const toTop = () => window.scrollTo(0, 0);
+toTop();
+addEventListener("load", toTop);
+addEventListener("pageshow", toTop);
+
 /* ?diag=1 — the machine reports its own colour state. See modules/diag.js. */
 addEventListener("DOMContentLoaded", () => { try { mountDiag(); } catch (e) { console.warn("[diag]", e); } });
 

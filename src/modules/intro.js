@@ -1531,6 +1531,12 @@ export function createIntro({ onProgress } = {}) {
          loader fades, the motion is already underway and there is nothing to
          snap. Cheap: these are frames nobody sees. */
       for (let i = 0; i < 6; i++) {
+        /* Budgeted like the warm loop above, and for the same reason: six
+           frames is ~36ms on a fast machine but three SECONDS at 2fps, and
+           unbudgeted it pushed the reveal to 9.5s against a 4.2s cap. The
+           settle is a courtesy — a slow machine should skip it, not wait for
+           it. Its own frames count toward the same overall budget. */
+        if (performance.now() - started > budgetMs + 400) break;
         try {
           corridor.render(1 + i * 0.016);
           if (orbHero.ok) orbHero.render(1 + i * 0.016);

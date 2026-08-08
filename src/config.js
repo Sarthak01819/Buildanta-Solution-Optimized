@@ -179,7 +179,7 @@ export const PRODUCTS = [
     status: "ONLINE",
     uptime: "99.94",
     blurb:
-      "Chhote aur medium vyapaar ke liye inventory, billing aur party ledger — ek hi jagah. Jo register pehle haath se likha jaata tha, wahi ab real-time sync ke saath.",
+      "Inventory, billing and party ledgers for small and mid-size businesses, in one place. The register that used to be written by hand, now kept in sync in real time.",
     points: ["INVENTORY", "GST BILLING", "PARTY LEDGER"],
     stack: ["React", "Node", "Postgres"],
   },
@@ -190,7 +190,7 @@ export const PRODUCTS = [
     status: "ONLINE",
     uptime: "99.98",
     blurb:
-      "Collect-first payments — QR, links aur reconciliation ek hi flow mein. Merchant ko sirf ek tap chahiye, baaki system sambhaal leta hai.",
+      "Collect-first payments — QR, links and reconciliation in a single flow. The merchant taps once; the system handles the rest.",
     points: ["UPI / QR", "AUTO RECON", "SETTLEMENTS"],
     stack: ["Node", "Redis", "Webhooks"],
   },
@@ -201,7 +201,7 @@ export const PRODUCTS = [
     status: "ONLINE",
     uptime: "99.91",
     blurb:
-      "Aapka digital munshi. Entries, khata-bahi aur filing-ready statements — bina accountant ke bhi books saaf rehti hain.",
+      "Your digital bookkeeper. Entries, ledgers and filing-ready statements, so the books stay clean without an accountant.",
     points: ["DOUBLE ENTRY", "RECONCILE", "EXPORTS"],
     stack: ["Postgres", "Python", "Pandas"],
   },
@@ -212,7 +212,7 @@ export const PRODUCTS = [
     status: "ONLINE",
     uptime: "99.87",
     blurb:
-      "Tank aur borewell ke liye ultrasonic level sensing, live dashboard aur threshold alerts. Motor kab chalana hai — ab andaza nahi, data.",
+      "Ultrasonic level sensing for tanks and borewells, with a live dashboard and threshold alerts. When to run the motor stops being a guess and becomes data.",
     points: ["ULTRASONIC", "LIVE FEED", "DRY-RUN ALERT"],
     stack: ["ESP32", "MQTT", "TimescaleDB"],
   },
@@ -223,7 +223,7 @@ export const PRODUCTS = [
     status: "BETA",
     uptime: "99.40",
     blurb:
-      "Task aur compliance tracking jisme har kaam ka ek naam hota hai. Assign karo, deadline lagao, aur audit trail apne aap ban jaata hai.",
+      "Task and compliance tracking where every job has a name against it. Assign it, set the deadline, and the audit trail builds itself.",
     points: ["OWNERSHIP", "ESCALATION", "AUDIT TRAIL"],
     stack: ["React", "Node", "S3"],
   },
@@ -246,13 +246,13 @@ export const CAPABILITIES = [
   {
     code: "MOD.03",
     title: "CLOUD & INFRA",
-    body: "CI/CD, observability aur cost-aware infra. Deploy boring hona chahiye — hum usse boring rakhte hain.",
+    body: "CI/CD, observability and cost-aware infrastructure. Deploys should be boring; we keep them that way.",
     tags: ["Docker", "CI/CD", "Grafana", "Backups"],
   },
   {
     code: "MOD.04",
     title: "INTERFACE SYSTEMS",
-    body: "Design systems jo scale karte hain. Accessible, fast, aur har product mein consistent.",
+    body: "Design systems that scale. Accessible, fast, and consistent across every product.",
     tags: ["Design systems", "Motion", "a11y", "Tokens"],
   },
 ];
@@ -267,10 +267,10 @@ export const INFRA = [
 
 /** OPERATIONAL SEQUENCE — process */
 export const PROCESS = [
-  { step: "DISCOVER", body: "Problem ko field mein jaakar samajhna. Assumptions likhit mein, guesses nahi." },
-  { step: "DESIGN", body: "Flows, states aur edge cases pehle. Pixel baad mein." },
-  { step: "BUILD", body: "Do-hafte ke cycles, har cycle mein kuch chalta hua deliver." },
-  { step: "OPERATE", body: "Launch end nahi hai. Monitoring, iteration aur support chalti rehti hai." },
+  { step: "DISCOVER", body: "Understand the problem where it happens, in the field. Assumptions written down, not guessed at." },
+  { step: "DESIGN", body: "Flows, states and edge cases first. Pixels after." },
+  { step: "BUILD", body: "Two-week cycles, and something working delivered at the end of each one." },
+  { step: "OPERATE", body: "Launch is not the end. Monitoring, iteration and support carry on." },
 ];
 
 export const STATS = [

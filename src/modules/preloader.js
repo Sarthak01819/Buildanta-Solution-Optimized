@@ -16,10 +16,14 @@
  *
  * Decisions, from Yash (8 Aug):
  *   branded loader with a real progress count  ·  warm everything EXCEPT the
- *   finale (heaviest, and it comes last)  ·  cap the wait at ~3s and finish
- *   the rest in the background  ·  quality measures AFTER the reveal  ·  show
- *   the loader only when preparation actually takes a moment, so a returning
- *   visitor with a warm cache walks straight in.
+ *   finale (heaviest, and it comes last)  ·  quality measures AFTER the reveal.
+ *
+ * REVISED after he saw it: the loader is now ALWAYS shown and always held for
+ * a minimum of two seconds. "Even if the loader updates in less than one
+ * second, at least it should take two seconds to properly load so that the
+ * interaction is smooth, not sudden." That supersedes the original
+ * show-only-when-needed rule — on a fast machine the work finishes in a couple
+ * of hundred milliseconds and a loader that flashes past reads as a fault.
  *
  * ⚠️ It reveals on a TIMER as well as on completion. A warm-up that hangs —
  * a texture that never decodes, a context that never comes back — must never
@@ -27,8 +31,16 @@
  * and stuck.
  */
 
-const REVEAL_CAP_MS = 3000;     // Yash: cap the wait at ~3s
-const SHOW_AFTER_MS = 450;      // below this, do not flash a loader at all
+const REVEAL_CAP_MS = 4200;     // hard stop — nothing may trap a visitor here
+/* ⚠️ A MINIMUM, NOT A DELAY FOR ITS OWN SAKE. Yash: "even if the loader
+   updates in less than one second, at least it should take two seconds to
+   properly load so that the interaction is smooth, not sudden." On a fast
+   machine the warm-up finishes in a couple of hundred milliseconds, and a
+   loader that flashes past reads as a glitch rather than as an entrance. The
+   site is READY well before this elapses; the time buys composure, not work.
+   This supersedes the earlier "only show it when needed" — he saw both and
+   chose the deliberate entrance. */
+const MIN_VISIBLE_MS = 2000;
 
 export function createPreloader({ onReveal } = {}) {
   const el = document.createElement('div');
@@ -45,17 +57,26 @@ export function createPreloader({ onReveal } = {}) {
   const bar = el.querySelector('.preload__bar i');
   const pct = el.querySelector('.preload__pct');
 
-  let shown = false, done = false, progress = 0;
+  let shown = false, done = false, progress = 0, work = 0;
   const t0 = performance.now();
 
-  /* Only mount the overlay if preparation is actually taking time. A loader
-     that flashes for 200ms is worse than no loader. */
-  const showTimer = setTimeout(() => {
-    if (done) return;
-    shown = true;
-    document.body.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('preload--on'));
-  }, SHOW_AFTER_MS);
+  /* Mounted immediately — it is the entrance now, not a fallback. */
+  document.body.appendChild(el);
+  shown = true;
+  requestAnimationFrame(() => el.classList.add('preload--on'));
+
+  /* The bar fills on the CLOCK as well as on real progress, whichever is
+     further along, and never goes backwards. Without this a fast machine
+     shows 0 then 100 with nothing between, which looks broken; with it the
+     fill is always smooth and still honest — it can never claim to be further
+     ahead than the work actually is at the end. */
+  let raf = 0;
+  const drive = () => {
+    const byClock = (performance.now() - t0) / MIN_VISIBLE_MS;
+    progress = Math.max(progress, Math.min(byClock, work));
+    paint();
+    if (!done) raf = requestAnimationFrame(drive);
+  };
 
   const paint = () => {
     const shownPct = Math.round(progress * 100);
@@ -64,17 +85,21 @@ export function createPreloader({ onReveal } = {}) {
   };
 
   const api = {
-    /** 0..1 — never goes backwards, so the bar cannot stutter. */
+    /** 0..1 — how far the real WORK has got. The bar is driven from this and
+     *  from the clock together, so it fills smoothly either way. */
     set(p) {
-      progress = Math.max(progress, Math.min(1, p));
-      paint();
+      work = Math.max(work, Math.min(1, p));
     },
     /** Reveal the site. Safe to call twice; the second call does nothing. */
     reveal() {
       if (done) return;
+      /* Hold until the minimum has elapsed. The work may well be finished —
+         that is the normal case on a fast machine — but the entrance is not. */
+      const left = MIN_VISIBLE_MS - (performance.now() - t0);
+      if (left > 0) { setTimeout(() => api.reveal(), left); return; }
       done = true;
-      clearTimeout(showTimer);
-      api.set(1);
+      cancelAnimationFrame(raf);
+      work = 1; progress = 1; paint();
       const finish = () => {
         el.remove();
         onReveal?.(Math.round(performance.now() - t0));
@@ -87,6 +112,7 @@ export function createPreloader({ onReveal } = {}) {
     get revealed() { return done; },
   };
 
+  drive();
   /* The hard stop. Nothing may keep a visitor on a loading screen. */
   setTimeout(() => api.reveal(), REVEAL_CAP_MS);
 
