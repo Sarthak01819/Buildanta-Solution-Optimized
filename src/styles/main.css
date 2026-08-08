@@ -1601,12 +1601,32 @@ a { color: inherit; text-decoration: none; }
 
 /* ── themes ── */
 #intro {
-  /* default = 01 · EMBER */
-  --paper: #f2e6d7;
+  /* default = 01 · EMBER
+     ── 8 Aug: warm tokens carry +30% saturation, -4% lightness ──
+     Measured cause. The site renders exactly what it is authored to render
+     (sampled #e8d5c4 against an authored #f2e6d7) and every device receives
+     byte-identical files (md5 matched across the tunnel). So the peach Yash
+     sees on the Mac mini is being ADDED by that screen, and four other
+     devices - MacBook Air, iPhone, Windows laptop and PC - all agree with
+     each other showing the pale cream that is actually in the file.
+
+     A screen cannot show a colour the file does not contain, so the only way
+     to put that peach on the other four is to author it. This is not a
+     redesign: hue is held exactly (33 and 18), only saturation and lightness
+     move, so it is the same colour with the warmth his screen was inventing.
+
+       --paper  #f2e6d7  hsl(33, 51%, 90%)  ->  #f3dec4  hsl(33, 66%, 86%)
+       --brass  #bd6741  hsl(18, 49%, 50%)  ->  #c0572b  hsl(18, 64%, 46%)
+
+     ⚠️ Both tokens feed the orb too - intro.js reads them out of CSS at boot
+     and hands them to the hero, whose gradient top stop IS --paper. Change
+     them here and the WebGL ground follows; there is no second place to edit.
+     ⚠️ ACT 01 ONLY. Acts 02-04 set their own --paper below and are untouched. */
+  --paper: #f3dec4;
   --ink: #241c17;
   --muted: rgba(36, 28, 23, 0.58);
   --rule: rgba(36, 28, 23, 0.16);
-  --brass: #bd6741;
+  --brass: #c0572b;
 }
 /* 02 · TERMINAL — PURE BLACK MATRIX BACKGROUND */
 #intro.t-terminal {
