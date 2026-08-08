@@ -1622,8 +1622,21 @@ a { color: inherit; text-decoration: none; }
      and hands them to the hero, whose gradient top stop IS --paper. Change
      them here and the WebGL ground follows; there is no second place to edit.
      ⚠️ ACT 01 ONLY. Acts 02-04 set their own --paper below and are untouched. */
-  --paper-src: #f2e6d7;   /* hex, for JS — see the note below */
-  --brass-src: #bd6741;
+  /* ── 8 Aug: the ground is a PEACH, not a cream ──
+     Four attempts failed because I kept adjusting saturation. The problem was
+     LIGHTNESS. #f2e6d7 is hsl(33, 51%, 90%) — 90% lightness is nine tenths of
+     the way to white, and nothing that pale can read as a colour on a screen
+     that renders it honestly. Yash's Mac mini drives a gaming monitor that
+     boosts it into a peach; his MacBook Air, iPhone, Windows laptop and PC all
+     show what is actually in the file, which is near-white. Measured off his
+     photo: 4.6% saturation on that screen against 56% here.
+     Adding saturation at 86-90% lightness did nothing visible, twice. Coming
+     down to 78% is what makes it a peach on every screen, boosted or not.
+
+       --paper  hsl(33, 51%, 90%)  ->  hsl(30, 70%, 78%)   #f2e6d7 -> #eec7a0
+       --brass  hsl(18, 49%, 50%)  ->  hsl(18, 62%, 45%)   #bd6741 -> #ba562c  */
+  --paper-src: #eec7a0;   /* hex, for JS — see the note below */
+  --brass-src: #ba562c;
   --paper: var(--paper-src);
   --ink: #241c17;
   --muted: rgba(36, 28, 23, 0.58);
@@ -1663,8 +1676,8 @@ a { color: inherit; text-decoration: none; }
    the Windows panels on the dull value for no reason. `@supports` alone. ── */
 @supports (color: color(display-p3 1 1 1)) {
   #intro {
-    --paper: color(display-p3 0.949 0.902 0.843);   /* = #f2e6d7's own numbers */
-    --brass: color(display-p3 0.741 0.404 0.255);   /* = #bd6741's own numbers */
+    --paper: color(display-p3 0.933 0.780 0.627);   /* = #eec7a0's own numbers */
+    --brass: color(display-p3 0.729 0.337 0.173);   /* = #ba562c's own numbers */
   }
 }
 /* 02 · TERMINAL — PURE BLACK MATRIX BACKGROUND */
