@@ -382,6 +382,27 @@ export function createCorridor(canvas, opts = {}) {
   }
 
   resize();
+
+  /* Vault M9 — three links a shader program on the frame its material first
+     DRAWS, not when it is built. Measured by scrubbing ACT 01: one program
+     still links on this canvas at p=0.02, mid-scroll, which is a hitch landing
+     inside the opening. Same fix already applied to ConsultHand: link it at
+     mount, where nothing is moving.
+     compile() only walks VISIBLE objects and much of this scene is toggled on
+     by progress, so everything is forced visible for the traversal and put back
+     exactly as it was — nothing renders in between, so the temporary state
+     cannot reach the screen. A failure here only restores the old behaviour. */
+  {
+    const wasHidden = [];
+    scene.traverse((o) => { if (o.visible === false) { wasHidden.push(o); o.visible = true; } });
+    try {
+      renderer.compile(scene, camera);
+    } catch (e) {
+      console.info('[corridor] precompile skipped:', e?.message || e);
+    }
+    for (const o of wasHidden) o.visible = false;
+  }
+
   return {
     render, resize, setProgress, setColours, setFrameFade, project, camera, orb,
     peaks, stationZ, reduced, codeBuild,

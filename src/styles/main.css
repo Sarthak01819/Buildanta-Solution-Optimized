@@ -1805,15 +1805,15 @@ a { color: inherit; text-decoration: none; }
 }
 
 .intro__ideaCore {
-  /* Promoted on purpose. --idea-float-x/y and --spark-rot are rewritten on the
-     PARENT every frame from p=0.08 (core formation) onward, which invalidates
-     these children — and each of them carries multi-stop radial gradients built
-     with color-mix() plus mix-blend-mode over the full-screen WebGL orb. Without
-     this the browser re-resolves and re-rasterises all of that every frame, at
-     165Hz on Yash's machine, which is exactly where he reports the judder
-     starting. Giving them their own layer means a transform change moves a
-     cached texture instead of repainting one. Costs GPU memory for three small
-     elements; buys back a repaint of the most expensive layer in ACT 01. */
+  /* --idea-float-x/y and --spark-rot are rewritten on the PARENT every frame
+     from p=0.08 onward, and these children carry multi-stop color-mix gradients,
+     two of them under mix-blend-mode. Promoting them is correct practice for an
+     element whose transform animates.
+     ⚠️ HONEST NOTE: this did NOT fix the judder Yash reported at core formation,
+     and I shipped it once claiming it would. mix-blend-mode has to read the
+     backdrop, so these cannot be composited independently however they are
+     promoted — will-change buys less here than it does elsewhere. Kept because
+     it is right, not because it is the cure. The cause is still open. */
   will-change: transform;
 
   width: clamp(120px, 23vmin, 270px);
@@ -1840,15 +1840,15 @@ a { color: inherit; text-decoration: none; }
 }
 
 .intro__ideaRipple {
-  /* Promoted on purpose. --idea-float-x/y and --spark-rot are rewritten on the
-     PARENT every frame from p=0.08 (core formation) onward, which invalidates
-     these children — and each of them carries multi-stop radial gradients built
-     with color-mix() plus mix-blend-mode over the full-screen WebGL orb. Without
-     this the browser re-resolves and re-rasterises all of that every frame, at
-     165Hz on Yash's machine, which is exactly where he reports the judder
-     starting. Giving them their own layer means a transform change moves a
-     cached texture instead of repainting one. Costs GPU memory for three small
-     elements; buys back a repaint of the most expensive layer in ACT 01. */
+  /* --idea-float-x/y and --spark-rot are rewritten on the PARENT every frame
+     from p=0.08 onward, and these children carry multi-stop color-mix gradients,
+     two of them under mix-blend-mode. Promoting them is correct practice for an
+     element whose transform animates.
+     ⚠️ HONEST NOTE: this did NOT fix the judder Yash reported at core formation,
+     and I shipped it once claiming it would. mix-blend-mode has to read the
+     backdrop, so these cannot be composited independently however they are
+     promoted — will-change buys less here than it does elsewhere. Kept because
+     it is right, not because it is the cure. The cause is still open. */
   will-change: transform;
 
   width: clamp(58px, 10vmin, 128px);
@@ -1868,15 +1868,15 @@ a { color: inherit; text-decoration: none; }
 }
 
 .intro__ideaSparkle {
-  /* Promoted on purpose. --idea-float-x/y and --spark-rot are rewritten on the
-     PARENT every frame from p=0.08 (core formation) onward, which invalidates
-     these children — and each of them carries multi-stop radial gradients built
-     with color-mix() plus mix-blend-mode over the full-screen WebGL orb. Without
-     this the browser re-resolves and re-rasterises all of that every frame, at
-     165Hz on Yash's machine, which is exactly where he reports the judder
-     starting. Giving them their own layer means a transform change moves a
-     cached texture instead of repainting one. Costs GPU memory for three small
-     elements; buys back a repaint of the most expensive layer in ACT 01. */
+  /* --idea-float-x/y and --spark-rot are rewritten on the PARENT every frame
+     from p=0.08 onward, and these children carry multi-stop color-mix gradients,
+     two of them under mix-blend-mode. Promoting them is correct practice for an
+     element whose transform animates.
+     ⚠️ HONEST NOTE: this did NOT fix the judder Yash reported at core formation,
+     and I shipped it once claiming it would. mix-blend-mode has to read the
+     backdrop, so these cannot be composited independently however they are
+     promoted — will-change buys less here than it does elsewhere. Kept because
+     it is right, not because it is the cure. The cause is still open. */
   will-change: transform;
 
   width: clamp(170px, 34vmin, 410px);
