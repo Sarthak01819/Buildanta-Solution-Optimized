@@ -2234,7 +2234,12 @@ em.coral-italic {
 
 /* cursor bhi theme follow kare — theme class <html> par bhi lagti hai,
    kyunki cursor #intro ke bahar hai aur uske vars tak nahi pahunchta */
-html.t-ember #cursor { background: #bd6741; box-shadow: none; mix-blend-mode: normal; }
+/* ACT 01's dot is the "red dot" that finds the core — the one thing the visitor
+   tracks across the orb, and the only element still wearing #bd6741, the ember
+   from before the palette moved to Pink. Kept as a LITERAL, not a var(): as the
+   note above says, the cursor lives outside #intro and cannot reach its tokens,
+   so a var() would silently fall back. Keep in step with #intro's --brass-src. */
+html.t-ember #cursor { background: #ba3f2c; box-shadow: none; mix-blend-mode: normal; }
 html.t-ember #cursor-ring { border-color: rgba(36, 28, 23, 0.34); }
 html.t-terminal #cursor { background: #6dc9ff; box-shadow: none; }
 html.t-terminal #cursor-ring { border-color: rgba(238, 245, 255, 0.3); }

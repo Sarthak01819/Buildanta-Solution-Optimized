@@ -40,7 +40,31 @@ class Pointer {
       this.hasMoved = true;
     };
 
-    window.addEventListener('mousemove', (e) => move(e.clientX, e.clientY), { passive: true });
+    /* Seed on the FIRST mouse event, and again whenever the pointer re-enters
+       the window. Both ends start at (0,0), so without this the first move
+       reports a delta all the way from the top-left corner — one enormous
+       sweep injected into the fluid the instant the visitor touches the mouse.
+       The touch path above already guards this ("seed both ends"); the mouse
+       path never got the same treatment, which is the asymmetry that hid it.
+       The fluid's own clamp softened the symptom, so it never looked like a
+       bug — it looked like the orb lurching once on arrival. */
+    const seed = (x, y) => {
+      this.glScreenSpace.set(x, window.innerHeight - y);
+      this.previous.copy(this.glScreenSpace);
+      this.delta.set(0, 0);
+    };
+    window.addEventListener('mousemove', (e) => {
+      if (!this.hasMoved) seed(e.clientX, e.clientY);
+      move(e.clientX, e.clientY);
+    }, { passive: true });
+    /* Leaving and re-entering the window is the same stale-`previous` problem:
+       the pointer teleports from wherever it left to wherever it came back. */
+    window.addEventListener('mouseout', (e) => {
+      if (!e.relatedTarget && !e.toElement) { this.active = false; this.delta.set(0, 0); }
+    }, { passive: true });
+    window.addEventListener('mouseover', (e) => {
+      if (!e.relatedTarget) seed(e.clientX, e.clientY);
+    }, { passive: true });
     window.addEventListener(
       'touchstart',
       (e) => {
