@@ -102,19 +102,23 @@ export const LANDING = {
     // render (program 12, 43 uniforms)
     particleSize: 0.35,
     /* How much of each dot is SOLID before its edge starts fading, 0..1.
-       Each particle is drawn as smoothstep(1.0, uDotSolid, d), so at 0.25 —
-       the original, and still the value — only the inner quarter is solid and
-       the outer 75% is gradient. That genuinely is "mostly blur", and it is
-       the obvious suspect for Yash's "the dots are not sharp points".
-       ⚠️ BUT RAISING IT CHANGED NOTHING MEASURABLE. At the blown-up state
-       where the dots are largest: 0.62 scored 30.80 and 0.25 scored 30.95 —
-       the ORIGINAL is fractionally crisper. The metric is dominated by the
-       film grain, not by dot edges, and with 65k overlapping sprites the
-       individual sprite shape averages out anyway.
-       Left at the original value: no behaviour change. The knob exists so the
-       call can be made by eye on a real screen, which is the only instrument
-       that has actually worked today. */
-    dotSolid: 0.25,
+       Each particle is drawn as smoothstep(1.0, uDotSolid, d), so the original
+       0.25 left only the inner quarter solid and the outer 75% a gradient —
+       every dot was mostly blur, which is what Yash meant by "the dots are not
+       sharp points". 0.6 gives each one a real body with a thin antialiased
+       rim, so the loose particles read as discs of light rather than smudges.
+
+       ⚠️ CHOSEN BY EYE, ON HIS MONITOR — and that is the honest reason it is
+       0.6. Measured, 0.62 scored 30.80 against the original's 30.95 at the
+       blown-up state, i.e. the metric said the ORIGINAL was fractionally
+       crisper. It was wrong: it is dominated by the film grain, not by dot
+       edges. Do not "correct" this back on the strength of that number.
+
+       Ceiling worth knowing: the grain overlay sits above all of this with its
+       own fixed texture, so past a point the dots cannot look sharper than the
+       grain over them. If a higher value ever stops helping, that is why, and
+       the next lever is the grain rather than this. */
+    dotSolid: 0.6,
     // The unit uParticleSize is expressed in was never measurable — only the
     // RESULT was: the 4× zooms resolve the speckle into discrete 1–3 px
     // sprites. Derivation: at the reference framing (812px tall, fov 50, orb at
