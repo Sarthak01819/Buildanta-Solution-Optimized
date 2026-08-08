@@ -4,6 +4,7 @@ import Lenis from "lenis";
 
 import { BRAND, PRODUCTS, CAPABILITIES, INFRA, PROCESS, STATS } from "./config.js";
 import { createScene } from "./gl/Scene.js";
+import { idleGate } from "./gl/visible.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
@@ -227,8 +228,15 @@ function initGL() {
   addEventListener("resize", () => scene.resize(), { passive: true });
   addEventListener("pointermove", (e) => scene.setPointer(e.clientX, e.clientY), { passive: true });
 
+  /* Finale mode hides the whole blue main site, this canvas with it — but the
+     scene kept rendering anyway: measured 201 draw calls a second, at every
+     scroll position, into a display:none element, for the entire visit. The
+     gate skips the render and drops the 1.3 Mpx buffer while it is hidden, and
+     restores both the moment the blue site is switched back on. */
+  const glGate = idleGate(canvas, () => scene.resize());
+
   // ek hi ticker — Lenis, ScrollTrigger aur WebGL sab isi par
-  gsap.ticker.add((time) => scene.render(time));
+  gsap.ticker.add((time) => { if (glGate.awake()) scene.render(time); });
 
   ScrollTrigger.create({
     start: 0, end: "max",

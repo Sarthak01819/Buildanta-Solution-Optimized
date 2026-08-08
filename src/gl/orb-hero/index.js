@@ -453,6 +453,16 @@ export function createOrbHero(canvas, opts = {}) {
         // Drop the clock so the first frame back does not integrate a huge dt
         // and fling every particle out of the sphere.
         if (!idle) lastElapsed = null;
+        /* Not rendering is only half of it: the drawing buffer stays resident
+           for the other 90% of the site. At DPR 2 that is a 2880x1800 surface
+           held for a canvas nobody can see. Release it here and let applySize
+           rebuild it on the way back — the orb is already not drawing, so
+           there is no frame to get wrong. */
+        if (idle) {
+          canvas.width = 1; canvas.height = 1;
+        } else {
+          applySize(true);
+        }
       }
     },
 

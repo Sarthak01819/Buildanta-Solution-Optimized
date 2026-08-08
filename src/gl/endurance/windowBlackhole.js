@@ -13,6 +13,7 @@
  * project's SPEC.md for the measured constants and the do-not-regress list.
  */
 import { createBlackhole } from "../blackhole/blackhole.js";
+import { idleGate } from "../visible.js";
 
 export function paneBBox(points) {
   const xs = points.map((p) => p[0]);
@@ -73,12 +74,19 @@ export async function mountWindowBlackhole(host, opts = {}) {
     return true;
   }
 
+  /* This hangs in the contact section at the very bottom of the page, but it
+     rendered the whole time: measured 847 draw calls a second while the
+     visitor was still up in ACT 02. The gate skips the render and releases the
+     buffer while the section is off screen; ensureSize rebuilds it on wake,
+     which is what clearing lastW/lastH is for. */
+  const gate = idleGate(canvas, () => { lastW = 0; lastH = 0; });
+
   return {
     canvas,
     get retired() { return retired; },
     /** @returns {number} 0..1 — how much warm light the disk is spilling now */
     draw(tSec, cursorBoost = 0) {
-      if (retired || !ensureSize()) return 0;
+      if (retired || !gate.awake() || !ensureSize()) return 0;
       const t0 = performance.now();
       const breath = 0.5 - 0.5 * Math.cos((2 * Math.PI * tSec) / 110);
       engine.render({

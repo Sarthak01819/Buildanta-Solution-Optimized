@@ -1351,11 +1351,20 @@ export function createConsultHand(canvas) {
     visibility = clamp01(opacity);
   }
 
+  /* The hand belongs to the last act, but its drawing buffer was resident from
+     the first frame of the site — 1.3 Mpx at DPR 1, four times that on a
+     retina laptop, held through every act before it. Rendering already stops
+     below; this releases the surface too, and resize() rebuilds it the frame
+     the hand is wanted. */
+  let bufferReleased = false;
+
   function render(time = 0) {
     if (visibility < 0.002) {
       canvas.style.opacity = "0";
+      if (!bufferReleased) { bufferReleased = true; canvas.width = 1; canvas.height = 1; }
       return;
     }
+    if (bufferReleased) { bufferReleased = false; resize(); }
     pointerX += (pointerTargetX - pointerX) * 0.04;
     pointerY += (pointerTargetY - pointerY) * 0.04;
 
