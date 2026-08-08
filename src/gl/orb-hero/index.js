@@ -171,6 +171,32 @@ export function createOrbHero(canvas, opts = {}) {
   }
 
   const gl = renderer.getContext();
+
+  /* ── WIDE GAMUT ──
+     The orb's gradient IS the page's ground — its top stop is the site's own
+     --paper. CSS now paints that ground in Display P3 on a wide-gamut screen,
+     so this canvas has to arrive in the same gamut or one surface splits into
+     two visibly different halves.
+     Done at the CONTEXT, not through renderer.outputColorSpace, on purpose:
+     this scene composites through an EffectComposer, and three's P3 output
+     path is known to break with one (mrdoob/three.js#33030). Setting the
+     drawing buffer's colour space instead leaves every pass untouched and
+     simply tells the compositor to read the finished buffer as P3 — the same
+     "same numbers, wider space" move the CSS makes, so the two stay matched
+     by construction rather than by tuning.
+     Silently ignored where unsupported, which is exactly the sRGB fallback.
+
+     Not gated on a color-gamut media query, for the same reason the CSS is
+     not: the two halves must apply the SAME rule or they part company on
+     whichever screen the query answers differently. Support is the only test. */
+  try {
+    if ('drawingBufferColorSpace' in gl) {
+      gl.drawingBufferColorSpace = 'display-p3';
+    }
+  } catch (e) {
+    console.info('[orb-hero] wide-gamut output unavailable:', e?.message || e);
+  }
+
   const isWebGL2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
   if (!isWebGL2 || !gl.getExtension('EXT_color_buffer_float')) {
     // The whole particle system is a float ping-pong; without renderable float

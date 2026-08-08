@@ -1622,35 +1622,80 @@ a { color: inherit; text-decoration: none; }
      and hands them to the hero, whose gradient top stop IS --paper. Change
      them here and the WebGL ground follows; there is no second place to edit.
      ⚠️ ACT 01 ONLY. Acts 02-04 set their own --paper below and are untouched. */
-  --paper: #f3dec4;
+  --paper-src: #f2e6d7;   /* hex, for JS — see the note below */
+  --brass-src: #bd6741;
+  --paper: var(--paper-src);
   --ink: #241c17;
   --muted: rgba(36, 28, 23, 0.58);
   --rule: rgba(36, 28, 23, 0.16);
-  --brass: #c0572b;
+  --brass: var(--brass-src);
+}
+
+/* ── WIDE GAMUT · the actual fix (8 Aug) ──────────────────────────────────
+   THE BUG, finally identified: a hex colour is by definition sRGB, so on a
+   wide-gamut screen the browser is handed sRGB values and renders inside the
+   smaller gamut — WebKit's own words for the result are "washed out". A macOS
+   screenshot of that same screen is tagged Display P3 and is drawn using the
+   FULL gamut, which is why Yash's screenshot looked right while the live site
+   beside it looked dull. Same monitor, same pixels, two different gamuts.
+
+   So this was never a design problem and never a delivery problem — measured:
+   byte-identical files everywhere, and the page rendering exactly what it was
+   authored to render. The site was simply asking for less colour than the
+   screen can produce.
+
+   Same components, wider space. color(display-p3 .949 .902 .843) is #f2e6d7's
+   own numbers read in P3 — the identical hue, allowed the saturation the panel
+   actually has. sRGB screens never see this block and keep the hex above.
+
+   ⚠️ WHY THE -src TOKENS EXIST: intro.js reads these out of CSS at boot and
+   hands them to three.js, whose Color parser does NOT understand color(). Feed
+   it a P3 string and the orb turns black. JS reads *-src (always hex); CSS
+   paints with the P3 value. The orb reaches the same place by a different
+   route — its canvas is told to interpret its buffer as P3 (see orb-hero),
+   so the WebGL ground and the CSS ground stay one surface, as they must.
+
+   DELIBERATELY NOT gated on `@media (color-gamut: p3)`. That gate looks
+   right and is wrong twice over: headless Chromium reports srgb no matter
+   what, so it can never be verified, and more importantly an sRGB screen
+   WANTS this value too — the browser maps the P3 colour to its nearest sRGB
+   match, which is still richer than the flat hex. Gating it would have left
+   the Windows panels on the dull value for no reason. `@supports` alone. ── */
+@supports (color: color(display-p3 1 1 1)) {
+  #intro {
+    --paper: color(display-p3 0.949 0.902 0.843);   /* = #f2e6d7's own numbers */
+    --brass: color(display-p3 0.741 0.404 0.255);   /* = #bd6741's own numbers */
+  }
 }
 /* 02 · TERMINAL — PURE BLACK MATRIX BACKGROUND */
 #intro.t-terminal {
-  --paper: #000000;
+  --paper-src: #000000;
+  --paper: var(--paper-src);
   --ink: #eef5ff;
   --muted: rgba(238, 245, 255, 0.62);
   --rule: rgba(238, 245, 255, 0.18);
-  --brass: #22c55e;
+  --brass-src: #22c55e;
+  --brass: var(--brass-src);
 }
 /* 03 · INDIGO */
 #intro.t-indigo {
-  --paper: #3b172d;
+  --paper-src: #3b172d;
+  --paper: var(--paper-src);
   --ink: #fff3eb;
   --muted: rgba(255, 243, 235, 0.64);
   --rule: rgba(255, 243, 235, 0.18);
-  --brass: #ffab79;
+  --brass-src: #ffab79;
+  --brass: var(--brass-src);
 }
 /* 04 · FOREST */
 #intro.t-forest {
-  --paper: #173126;
+  --paper-src: #173126;
+  --paper: var(--paper-src);
   --ink: #f2f2e9;
   --muted: rgba(242, 242, 233, 0.62);
   --rule: rgba(242, 242, 233, 0.17);
-  --brass: #d8b46c;
+  --brass-src: #d8b46c;
+  --brass: var(--brass-src);
 }
 
 #intro {

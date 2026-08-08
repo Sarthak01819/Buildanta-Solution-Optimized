@@ -192,9 +192,14 @@ export function createIntro({ onProgress } = {}) {
   for (const t of THEMES) {
     root.classList.add(t);
     const cs = getComputedStyle(root);
+    /* Read the *-src tokens, never --paper/--brass themselves. On a wide-gamut
+       screen those now resolve to `color(display-p3 …)`, and three.js's Color
+       parser does not understand color() — it would silently give us black.
+       The -src pair is always plain hex, defined per act beside the paint
+       value it mirrors. Falls back for safety if a theme ever omits it. */
     palette[t] = {
-      paper: cs.getPropertyValue("--paper").trim(),
-      accent: cs.getPropertyValue("--brass").trim(),
+      paper: (cs.getPropertyValue("--paper-src") || cs.getPropertyValue("--paper")).trim(),
+      accent: (cs.getPropertyValue("--brass-src") || cs.getPropertyValue("--brass")).trim(),
     };
     root.classList.remove(t);
   }
