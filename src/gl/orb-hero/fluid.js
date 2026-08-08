@@ -31,8 +31,26 @@ export class FluidSim {
     this.size = size;
 
     const gl = renderer.getContext();
-    const linearFloat =
-      !!gl.getExtension('EXT_color_buffer_float') && !!gl.getExtension('OES_texture_float_linear');
+    /* WRONG EXTENSION, right idea. These targets are HalfFloatType (RGBA16F),
+       but the check asked for OES_texture_float_linear — which governs 32-BIT
+       float textures. In WebGL2, half-float is linearly filterable as CORE
+       functionality and needs no extension at all; that one is frequently
+       absent on Windows/ANGLE, so the check failed there and the velocity
+       field silently fell back to NearestFilter. Sampling a velocity field
+       without interpolation makes advection blocky and jumpy, worst exactly
+       where the field is most active — under the cursor, at the core. Which is
+       the glitch Yash saw on Windows PCs and never on the Mac.
+
+       On any machine where it currently works the extension IS present, so
+       linearFloat was already true and this changes nothing — the fix can only
+       affect the machines that were broken.
+       EXT_color_buffer_float is still required, but for RENDERING to the
+       target, which is a different question from filtering it. */
+    const isWebGL2 =
+      typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+    const linearFloat = isWebGL2
+      ? !!gl.getExtension('EXT_color_buffer_float')
+      : !!gl.getExtension('OES_texture_half_float_linear');
 
     const opts = {
       type: THREE.HalfFloatType,
