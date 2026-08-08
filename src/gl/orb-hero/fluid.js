@@ -115,10 +115,6 @@ export class FluidSim {
     return this.velocity.read.texture;
   }
 
-  /** Live force magnitude — read by the ?diag=2 overlay so a glitch can be
-   *  attributed to the sim rather than guessed at. */
-  forceMag() { return this._force.length(); }
-
   update(dt) {
     if (!this.enabled) return;
     const p = this.params;
