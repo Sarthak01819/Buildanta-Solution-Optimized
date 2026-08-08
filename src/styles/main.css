@@ -5207,3 +5207,38 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .preload, .preload--gone, .preload__bar i { transition: none; }
 }
+
+/* ══ PHONE: TAP TARGETS ═══════════════════════════════════════════════════
+   Audited at 390x844. Every control below measured under the 44px minimum a
+   finger actually needs — the room's close button was 16x27, which on a phone
+   means the drawer cannot reliably be closed at all.
+   Done with padding and a min-size, NOT by growing the visible art: the
+   pseudo-element expands the HIT AREA around each control while the thing you
+   see stays exactly the size it was designed to be. Desktop is untouched —
+   this whole block is behind a coarse-pointer query, so a mouse never sees it. */
+@media (hover: none) and (pointer: coarse) {
+  .room__close,
+  .intro__skip,
+  .intro__sound,
+  .contact__mail,
+  .room__pill {
+    position: relative;
+  }
+  /* the invisible finger-sized target, centred on the real control */
+  .room__close::after,
+  .intro__skip::after,
+  .intro__sound::after,
+  .contact__mail::after,
+  .room__pill::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    /* nothing visible, and it must not eat clicks meant for anything above it */
+    background: transparent;
+  }
+  /* the close button is the worst of them at 16x27 — it gets real room too */
+  .room__close { min-width: 44px; min-height: 44px; }
+}
