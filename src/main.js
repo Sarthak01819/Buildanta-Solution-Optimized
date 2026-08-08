@@ -6,6 +6,7 @@ import { BRAND, PRODUCTS, CAPABILITIES, INFRA, PROCESS, STATS } from "./config.j
 import { createScene } from "./gl/Scene.js";
 import { idleGate } from "./gl/visible.js";
 import { mountDiag } from "./modules/diag.js";
+import { mountRecorder } from "./modules/recorder.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
@@ -34,6 +35,9 @@ if (FINALE) document.documentElement.classList.add("bh-final");
 
 /* ?diag=1 — the machine reports its own colour state. See modules/diag.js. */
 addEventListener("DOMContentLoaded", () => { try { mountDiag(); } catch (e) { console.warn("[diag]", e); } });
+/* TEMPORARY — records the worst frames to localStorage so the judder can be
+   measured without Yash reporting anything. See modules/recorder.js. */
+addEventListener("DOMContentLoaded", () => { try { mountRecorder(); } catch (e) { console.warn("[rec]", e); } });
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = (s, r = document) => r.querySelector(s);
