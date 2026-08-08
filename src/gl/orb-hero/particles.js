@@ -247,6 +247,27 @@ export class ParticleSystem {
     this.frame = 0;
   }
 
+  /**
+   * Re-colour the dust live.
+   *
+   * Without this the orb keeps its warm amber particles while the ground goes
+   * pink, and the two read as separate colour schemes rather than one object
+   * lit by one light. Every colour here is already a uniform, so this costs
+   * nothing per frame and rebuilds nothing. Only the keys passed are touched.
+   */
+  setColors(c = {}) {
+    const u = this.renderMaterial.uniforms;
+    const set = (name, v) => { if (v && u[name]) u[name].value = linear(v); };
+    set('uBaseColor', c.baseColor);
+    set('uBaseColor2', c.baseColor2);
+    set('uEdgeColor1', c.edgeColor1);
+    set('uEdgeColor2', c.edgeColor2);
+    set('uBloomColor1', c.bloomColor1);
+    set('uBloomColor2', c.bloomColor2);
+    set('uCoreColor', c.coreColor);
+    set('uBloomColor', c.bloomColor);
+  }
+
   dispose() {
     this.position.dispose();
     this.velocity.dispose();

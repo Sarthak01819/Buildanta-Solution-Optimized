@@ -474,8 +474,17 @@ export function createOrbHero(canvas, opts = {}) {
      *  surface with two owners — so callers must move them together or the
      *  hero's upper edge stops matching the page behind it. `ember` is the
      *  bottom of frame, which is what carries the warmth under the orb. */
-    setGround({ paper, ember } = {}) {
-      gradient.setColors({ color1: ember, color3: paper, color4: paper });
+    setGround({ paper, ember, warm, cool, amber } = {}) {
+      gradient.setColors({ color1: ember, color2: amber, color3: paper, color4: paper });
+      /* The dust follows the ground. Leaving it amber over a pink field reads
+         as two colour schemes rather than one object under one light — so the
+         orb's own palette moves with the page's. */
+      particles.setColors({
+        baseColor: ember, baseColor2: warm,
+        edgeColor1: warm, edgeColor2: amber,
+        bloomColor1: cool, bloomColor2: amber,
+      });
+      flares.setColors({ bloomColor: cool });
     },
 
     setOpacity(a) {

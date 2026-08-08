@@ -33,12 +33,41 @@
  * this file, its import in intro.js, and the .peach-pick CSS block.
  */
 
-/* hue is the variable; everything else is held */
+/* Hue is the variable; everything else is derived from it.
+   Lightness 84% at saturation 88% — Yash chose "brighter, toward 84%". That
+   is deliberately back toward the near-white that was the original problem,
+   so saturation goes UP as lightness does: at 84% there is much less room for
+   colour, and without the extra saturation this would slide straight back
+   into the cream that started all of this. */
+const hsl = (h, s, l) => {
+  s /= 100; l /= 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : [0, c, x];
+  return [r + m, g + m, b + m];
+};
+const hex = (rgb) => '#' + rgb.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255)
+  .toString(16).padStart(2, '0')).join('');
+
+/** One hue → the whole family the orb and the ground share. */
+function family(h) {
+  const paper = hsl(h, 88, 84);          // ground + gradient top
+  return {
+    paper: hex(paper),
+    p3: paper.map((v) => +v.toFixed(3)), // same numbers, wider space
+    brass: hex(hsl(Math.max(0, h - 4), 62, 45)),   // ember, just below the ground
+    warm:  hex(hsl(h + 2, 100, 68)),
+    cool:  hex(hsl(h + 6, 70, 89)),
+    amber: hex(hsl(h + 8, 100, 58)),
+  };
+}
+
 export const PEACHES = [
-  { key: '1', name: 'Rose',   hue: 8,  paper: '#f5aea3', brass: '#ba3a2c', p3: [0.961, 0.682, 0.639] },
-  { key: '2', name: 'Pink',   hue: 12, paper: '#f4b8a9', brass: '#ba432c', p3: [0.957, 0.722, 0.663] },
-  { key: '3', name: 'Peach',  hue: 18, paper: '#f2bda6', brass: '#ba4f2c', p3: [0.949, 0.741, 0.651] },
-  { key: '4', name: 'Warm',   hue: 30, paper: '#eec7a0', brass: '#ba562c', p3: [0.933, 0.780, 0.627] },
+  { key: '1', name: 'Rose',  ...family(6) },
+  { key: '2', name: 'Pink',  ...family(12) },
+  { key: '3', name: 'Peach', ...family(19) },
+  { key: '4', name: 'Warm',  ...family(30) },
 ];
 
 const STORE = 'buildanta-peach';
@@ -79,7 +108,10 @@ export function mountPeachPicker(introRoot, { orbHero } = {}) {
     ui.querySelectorAll('button').forEach((b) => b.classList.toggle('on', +b.dataset.v === i));
     /* the orb's gradient top stop IS the page ground — one surface, two owners,
        so it has to be told on the same frame or a seam appears across the fold */
-    orbHero?.setGround?.({ paper: PEACHES[i].paper, ember: PEACHES[i].brass });
+    const v = PEACHES[i];
+    orbHero?.setGround?.({
+      paper: v.paper, ember: v.brass, warm: v.warm, cool: v.cool, amber: v.amber,
+    });
     if (remember) { try { localStorage.setItem(STORE, String(i)); } catch { /* private mode */ } }
   }
 
