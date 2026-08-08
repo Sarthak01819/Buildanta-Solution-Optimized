@@ -182,7 +182,15 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
     const live = isLive ? isLive() : blackholeHost.classList.contains("solid");
     if (live === beatLive) return;
     beatLive = live;
-    if (live) ship?.load();
+    /* Both of these are guarded and idempotent, and both were previously left
+       until the Contact CLICK — where they landed on the same frame as the
+       flight animation and made it lag. The ship is a 4.1MB DRACO-compressed
+       model (fetch, decode, GPU upload) and the sky is an entire WebGL scene
+       with its own shader compile. Starting them the moment the room goes
+       live gives them the whole approach to finish in, so the click only has
+       to animate. Same principle as the entrance: never do setup work on the
+       frame the visitor is expecting motion. */
+    if (live) { ship?.load(); ensureSky(); }
     // rewinding back out of the finale must also put us outside the room
     if (!live && flight > 0) { tweening = false; applyFlight(0); }
     if (!live) cta.classList.remove("finale-cta--in");

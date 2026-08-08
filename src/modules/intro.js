@@ -1100,7 +1100,20 @@ export function createIntro({ onProgress } = {}) {
      Its own segment, four times the room, three beats inside it: the camera
      comes forward with the reel still running, it STOPS, then you go in. */
   const HANDOVER_P1 = 0.768;
-  const handoverStretch = reduced ? 0 : 3.2;
+  /* SHORTENED 3.2 -> 1.4 (Yash, 20:35: "the transition between We market and
+     WE SCALE is too long"). Priced out, the handover was costing
+       0.084 span * 4.4 base = 0.37vh, plus 3.2 stretch = 3.57vh
+     — nearly the whole ten-plate market act (4.14vh) for one transition.
+     At 1.4 it costs 1.77vh, half of what it was and still FIFTY TIMES the
+     0.035vh it had before it got its own segment, which is what made it read
+     as a jump. Travel preserved, patience returned.
+
+     ⚠️ THE BEAT BOUNDARIES ARE UNTOUCHED — 0.684 approach, 0.726 enter/
+     blackout, 0.768 sphere all stay exactly where they are, so nothing about
+     the choreography changes. This is the SAFE lever: `stretch` is extra
+     viewport-heights on the segment, not a p value. Moving those p values is
+     what silently ate WE SCALE twice in one evening. */
+  const handoverStretch = reduced ? 0 : 1.4;
   /* Black-hole beat ka apna scroll span, burn ke poora hone ke BAAD —
      intro ka saara purana ganit introScrollLength par hi chalta hai,
      isliye acts/consult ki pacing ko ye chhoota tak nahi. */

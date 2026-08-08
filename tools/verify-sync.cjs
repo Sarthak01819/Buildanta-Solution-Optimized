@@ -10,7 +10,9 @@ const P0 = 0.560, P1 = 0.672;   // the reel's own span, where all three should b
   const b = await chromium.launch({ headless: true, args: ['--use-angle=metal'] });
   const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto('http://127.0.0.1:5290/', { waitUntil: 'load' });
+  /* SITE_URL so this can be pointed at whichever dev port is free — 5290 is
+     often another session's. Same convention as verify-journey. */
+  await p.goto(process.env.SITE_URL || 'http://127.0.0.1:5290/', { waitUntil: 'load' });
   await p.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 30000 });
   await p.evaluate(() => new Promise(r => setTimeout(r, 1600)));
   const read = async (q) => {
