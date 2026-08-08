@@ -469,6 +469,15 @@ export function createOrbHero(canvas, opts = {}) {
      * be paying full price for an invisible canvas, on a page that already runs
      * four other WebGL contexts.
      */
+    /** Re-grade the ground live so the colour can be chosen on a real screen.
+     *  `paper` is both the CSS --paper and this gradient's top two stops — one
+     *  surface with two owners — so callers must move them together or the
+     *  hero's upper edge stops matching the page behind it. `ember` is the
+     *  bottom of frame, which is what carries the warmth under the orb. */
+    setGround({ paper, ember } = {}) {
+      gradient.setColors({ color1: ember, color3: paper, color4: paper });
+    },
+
     setOpacity(a) {
       opacity = Math.max(0, Math.min(1, a));
       canvas.style.opacity = opacity.toFixed(3);

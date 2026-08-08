@@ -5159,3 +5159,51 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
   opacity: var(--iris-on, 0);
   pointer-events: none;
 }
+
+/* ══ PEACH PICKER — temporary, `?pick=1` ══════════════════════════════════
+   Yash chooses the hue on his own screen because no image survives the trip:
+   screenshots read oversaturated (P3-tagged), and a camera photo of his
+   MacBook Air reads about a fifth of the real saturation (measured twice).
+   Top-centre on purpose — the bottom corners already hold SKIP INTRO, SOUND,
+   SCROLL and the 01/04 counter, and the last control we put down there landed
+   on top of the counter. DELETE with src/modules/peachPicker.js once chosen. */
+.peach-pick {
+  position: fixed; z-index: 900;
+  top: max(14px, env(safe-area-inset-top)); left: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 4px;
+  max-width: calc(100vw - 24px); flex-wrap: wrap; justify-content: center;
+  padding: 6px 8px; border-radius: 999px;
+  /* neutral dark shell: the control must not appear to change colour while
+     the thing it is grading does */
+  background: rgba(20, 15, 13, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  font-family: var(--mono);
+  box-shadow: 0 6px 26px rgba(0, 0, 0, 0.28);
+}
+.peach-pick__t {
+  font-size: 9px; letter-spacing: 0.16em; color: rgba(255, 255, 255, 0.5);
+  padding: 0 7px 0 6px; white-space: nowrap;
+}
+.peach-pick button {
+  display: inline-flex; align-items: center; gap: 7px;
+  /* 44px min target — this gets used on a phone, not just the Mac */
+  min-height: 38px; padding: 7px 13px 7px 9px;
+  border: 1px solid transparent; border-radius: 999px;
+  background: transparent; color: rgba(255, 255, 255, 0.72);
+  font: inherit; font-size: 12px; letter-spacing: 0.04em; cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+}
+.peach-pick button i {
+  width: 15px; height: 15px; border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.peach-pick button:hover { color: #fff; background: rgba(255, 255, 255, 0.09); }
+.peach-pick button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.peach-pick button.on {
+  color: #fff; background: rgba(255, 255, 255, 0.17);
+  border-color: rgba(255, 255, 255, 0.34);
+}
+@media (prefers-reduced-motion: reduce) { .peach-pick button { transition: none; } }

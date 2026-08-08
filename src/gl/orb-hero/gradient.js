@@ -44,6 +44,17 @@ export class GradientLayer {
     this.material.uniforms.uTime.value = time;
   }
 
+  /** Re-colour the ground live — the gradient's top stop IS the page's own
+   *  --paper, so this has to move whenever that token does. Only the keys
+   *  passed are touched. */
+  setColors({ color1, color2, color3, color4 } = {}) {
+    const u = this.material.uniforms;
+    if (color1) u.uColor1.value = linear(color1);
+    if (color2) u.uColor2.value = linear(color2);
+    if (color3) u.uColor3.value = linear(color3);
+    if (color4) u.uColor4.value = linear(color4);
+  }
+
   setSize(width, height) {
     this.material.uniforms.uResolution.value.set(width, height);
   }

@@ -7,6 +7,7 @@ import { createCorridor } from "../gl/Corridor.js";
 import { mountOrbHero } from "../gl/orb-hero/index.js";
 import { createConsultHand } from "../gl/ConsultHand.js";
 import { mountBlackholeBeat } from "../gl/blackhole/index.js";
+import { mountPeachPicker } from "./peachPicker.js";
 import { buildObjects, projectObjects } from "./introObjects.js";
 import { SERVICES } from "./services.js";
 import { createProjector } from "../gl/projector/index.js";
@@ -252,6 +253,10 @@ export function createIntro({ onProgress } = {}) {
   /* Live scene chal rahi hai to Act 01 ka pre-rendered bubble plane chhupa do —
      warna do sphere ek saath dikhte hain. */
   if (orbHero.ok && corridor.station?.[0]?.mesh) corridor.station[0].mesh.visible = false;
+
+  /* TEMPORARY — four peach hues, switchable live, so the colour is chosen on
+     a real screen instead of guessed from an image. See modules/peachPicker.js. */
+  mountPeachPicker(root, { orbHero });
 
   /* ── acts ka DOM ──
      Sirf text. Image ab DOM mein nahi hai — wo corridor mein ek 3D plane
