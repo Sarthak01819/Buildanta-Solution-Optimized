@@ -5,6 +5,7 @@ import Lenis from "lenis";
 import { BRAND, PRODUCTS, CAPABILITIES, INFRA, PROCESS, STATS } from "./config.js";
 import { createScene } from "./gl/Scene.js";
 import { idleGate } from "./gl/visible.js";
+import { mountDiag } from "./modules/diag.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
@@ -30,6 +31,9 @@ const FINALE = (() => {
   return q === null ? FINALE_DEFAULT : q !== "0";
 })();
 if (FINALE) document.documentElement.classList.add("bh-final");
+
+/* ?diag=1 — the machine reports its own colour state. See modules/diag.js. */
+addEventListener("DOMContentLoaded", () => { try { mountDiag(); } catch (e) { console.warn("[diag]", e); } });
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = (s, r = document) => r.querySelector(s);
