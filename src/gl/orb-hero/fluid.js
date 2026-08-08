@@ -150,27 +150,11 @@ export class FluidSim {
       const len = this._raw.length();
       if (len > p.forceClamp) this._raw.multiplyScalar(p.forceClamp / len);
 
-      /* ── FRAME-RATE INDEPENDENCE ──
-         These smoothings were fixed per-FRAME constants, tuned at 60fps. On a
-         165Hz display — Yash's, measured — they ran 2.75x faster in real time
-         and the splat below injected force 2.75x more often per second, so the
-         field was massively over-driven and read as the orb glitching under
-         the cursor. Nobody on a 60Hz screen ever saw it.
-
-         `k` is "how many 60fps frames did this frame last". At exactly 60fps
-         k === 1 and every expression below collapses to the original constant,
-         so the tuned feel is preserved BIT-FOR-BIT on 60Hz hardware; only
-         faster displays change, and they change toward the intended behaviour.
-         Uses clampedDt (already capped at 1/30) so a tab-switch stall cannot
-         turn into one giant impulse. */
-      const k = Math.min(1, clampedDt * 60);
-      const ease = (a) => 1 - Math.pow(1 - a, k);
-
       const rising = this._raw.lengthSq() > this._force.lengthSq();
-      this._force.lerp(this._raw, ease(rising ? 0.5 : 0.055));
+      this._force.lerp(this._raw, rising ? 0.5 : 0.055);
 
       this._prevPos.copy(this._pos);
-      this._pos.lerp(pointer.glNormalized, ease(0.4));
+      this._pos.lerp(pointer.glNormalized, 0.4);
 
       if (this._force.lengthSq() > 1e-8) {
         const travel = this._pos.distanceTo(this._prevPos);
@@ -185,11 +169,7 @@ export class FluidSim {
             this._prevPos.x + (this._pos.x - this._prevPos.x) * t,
             this._prevPos.y + (this._pos.y - this._prevPos.y) * t
           );
-          /* `k` again: the loop already divides one frame's force across the
-             distance travelled, but it runs ONCE PER FRAME — so without this,
-             total energy per SECOND scales with refresh rate. At 60fps k === 1
-             and this is the original expression exactly. */
-          u.uForce.value.copy(this._force).multiplyScalar(k / steps);
+          u.uForce.value.copy(this._force).multiplyScalar(1 / steps);
           this.fs.render(this.mSplat, this.velocity.write);
           this.velocity.swap();
         }
