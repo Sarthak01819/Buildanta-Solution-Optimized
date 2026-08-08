@@ -29,8 +29,68 @@ const row = (k, v, big = false) =>
      <span style="color:#fff;font-size:${big ? 25 : 16}px;font-weight:${big ? 700 : 400};word-break:break-all">${v}</span>
    </div>`;
 
+/**
+ * `?diag=2` — the WATCHDOG. Small corner readout that does not cover the site,
+ * so the orb can be hovered while it records.
+ *
+ * Why a watchdog rather than a live readout: a glitch is over before you can
+ * look away from it. This samples every frame and keeps the WORST value seen,
+ * so Yash can hover until it misbehaves, then read what spiked at leisure.
+ *
+ * Four candidates, one number each — whichever climbs is the cause:
+ *   frame hitch   a long frame  → the browser stalled
+ *   resizes       canvas size changing after load → the adaptive quality
+ *                 system hunting, which pops the resolution visibly
+ *   fluid force   the pointer sim over-driven → the field is being kicked
+ *                 harder than it was tuned for
+ *   core          the core's own intensity moving when it should be constant
+ */
+function mountWatchdog() {
+  const el = document.createElement('div');
+  el.style.cssText =
+    'position:fixed;left:10px;bottom:10px;z-index:99999;background:rgba(12,8,7,.9);' +
+    'color:#fff;font:500 11px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace;' +
+    'padding:9px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.18);' +
+    'pointer-events:none;white-space:pre;min-width:200px';
+  document.body.appendChild(el);
+
+  let last = performance.now(), n = 0;
+  let worstFrame = 0, resizes = 0, maxForce = 0, ciMin = Infinity, ciMax = -Infinity;
+  let lastSize = '';
+
+  const tick = () => {
+    const now = performance.now();
+    const dt = now - last; last = now;
+    n++;
+    if (n > 8 && dt > worstFrame) worstFrame = dt;   // skip boot frames
+
+    const s = window.__orb?.__stats?.();
+    if (s) {
+      const size = s.w + 'x' + s.h;
+      if (lastSize && size !== lastSize) resizes++;   // a resize pops visibly
+      lastSize = size;
+      if (s.force > maxForce) maxForce = s.force;
+      if (s.ci < ciMin) ciMin = s.ci;
+      if (s.ci > ciMax) ciMax = s.ci;
+      el.textContent =
+        'worst frame  ' + Math.round(worstFrame) + ' ms' + (worstFrame > 60 ? '  <-- STALL' : '') +
+        '\ncanvas       ' + size + ' @' + s.dpr +
+        '\nresizes      ' + resizes + (resizes ? '  <-- POPPING' : '') +
+        '\nfluid force  ' + s.force.toFixed(3) + '   max ' + maxForce.toFixed(3) +
+        '\ncore         ' + s.ci.toFixed(2) +
+        (ciMax - ciMin > 0.01 ? '   swings ' + ciMin.toFixed(2) + '-' + ciMax.toFixed(2) : '  steady');
+    } else {
+      el.textContent = 'waiting for the orb…\n(scroll to the very top)';
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 export function mountDiag() {
-  if (new URLSearchParams(location.search).get('diag') !== '1') return;
+  const mode = new URLSearchParams(location.search).get('diag');
+  if (mode === '2') { mountWatchdog(); return; }
+  if (mode !== '1') return;
 
   const read = () => {
     const intro = document.querySelector('#intro');

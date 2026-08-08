@@ -160,6 +160,10 @@ export function createOrbHero(canvas, opts = {}) {
   // it every drawImage/readPixels grab returns a black frame and reports a bug
   // that isn't there.
   const probe = typeof location !== 'undefined' && new URLSearchParams(location.search).has('probe');
+  /* ?diag=2 hands the overlay a handle on this scene so a visible glitch can be
+     attributed to a number instead of guessed at. Never present otherwise. */
+  const diagnosing = typeof location !== 'undefined'
+    && new URLSearchParams(location.search).get('diag') === '2';
 
   let renderer;
   try {
@@ -380,11 +384,21 @@ export function createOrbHero(canvas, opts = {}) {
   applySize(true);
   quality.start();
 
-  return {
+  const api = {
     ok: true,
     variant,
     worldX: () => orb.position.x - camera.position.x,
     __ci: () => +particles.renderMaterial.uniforms.uCoreIntensity.value.toFixed(2),
+
+    /** Everything the ?diag=2 overlay needs to attribute a visible glitch to a
+     *  specific cause: a frame hitch, a canvas resize, an over-driven fluid,
+     *  or the core's own intensity jumping. Read-only, allocation-free. */
+    __stats: () => ({
+      ci: +particles.renderMaterial.uniforms.uCoreIntensity.value.toFixed(2),
+      force: +fluid.forceMag().toFixed(4),
+      w: canvas.width, h: canvas.height,
+      dpr: +renderer.getPixelRatio().toFixed(2),
+    }),
 
     /**
      * Where the core lands on screen, in vw / vh.
@@ -599,6 +613,13 @@ export function createOrbHero(canvas, opts = {}) {
       renderer.dispose();
     },
   };
+
+  /* Only under ?diag=2. A real visitor never gets a global handle on the
+     scene; this exists so a glitch reported on hardware I cannot reach can be
+     attributed to a measured number rather than to my third guess. */
+  if (diagnosing) window.__orb = api;
+
+  return api;
 }
 
 /**
