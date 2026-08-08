@@ -443,6 +443,24 @@ export function createOrbHero(canvas, opts = {}) {
      * be paying full price for an invisible canvas, on a page that already runs
      * four other WebGL contexts.
      */
+    /**
+     * Re-grade the ground live, so the depth of the opening can be judged on a
+     * real screen instead of from a screenshot.
+     *
+     * `paper` is both the CSS --paper and this gradient's top two stops — one
+     * surface, two owners — so a caller MUST change them together or the
+     * hero's top edge stops matching the page behind it. `ember` is the bottom
+     * of frame, which is what actually carries the depth.
+     */
+    setGround({ paper, ember, amber } = {}) {
+      gradient.setColors({
+        color1: ember,
+        color2: amber,
+        color3: paper,
+        color4: paper,
+      });
+    },
+
     setOpacity(a) {
       opacity = Math.max(0, Math.min(1, a));
       canvas.style.opacity = opacity.toFixed(3);
