@@ -1824,6 +1824,30 @@ export function createConsultHand(canvas) {
   }
 
   resize();
+
+  /* Vault M9 — three links a shader program on the frame its material first
+     DRAWS, not when it is created. Measured across the journey: 10 programs
+     link on this canvas at the handover into WE SCALE and 9 more just after,
+     which is the 287ms frame at the exact moment the visitor is being carried
+     into the last act. Linking them here costs page-load time, where 34
+     programs already link and nothing is moving yet.
+     compile() only walks VISIBLE objects and half of this scene is toggled on
+     by progress, so everything is forced visible for the traversal and put
+     back exactly as it was — nothing renders in between, so the temporary
+     state can never reach the screen. */
+  {
+    const wasHidden = [];
+    scene.traverse((o) => { if (o.visible === false) { wasHidden.push(o); o.visible = true; } });
+    try {
+      renderer.compile(scene, camera);
+    } catch (e) {
+      /* a precompile failure must never cost us the scene — it only means the
+         old first-draw cost comes back */
+      console.info("[consult-hand] precompile skipped:", e?.message || e);
+    }
+    for (const o of wasHidden) o.visible = false;
+  }
+
   return {
     setProgress,
     render,
