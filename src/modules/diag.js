@@ -57,7 +57,7 @@ export function mountDiag() {
       } catch (e) { return 'FAILED: ' + (e?.message || e); }
     };
     const resolved = swatch(asked);
-    const plain = swatch('#fac1b2');
+    const plain = swatch('#f2e6d7');
 
     /* is the live orb running, or did it fall back to the still image? */
     const orbCanvas = document.querySelector('.intro__orbHero');
@@ -81,30 +81,11 @@ export function mountDiag() {
     'padding:26px 22px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;';
   document.body.appendChild(panel);
 
-  /* Real frame rate, on the real machine. This is the one number no harness
-     here can produce: a headless browser draws with the processor, where a
-     scene that runs at 60fps on a real GPU measures 1.5 — so every frame-rate
-     figure I could generate would be fiction (vault V11). Reported as text so
-     a photo of it is evidence.
-     Worst-frame matters more than the average: 60fps with one 300ms stall in
-     it is exactly what "laggy" means, and an average hides it completely. */
-  let fps = 0, worst = 0, frames = 0, mark = performance.now(), last = mark;
-  (function tick() {
-    const now = performance.now();
-    const dt = now - last; last = now;
-    if (frames > 5 && dt > worst) worst = dt;    // ignore the first frames, which include boot
-    frames++;
-    if (now - mark >= 1000) { fps = Math.round((frames * 1000) / (now - mark)); frames = 0; mark = now; }
-    requestAnimationFrame(tick);
-  })();
-
   const paint = () => {
     const d = read();
     panel.innerHTML =
-      `<div style="font-size:12px;letter-spacing:.18em;color:#888;margin-bottom:4px">BUILDANTA · DIAGNOSTIC</div>
-       <div style="font-size:15px;color:#bbb;margin-bottom:20px">Scroll the site first, then come back here so the numbers reflect real use. Photograph this screen and send it &mdash; the words carry the answer, not the colours.</div>` +
-      row('Frames per second', fps ? String(fps) : 'measuring…', true) +
-      row('Worst frame', worst ? Math.round(worst) + ' ms' + (worst > 100 ? '   <-- a visible stall' : '') : '—', true) +
+      `<div style="font-size:12px;letter-spacing:.18em;color:#888;margin-bottom:4px">BUILDANTA · COLOUR DIAGNOSTIC</div>
+       <div style="font-size:15px;color:#bbb;margin-bottom:20px">Photograph this whole screen and send it. The words matter, not the colours.</div>` +
       row('Colour asked for', d.asked) +
       row('Wide-gamut paints', d.resolved, true) +
       row('Plain hex paints', d.plain, true) +
@@ -116,10 +97,10 @@ export function mountDiag() {
       row('Screen', `${screen.width}x${screen.height}`) +
       row('Browser', navigator.userAgent.slice(0, 72)) +
       `<div style="margin-top:22px;display:flex;gap:0;height:78px;border:1px solid #444">
-         <div style="flex:1;background:#fac1b2"></div>
-         <div style="flex:1;background:color(display-p3 0.981 0.756 0.699)"></div>
-         <div style="flex:1;background:#ba3f2c"></div>
-         <div style="flex:1;background:color(display-p3 0.729 0.247 0.173)"></div>
+         <div style="flex:1;background:#f2e6d7"></div>
+         <div style="flex:1;background:color(display-p3 0.949 0.902 0.843)"></div>
+         <div style="flex:1;background:#bd6741"></div>
+         <div style="flex:1;background:color(display-p3 0.741 0.404 0.255)"></div>
        </div>
        <div style="font-size:13px;color:#888;margin-top:7px">
          Four patches: plain / wide-gamut / plain / wide-gamut. If patches 1 and 2 look
@@ -128,5 +109,5 @@ export function mountDiag() {
   };
 
   paint();
-  setInterval(paint, 1000);   // live, so the numbers settle while he watches
+  setTimeout(paint, 2500);   // re-read once the orb has had time to mount
 }

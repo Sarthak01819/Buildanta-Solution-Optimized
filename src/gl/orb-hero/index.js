@@ -380,16 +380,6 @@ export function createOrbHero(canvas, opts = {}) {
   applySize(true);
   quality.start();
 
-  /* ?frames=1 — hands a harness the raw GPU particle buffers so per-particle
-     motion can be read FRAME BY FRAME. Yash reports the flicker as things
-     JUMPING POSITION, which is a simulation symptom rather than a paint one,
-     and the position texture is the ground truth for it. Diagnosis only; never
-     present without the flag. */
-  if (typeof location !== 'undefined'
-      && new URLSearchParams(location.search).get('frames') === '1') {
-    window.__orbDebug = { renderer, particles, fluid };
-  }
-
   return {
     ok: true,
     variant,

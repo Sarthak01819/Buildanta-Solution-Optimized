@@ -1805,17 +1805,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 .intro__ideaCore {
-  /* --idea-float-x/y and --spark-rot are rewritten on the PARENT every frame
-     from p=0.08 onward, and these children carry multi-stop color-mix gradients,
-     two of them under mix-blend-mode. Promoting them is correct practice for an
-     element whose transform animates.
-     ⚠️ HONEST NOTE: this did NOT fix the judder Yash reported at core formation,
-     and I shipped it once claiming it would. mix-blend-mode has to read the
-     backdrop, so these cannot be composited independently however they are
-     promoted — will-change buys less here than it does elsewhere. Kept because
-     it is right, not because it is the cure. The cause is still open. */
-  will-change: transform;
-
   width: clamp(120px, 23vmin, 270px);
   aspect-ratio: 1;
   border-radius: 50%;
@@ -1840,17 +1829,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 .intro__ideaRipple {
-  /* --idea-float-x/y and --spark-rot are rewritten on the PARENT every frame
-     from p=0.08 onward, and these children carry multi-stop color-mix gradients,
-     two of them under mix-blend-mode. Promoting them is correct practice for an
-     element whose transform animates.
-     ⚠️ HONEST NOTE: this did NOT fix the judder Yash reported at core formation,
-     and I shipped it once claiming it would. mix-blend-mode has to read the
-     backdrop, so these cannot be composited independently however they are
-     promoted — will-change buys less here than it does elsewhere. Kept because
-     it is right, not because it is the cure. The cause is still open. */
-  will-change: transform;
-
   width: clamp(58px, 10vmin, 128px);
   aspect-ratio: 1;
   border-radius: 50%;
@@ -1868,17 +1846,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 .intro__ideaSparkle {
-  /* --idea-float-x/y and --spark-rot are rewritten on the PARENT every frame
-     from p=0.08 onward, and these children carry multi-stop color-mix gradients,
-     two of them under mix-blend-mode. Promoting them is correct practice for an
-     element whose transform animates.
-     ⚠️ HONEST NOTE: this did NOT fix the judder Yash reported at core formation,
-     and I shipped it once claiming it would. mix-blend-mode has to read the
-     backdrop, so these cannot be composited independently however they are
-     promoted — will-change buys less here than it does elsewhere. Kept because
-     it is right, not because it is the cure. The cause is still open. */
-  will-change: transform;
-
   width: clamp(170px, 34vmin, 410px);
   aspect-ratio: 1;
   opacity: var(--spark-o);
@@ -2267,12 +2234,7 @@ em.coral-italic {
 
 /* cursor bhi theme follow kare — theme class <html> par bhi lagti hai,
    kyunki cursor #intro ke bahar hai aur uske vars tak nahi pahunchta */
-/* ACT 01's dot is the "red dot" that finds the core — the one thing the visitor
-   tracks across the orb, and it was still #bd6741, the ember from before the
-   palette moved to Pink. Kept as a LITERAL, not a var(): per the note above the
-   cursor lives outside #intro and cannot reach its tokens, so a var() would
-   silently fall back. Keep in step with #intro's --brass-src. */
-html.t-ember #cursor { background: #ba3f2c; box-shadow: none; mix-blend-mode: normal; }
+html.t-ember #cursor { background: #bd6741; box-shadow: none; mix-blend-mode: normal; }
 html.t-ember #cursor-ring { border-color: rgba(36, 28, 23, 0.34); }
 html.t-terminal #cursor { background: #6dc9ff; box-shadow: none; }
 html.t-terminal #cursor-ring { border-color: rgba(238, 245, 255, 0.3); }

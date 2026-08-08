@@ -76,7 +76,6 @@ uniform float uDecay2;
 uniform float uLerpSpeed;
 uniform float uLerpSpeed2;
 uniform float uFluidStrength;
-uniform float uFluidMaxStep;
 uniform vec2 uFrequency;
 uniform vec2 uAmplitude;
 uniform float uShapeThreshold;
@@ -150,27 +149,8 @@ void main() {
   // Project to screen to read the 128² velocity field. Coupled at only 0.1 —
   // physical-feeling interaction, never a gimmick.
   vec4 clip = uProjectionMatrix * uViewMatrix * vec4(pos + uOrbOffset, 1.0);
-  vec2 screenUv = (clip.xy / max(clip.w, 0.05)) * 0.5 + 0.5;
+  vec2 screenUv = (clip.xy / max(clip.w, 0.0001)) * 0.5 + 0.5;
   vec2 fluid = texture2D(tFluid, clamp(screenUv, 0.0, 1.0)).xy;
-
-  /* ── WHY THIS GUARD EXISTS ───────────────────────────────────────────────
-     This divide used max(clip.w, 0.0001). For a particle at or behind the
-     camera plane w goes to zero and then negative, so dividing by 1e-4 sends
-     screenUv to enormous values, clamp() pins it to a CORNER of the fluid
-     texture, and the particle reads an arbitrary push — one that snaps
-     somewhere else entirely the moment w changes sign.
-     ⚠️ HONESTLY: this is a real latent bug but it is NOT what Yash was seeing.
-     I first "measured" it as a 1451x teleport and shipped it as the cause; that
-     number was my own harness. Headless runs ~2fps, so the timestep hit its cap
-     of 3, and clamp(lerpSpeed2 * 3) = 1.0 snapped every particle fully onto its
-     target every frame. Pinning the step to a 165Hz-equivalent 0.36 made the
-     phantom vanish. Kept because dividing by 1e-4 is wrong on any hardware, not
-     because it cured anything. The cap below is the one that addresses the
-     flicker. */
-  float depthOk = smoothstep(0.05, 0.60, clip.w);
-  vec2 edge = smoothstep(vec2(0.0), vec2(0.04), screenUv)
-            * (1.0 - smoothstep(vec2(0.96), vec2(1.0), screenUv));
-  float coupling = depthOk * edge.x * edge.y;
 
   // ── Dual decay / lerp ───────────────────────────────────────────────────
   float sel = fract(rnd * 91.7);
@@ -178,21 +158,7 @@ void main() {
   float lerpSpeed = mix(uLerpSpeed, uLerpSpeed2, sel);
 
   pos += vel * decay * uDelta;
-  /* ── CEILING ON ONE FRAME'S SHOVE ───────────────────────────────────────
-     Measured frame by frame off the GPU, at a 165Hz-equivalent timestep:
-     while hovering, the MEDIAN particle moved 0.021 units but the WORST moved
-     1.24 — 42% of the entire orb (radius 2.95) in a single frame. The bulk of
-     the cloud drifts while a handful teleport, and that incoherence is what
-     reads as flicker rather than as motion.
-     The trio force / mouseRadius / fluidStrength were all raised far above
-     their measured reference (0.8 against 0.1 here), which is a deliberate
-     look — so this does not weaken them. It clips only the tail: the cap sits
-     at 0.147, seven times the median, so ordinary interaction never touches it
-     and only the outliers are held back. */
-  vec2 push = fluid * uFluidStrength * uDelta * coupling;
-  float pushLen = length(push);
-  push *= pushLen > uFluidMaxStep ? uFluidMaxStep / max(pushLen, 1e-6) : 1.0;
-  pos.xy += push;
+  pos.xy += fluid * uFluidStrength * uDelta;
   pos = mix(pos, target, clamp(lerpSpeed * uDelta, 0.0, 1.0));
 
   // First frame: park everything exactly on the target so there is no visible

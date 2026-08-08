@@ -117,7 +117,6 @@ export class ParticleSystem {
         uLerpSpeed: { value: params.lerpSpeed },
         uLerpSpeed2: { value: params.lerpSpeed2 },
         uFluidStrength: { value: params.fluidStrength },
-        uFluidMaxStep: { value: (radius ?? params.radius) * (params.fluidMaxStep ?? 0.05) },
         uFrequency: { value: new THREE.Vector2(...params.frequency) },
         uAmplitude: { value: new THREE.Vector2(...params.amplitude) },
         uShapeThreshold: { value: shapeThreshold ?? params.shapeThreshold },

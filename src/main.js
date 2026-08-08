@@ -220,21 +220,6 @@ function initReveals() {
    ══════════════════════════════════════════════════ */
 function initGL() {
   const canvas = $("#gl");
-
-  /* ── SMOOTHNESS REBUILD, step 1 ──
-     This canvas belongs to the blue main site, which finale mode hides for the
-     ENTIRE visit (`html.bh-final #gl { display: none }`). Building its scene
-     anyway cost a whole WebGL2 context — one of seven — plus its scene graph,
-     geometries, shaders and two window listeners, none of which any visitor
-     can ever see. Gating the render (below) stopped the per-frame waste; this
-     stops the context existing at all.
-     Every caller already uses `scene?.`, so returning null is the supported
-     path, not a new one. Restoring the blue site restores this with it. */
-  if (FINALE) {
-    console.info("[gl] blue-site scene not built — finale mode hides it");
-    return null;
-  }
-
   let scene;
   try {
     scene = createScene(canvas, { cyan: "#4ae0f5", amber: "#ffa629" });
