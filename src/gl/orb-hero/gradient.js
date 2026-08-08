@@ -44,26 +44,6 @@ export class GradientLayer {
     this.material.uniforms.uTime.value = time;
   }
 
-  /**
-   * Re-colour the ground without rebuilding anything.
-   *
-   * The gradient IS the page background — its top stop is deliberately the
-   * site's own --paper, so the hero's upper edge and the HTML behind it are
-   * one colour. That makes this the single lever that controls how deep the
-   * opening reads, and it has to move at the same instant the CSS token does
-   * or the two halves of the same surface disagree.
-   *
-   * Only the keys passed are touched, so a caller can deepen the ground
-   * without disturbing the mid-band tint or the ember at the bottom.
-   */
-  setColors({ color1, color2, color3, color4 } = {}) {
-    const u = this.material.uniforms;
-    if (color1) u.uColor1.value = linear(color1);
-    if (color2) u.uColor2.value = linear(color2);
-    if (color3) u.uColor3.value = linear(color3);
-    if (color4) u.uColor4.value = linear(color4);
-  }
-
   setSize(width, height) {
     this.material.uniforms.uResolution.value.set(width, height);
   }
