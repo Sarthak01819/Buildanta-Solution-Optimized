@@ -26,6 +26,22 @@ import {
   WebGLRenderer,
 } from "three";
 
+/* ── HAND SCENE RENDER RESOLUTION ──
+   Measured on a 430x932@3 iPhone viewport: at 1.2x this scene's post chain
+   holds four buffers of ~6 MB plus a 3.5 MB target — ~27 MB, the second largest
+   block on the site after the CodeBuild texture. Cost scales with the SQUARE of
+   this number, so 1.2 -> 1.0 removes ~31% of all of them.
+
+   Applied on a coarse pointer only, so a mouse never reaches it and desktop
+   keeps the full 1.2. Called live from resize() as well as at build, so an
+   orientation change or a phone-to-desktop devtools switch re-reads it rather
+   than staying on whatever was true at boot. */
+function handPixelRatio() {
+  const coarse = typeof matchMedia === "function"
+    && matchMedia("(pointer: coarse)").matches;
+  return Math.min(devicePixelRatio, coarse ? 1 : 1.2);
+}
+
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 const smooth = (value) => {
   const t = clamp01(value);
@@ -197,7 +213,7 @@ export function createConsultHand(canvas) {
     powerPreference: "high-performance",
   });
   renderer.setClearColor(0x000000, 0);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.2));
+  renderer.setPixelRatio(handPixelRatio());
   renderer.outputColorSpace = SRGBColorSpace;
 
   const scene = new Scene();
@@ -1339,7 +1355,7 @@ export function createConsultHand(canvas) {
   function resize() {
     const width = Math.max(1, canvas.clientWidth);
     const height = Math.max(1, canvas.clientHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.2));
+    renderer.setPixelRatio(handPixelRatio());
     fireflyMaterial.uniforms.uPixelRatio.value = renderer.getPixelRatio();
     renderer.setSize(width, height, false);
     camera.aspect = width / height;

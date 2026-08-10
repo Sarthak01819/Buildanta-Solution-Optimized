@@ -489,10 +489,26 @@ function boot() {
   /* Warm every shader behind the entrance, then reveal. Guarded and capped:
      the preloader reveals on its own timer regardless, so a warm-up that
      hangs can never trap anyone on a loading screen. */
+  /* ⚠️ NOT ON PHONES. The warm-up renders every scene at eight progress stops
+     to force its shaders to compile — which also forces every render target in
+     the site to allocate AT BOOT. Measured at 430x932@3, his exact screen:
+     25.7 MB of GPU textures inside the first second, with seven WebGL contexts
+     created alongside it, without the visitor scrolling anywhere.
+
+     His crash record says the tab was KILLED at 3 seconds, at 0% scroll, with
+     no context-loss event — iOS terminating the process outright. I built that
+     spike. Before the entrance existed these scenes allocated lazily as you
+     reached them; I turned a cost spread across the whole journey into one
+     moment, on the device least able to absorb it.
+
+     Desktop keeps the warm-up, because there it prevents real mid-scroll
+     shader hitches at no risk. On a phone the trade is a compile hitch versus
+     a dead tab — which is Yash's own rule: a crash beats any quality rule. */
+  const coarse = matchMedia("(pointer: coarse)").matches;
   Promise.resolve()
-    .then(() => intro.warm?.((p) => preload.set(p * 0.96)))
+    .then(() => (coarse ? null : intro.warm?.((p) => preload.set(p * 0.96))))
     .catch((e) => console.info("[preload] warm-up skipped:", e?.message || e))
-    .finally(() => preload.reveal());
+    .finally(() => { preload.set(1); preload.reveal(); });
   entryGate = createEntryGate({
     lenis,
     ScrollTrigger,

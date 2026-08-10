@@ -135,17 +135,43 @@ export function mountCrashWatch() {
        sample; if the next load finds "running", the tab was killed. */
     write({ verdict: 'running', peakHeapMb: peakMb || null, canvasMpx: +mpx.toFixed(2) });
   };
-  const sampler = setInterval(sample, 3000);
+  let sampler = setInterval(sample, 3000);
   sample();
 
-  addEventListener('pagehide', () => {
+  const leaving = () => {
     /* ⚠️ STOP SAMPLING FIRST. The 3s sampler writes verdict:'running', so a
        tick landing after this handler would re-mark a perfectly clean exit as
        a kill — and the next load would cry wolf. Measured exactly that. */
     clearInterval(sampler);
+    sampler = null;
     const v = read().verdict;
     /* keep a real crash verdict; otherwise this was an ordinary exit */
     write({ verdict: (v && v !== 'running') ? v : 'left normally' });
+  };
+  addEventListener('pagehide', leaving);
+
+  /* ⚠️ pagehide ALONE OVER-REPORTS ON iOS. Yash's first crash record said the
+     tab was killed 3 seconds in at 0% scroll — before the site had done
+     anything worth blaming. iOS Safari does not fire pagehide dependably when
+     the reload button is tapped or when a backgrounded tab is later purged, so
+     an ordinary reload was being filed as a kill and pointed the whole
+     investigation at the entrance, which turned out to be innocent.
+
+     visibilitychange->hidden DOES fire in those cases, and always precedes a
+     real background kill, so treating it as a clean exit costs nothing: a tab
+     that is terminated while VISIBLE — the actual failure — still leaves
+     'running' behind and still raises the panel. */
+  /* ⚠️ ON `document`, NOT window. visibilitychange is dispatched at the Document
+     and only reaches window by bubbling — which real browsers do, but it made
+     the listener depend on a detail that is easy to lose and impossible to see
+     failing. Registered at the target it is actually fired on. */
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { leaving(); return; }
+    /* ⚠️ AND RESUME ON RETURN. leaving() stops the sampler, so without this the
+       recorder would go permanently deaf the first time Yash switched apps —
+       every later crash would read as 'left normally'. Restart it and mark the
+       session live again, so the window after he comes back is watched too. */
+    if (!sampler) { sampler = setInterval(sample, 3000); sample(); }
   });
 
   /* ── SURFACE IT ON SCREEN, NOT IN THE CONSOLE ────────────────────────────

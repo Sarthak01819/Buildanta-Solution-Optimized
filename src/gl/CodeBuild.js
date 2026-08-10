@@ -45,9 +45,24 @@ function power2InOut(t) {
 /* ULTRA-HD HIGH-CONTRAST 2048x2048 MATRIX BINARY (0,1) TEXTURE GENERATOR */
 function createBinaryCanvasTexture() {
   const canvas = document.createElement("canvas");
-  canvas.width = 2048;
-  canvas.height = 2048;
+
+  /* ── PHONES RASTERISE THIS AT HALF SIZE ──
+     Measured on a 430x932@3 iPhone viewport: this single texture is 2048x2048
+     RGBA = 16.0 MB, the largest allocation anywhere on the site, on a screen
+     that can never show more than 430 px of it. At 1024 it is 4.0 MB.
+
+     Every drawing coordinate below still speaks in 2048-space — the context is
+     scaled instead of the numbers, so the border width, cell grid and glyph
+     sizes stay in exactly the same proportions. Only the pixel count changes.
+     Desktop is untouched (Yash's rule: full quality on desktop, "a crash beats
+     any quality rule" on phones). */
+  const coarse = typeof matchMedia === "function"
+    && matchMedia("(pointer: coarse)").matches;
+  const S = coarse ? 1024 : 2048;
+  canvas.width = S;
+  canvas.height = S;
   const ctx = canvas.getContext("2d");
+  if (S !== 2048) ctx.scale(S / 2048, S / 2048);
 
   // Deep pitch black background for extreme contrast
   ctx.fillStyle = "#000000";
