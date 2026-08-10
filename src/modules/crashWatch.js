@@ -69,25 +69,23 @@ export function mountCrashWatch() {
     } catch { /* private mode, or storage full — nothing useful to do */ }
   };
 
-  /* ⚠️ FREEZE IT BEFORE THIS SESSION TOUCHES IT. write() merges into the same
-     record, so the new page's own numbers — secondsAlive 0, its fresh canvas
-     count — were overwriting the crashed session's within moments of loading,
-     and the report showed the survivor's readings under the victim's heading.
-     The crashed record is moved aside intact and the live key started clean.
-     ⚠️ AND IT MUST RUN BEFORE THE FIRST sample(): the first version sat below
-     it and was polluted by the very first write of the new session — which is
-     exactly the bug it was written to prevent, one line too late. */
+  /* ── READ THE LAST SESSION, ONCE, THEN START CLEAN ──
+     Kept deliberately dumb after two failed attempts at something cleverer.
+     The earlier version shuffled the record between two keys and I could not
+     keep straight which one the panel was reading — it captured the data
+     perfectly and then showed nothing, twice, which is worse than not
+     recording at all.
+     Now: read the single key into memory, wipe it, and everything from here
+     writes a fresh record for THIS session. `prev` is a plain snapshot that
+     nothing can overwrite because it is no longer in storage.
+     A verdict of 'running' means the last session never got to say goodbye —
+     no pagehide, no context-lost event — which is exactly what an iOS memory
+     kill looks like from the inside: the process simply stops. */
   const prev = (() => {
-    const r = read();
-    if (r && r.verdict && r.verdict !== 'left normally') {
-      try {
-        localStorage.setItem(KEY + '-last', JSON.stringify(r));
-        localStorage.removeItem(KEY);
-      } catch { /* ignore */ }
-      return r;
-    }
-    try { return JSON.parse(localStorage.getItem(KEY + '-last') || 'null'); }
-    catch { return null; }
+    let r = null;
+    try { r = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { r = null; }
+    try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+    return r;
   })();
 
   /* ── the prime suspect ──────────────────────────────────────────────────
@@ -128,12 +126,27 @@ export function mountCrashWatch() {
     /* canvas buffers are the part WE control, and they are not in the heap */
     let mpx = 0;
     for (const c of document.querySelectorAll('canvas')) mpx += (c.width * c.height) / 1e6;
-    write({ peakHeapMb: peakMb || null, canvasMpx: +mpx.toFixed(2) });
+    /* ⚠️ MARK IT RUNNING. The panel used to appear only when a `verdict` had
+       been written — and a verdict was only written by webglcontextlost or
+       pagehide. But an iOS memory kill runs NEITHER: the tab process is
+       terminated outright with no JavaScript at all. So the one failure I most
+       need to see was the one case that left no verdict and showed no panel,
+       which is exactly what Yash hit. A session that is alive says so on every
+       sample; if the next load finds "running", the tab was killed. */
+    write({ verdict: 'running', peakHeapMb: peakMb || null, canvasMpx: +mpx.toFixed(2) });
   };
-  setInterval(sample, 3000);
+  const sampler = setInterval(sample, 3000);
   sample();
 
-  addEventListener('pagehide', () => write({ verdict: read().verdict || 'left normally' }));
+  addEventListener('pagehide', () => {
+    /* ⚠️ STOP SAMPLING FIRST. The 3s sampler writes verdict:'running', so a
+       tick landing after this handler would re-mark a perfectly clean exit as
+       a kill — and the next load would cry wolf. Measured exactly that. */
+    clearInterval(sampler);
+    const v = read().verdict;
+    /* keep a real crash verdict; otherwise this was an ordinary exit */
+    write({ verdict: (v && v !== 'running') ? v : 'left normally' });
+  });
 
   /* ── SURFACE IT ON SCREEN, NOT IN THE CONSOLE ────────────────────────────
      The record lives in the PHONE's storage, which I cannot reach — I can only
@@ -150,7 +163,8 @@ export function mountCrashWatch() {
         'font:500 13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;padding:14px 16px;' +
         'border-bottom:2px solid #ba3f2c;max-height:60vh;overflow:auto;-webkit-overflow-scrolling:touch';
       const rows = [
-        ['what happened', prev.verdict],
+        ['what happened', prev.verdict === 'running'
+          ? 'KILLED — tab terminated with no warning' : prev.verdict],
         ['which scene', prev.lostOn || '—'],
         ['how far in', (prev.lostAtPct ?? prev.lastSeenPct) + '%'],
         ['seconds alive', prev.secondsAlive],
