@@ -1183,7 +1183,19 @@ export function createIntro({ onProgress } = {}) {
         if (portalState === "done") return;
         portalModule = new BlackholePortal(portalWrap, {
           portalLabel: "ENTER",
-          starfieldUrl: "/assets/starfield.jpg",
+          /* ── THE SINGLE BIGGEST GPU ALLOCATION ON THE SITE ──
+             Measured on a 390x844 phone viewport: this one texture uploads
+             2560x2560x4 = 25 MB of GPU memory, out of 63.5 MB for the entire
+             journey. It is 40% of everything, for a starfield on a screen 390
+             points wide — and it lands exactly where Yash reports the phone
+             crashing, because the portal mounts right after WE MARKET.
+             1024x1024 costs 4 MB: a SIXTH of the memory, and still oversampled
+             for the screen it is drawn on. Desktop keeps the full 2560.
+             Swapped through the module's own option, so the sealed portal code
+             is untouched — this is an asset choice, not a redesign. */
+          starfieldUrl: matchMedia("(pointer: coarse)").matches
+            ? "/assets/starfield-1k.jpg"
+            : "/assets/starfield.jpg",
           locked: () => portalState !== "active",   // no collapse until the wall
           holdOnEnter: true,                        // never re-grow the universe
           onReturn: () => dismissPortal(true),
