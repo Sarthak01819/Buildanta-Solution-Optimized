@@ -9,6 +9,7 @@ import gridVert from "./grid.vert.glsl?raw";
 import gridFrag from "./grid.frag.glsl?raw";
 import coreVert from "./core.vert.glsl?raw";
 import coreFrag from "./core.frag.glsl?raw";
+import { wantsAA } from "./msaa.js";
 
 /* ── grid floor: har line ko subdivide karna zaroori hai,
       warna 2 endpoints wali line vertex shader mein bend nahi ho sakti ── */
@@ -34,7 +35,7 @@ export function createScene(canvas, opts = {}) {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const renderer = new WebGLRenderer({
-    canvas, antialias: true, alpha: true, powerPreference: "high-performance",
+    canvas, antialias: wantsAA(), alpha: true, powerPreference: "high-performance",
   });
   renderer.setClearColor(0x000000, 0);
 

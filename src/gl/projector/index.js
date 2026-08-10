@@ -32,6 +32,7 @@ import {
   AdditiveBlending, Color, DoubleSide, MathUtils, Box3, Matrix4, Vector3, Quaternion,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { wantsAA } from "../msaa.js";
 
 const MODEL = "/assets/projector/filmstrip_projector_8mm_1k.gltf";
 
@@ -117,7 +118,7 @@ const BEAM_FRAG = `
 `;
 
 export async function createProjector(canvas, opts = {}) {
-  const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
+  const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: wantsAA(), powerPreference: "high-performance" });
   renderer.setClearColor(0x000000, 0);
 
   const scene = new Scene();

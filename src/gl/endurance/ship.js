@@ -18,6 +18,7 @@ import {
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { wantsAA } from "../msaa.js";
 
 const OMEGA = 0.14;                 // rad/s ≈ 37 px/s at the module ring
 // The standalone's pose, verbatim (its config.js: dist 30, lookOffset
@@ -76,7 +77,7 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
 
   let renderer;
   try {
-    renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer = new WebGLRenderer({ canvas, antialias: wantsAA(), alpha: true, powerPreference: "high-performance" });
   } catch (e) {
     canvas.remove();
     return null;

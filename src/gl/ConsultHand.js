@@ -25,6 +25,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
+import { wantsAA } from "./msaa.js";
 
 /* ── HAND SCENE RENDER RESOLUTION ──
    Measured on a 430x932@3 iPhone viewport: at 1.2x this scene's post chain
@@ -209,7 +210,7 @@ export function createConsultHand(canvas) {
   const renderer = new WebGLRenderer({
     canvas,
     alpha: true,
-    antialias: true,
+    antialias: wantsAA(),
     powerPreference: "high-performance",
   });
   renderer.setClearColor(0x000000, 0);

@@ -49,7 +49,31 @@ export async function createBlackholeGateBeat(container, opts = {}) {
     const w = container.clientWidth || window.innerWidth;
     const h = container.clientHeight || window.innerHeight;
     const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
-    engine.size(Math.max(Math.round(w * dpr), 16), Math.max(Math.round(h * dpr), 16));
+    let pw = Math.max(Math.round(w * dpr), 16);
+    let ph = Math.max(Math.round(h * dpr), 16);
+
+    /* ── PHONES CAP THE LONGEST SIDE ──
+       Measured on a 430x932@3 iPhone: this container is 1243x1243 CSS px — a
+       square far larger than the screen — so the backing store came out
+       1864x1864. That is 3.47 Mpx of half-float, and engine.size() allocates
+       the scene target plus up to 7 mip and 7 upsample targets on top of it.
+
+       Both sides are scaled by the SAME factor, so the aspect the shader
+       renders is untouched and the lensing cannot stretch — only the pixel
+       count changes. 1864 -> 1024 is a 3.3x cut in area across all 15 targets.
+
+       ⚠️ Deliberately NOT a clamp to innerWidth/innerHeight: that would change
+       the aspect ratio of a deliberately square container and distort the
+       black hole. Uniform scaling is the only safe way to spend fewer pixels
+       here. Desktop is untouched. */
+    const coarse = typeof matchMedia === 'function'
+      && matchMedia('(pointer: coarse)').matches;
+    if (coarse) {
+      const k = Math.min(1, 1024 / Math.max(pw, ph));
+      pw = Math.max(Math.round(pw * k), 16);
+      ph = Math.max(Math.round(ph * k), 16);
+    }
+    engine.size(pw, ph);
   }
   size();
 

@@ -462,7 +462,22 @@ export class BlackholePortal {
       }
 
       function resize() {
-        S.dpr = Math.min(devicePixelRatio || 1, TUNE.DPR_CAP);
+        /* ── PHONES RENDER THIS AT 1x ──
+           This canvas is deliberately SQUARE and sized to the longest viewport
+           side, so it still covers the screen after a rotation. On a 430x932
+           iPhone that means 932 CSS px square — 2.2x the visible area — and at
+           DPR 2 the backing store came out 1864x1864, the largest drawing
+           buffer on the site.
+
+           Dropping to 1x makes it 932x932: a 4x cut, ~13.9 MB -> ~3.5 MB, with
+           the square shape and the coverage-after-rotation property both intact.
+           The config for this module's sibling trail canvas already makes the
+           same argument for a lower cap — "it is glow, not text" — and that is
+           even truer here: this is lensing and bloom, where a soft pixel is
+           invisible and a dead tab is not. Desktop keeps the full 2x. */
+        const coarse = typeof matchMedia === 'function'
+          && matchMedia('(pointer: coarse)').matches;
+        S.dpr = Math.min(devicePixelRatio || 1, coarse ? 1 : TUNE.DPR_CAP);
         S.css = Math.max(innerWidth, innerHeight);
         S.size = Math.round(S.css * S.dpr);
         canvas.width = canvas.height = S.size;

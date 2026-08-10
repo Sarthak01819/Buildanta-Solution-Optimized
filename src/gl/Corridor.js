@@ -28,6 +28,7 @@ import {
 import { createOrb } from "./Orb.js";
 import { createCodeBuild } from "./CodeBuild.js";
 import { createMarketGrowth } from "./MarketGrowth.js";
+import { wantsAA } from "./msaa.js";
 
 const SEG = 32;           // do stations ke beech ki doori, world units
 const START_Z = 6;        // camera ka shuruaati z
@@ -104,7 +105,7 @@ export function createCorridor(canvas, opts = {}) {
   const stationZ = peaks.map((p) => START_Z - p * TRAVEL);
 
   const renderer = new WebGLRenderer({
-    canvas, antialias: true, alpha: false, powerPreference: "high-performance",
+    canvas, antialias: wantsAA(), alpha: false, powerPreference: "high-performance",
   });
   // Native CodeBuild isi framebuffer par second transparent pass hai.
   // Manual clear ke bina autoClear us pass se corridor mita deta.
