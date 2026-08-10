@@ -4016,6 +4016,20 @@ html.beat-live #progress { opacity: 0 !important; pointer-events: none !importan
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
+
+/* The SAME starfield, at a sixth of the memory, for phones and tablets.
+   Measured on a 390x844 viewport: the 2560x2560 image is 25 MB of GPU memory
+   once decoded — 40% of every texture on the site, for a screen 390 points
+   wide, and it downloads 1427 KB to get there. The module's own canvas was
+   already switched to the 1k copy in intro.js; this is the CSS fallback layer
+   behind it, which was still pulling the full-size file on every phone visit.
+   Both layers must use the SAME image or the canvas fading in over the CSS
+   would show two different skies — the exact jump that was fixed on 6 Aug.
+   1024x1024 keeps the 1:1 aspect, so the max(100vw,100vh) framing above is
+   unchanged. Desktop keeps the full-resolution original. */
+@media (pointer: coarse) {
+  .intro__portalwrap { background-image: url(/assets/starfield-1k.jpg); }
+}
 .intro__portalwrap.on {
   opacity: 1;
   visibility: visible;
