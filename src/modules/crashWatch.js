@@ -1,6 +1,17 @@
 /**
  * CRASH WATCH — the site records its own death on a phone.
  *
+ * ⚠️ NOT MOUNTED. Yash confirmed the phone crash fixed on 10 Aug 2026, so the
+ * mount was removed from main.js — this file is kept because Vite does not
+ * bundle an unimported module (it costs the shipped site nothing) and because
+ * it is the only instrument that ever produced honest evidence from a device I
+ * cannot open. RE-ARM by restoring two lines in main.js: the import, and
+ * `try { window.__crash = mountCrashWatch(); } catch (e) {}` placed FIRST,
+ * before anything can die. Reads/writes localStorage key `buildanta-crash`.
+ *
+ * ⚠️ It shows a large red panel to whoever loads the site next, so it must
+ * never be left mounted on a build a client or prospect might open.
+ *
  * Yash's phone crashes after WE MARKET. I cannot open his phone, and headless
  * has no real memory limit so it cannot reproduce it: a full phone-viewport
  * run at DPR 3 held only 2.47 Mpx and lost nothing. Every route I control is

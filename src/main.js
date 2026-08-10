@@ -7,7 +7,6 @@ import { createScene } from "./gl/Scene.js";
 import { idleGate } from "./gl/visible.js";
 import { mountDiag } from "./modules/diag.js";
 import { createPreloader } from "./modules/preloader.js";
-import { mountCrashWatch } from "./modules/crashWatch.js";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
@@ -33,11 +32,6 @@ const FINALE = (() => {
   return q === null ? FINALE_DEFAULT : q !== "0";
 })();
 if (FINALE) document.documentElement.classList.add("bh-final");
-
-/* TEMPORARY — the site records its own crash so a phone failure I cannot
-   reproduce leaves evidence behind. Mounted FIRST, before anything can die.
-   See modules/crashWatch.js. */
-try { window.__crash = mountCrashWatch(); } catch (e) { console.warn("[crash-watch]", e); }
 
 /* ── ALWAYS OPEN AT THE TOP ────────────────────────────────────────────────
    Browsers restore the previous scroll position on reload. On a scroll-driven
