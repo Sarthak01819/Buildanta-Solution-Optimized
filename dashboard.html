@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buildanta Solutions site (family) — dashboard</title>
+<style>
+  :root { color-scheme: dark light;
+    --bg:#0e1116; --panel:#161b23; --line:#242c38; --ink:#e8edf4; --dim:#8b96a5;
+    --accent:#6ea8fe; --done:#3fb97f; --wip:#e9b44c; --pending:#8b96a5; --blocked:#e06c5f; }
+  @media (prefers-color-scheme: light) { :root {
+    --bg:#f5f7fa; --panel:#ffffff; --line:#dde3ea; --ink:#1b2430; --dim:#5b6773; --accent:#2f6fd8; } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.55 -apple-system, "SF Pro Text", Segoe UI, sans-serif; padding:28px clamp(16px,4vw,48px) 80px; }
+  header h1 { margin:0; font-size:clamp(22px,3vw,30px); letter-spacing:-.02em }
+  .meta { color:var(--dim); font-size:12.5px; margin-top:6px }
+  .meta code { color:var(--accent) }
+  section { margin-top:34px }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.14em; color:var(--dim); margin:0 0 14px }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; overflow-x:auto }
+  .mermaid { display:flex; justify-content:center }
+  .mermaid svg { max-width:100% }
+  .mapnotes { margin:14px 4px 0; padding-left:18px; color:var(--dim) }
+  .mapnotes li { margin:3px 0 } .mapnotes strong { color:var(--ink) }
+  .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px }
+  .col { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 16px 8px }
+  .col h3 { margin:0 0 10px; font-size:13.5px }
+  .count { color:var(--dim); font-weight:400; margin-left:4px }
+  .col ul { margin:0; padding:0 0 8px 2px; list-style:none }
+  .col li { padding:7px 4px; border-top:1px solid var(--line); font-size:13.5px }
+  .col.done h3 { color:var(--done) } .col.wip h3 { color:var(--wip) }
+  .col.pending h3 { color:var(--pending) } .col.blocked h3 { color:var(--blocked) }
+  #filter { width:100%; margin-bottom:14px; padding:10px 14px; border-radius:10px; font:inherit;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink) }
+  .decision { background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:10px }
+  .decision summary { padding:13px 16px; cursor:pointer; list-style:none; display:flex; gap:10px; align-items:baseline }
+  .decision summary::-webkit-details-marker { display:none }
+  .decision[open] summary { border-bottom:1px solid var(--line) }
+  .did { color:var(--accent); font:600 12.5px ui-monospace, monospace }
+  .ddate { margin-left:auto; color:var(--dim); font-size:12px; white-space:nowrap }
+  .decision dl { display:grid; grid-template-columns:150px 1fr; gap:8px 16px; padding:14px 16px; margin:0 }
+  .decision dt { color:var(--dim); font-size:12.5px } .decision dd { margin:0; font-size:13.5px }
+  @media (max-width:560px){ .decision dl { grid-template-columns:1fr } }
+  .foot { margin-top:44px; color:var(--dim); font-size:12px; border-top:1px solid var(--line); padding-top:14px }
+  code { font:12.5px ui-monospace, monospace; background:color-mix(in srgb, var(--accent) 12%, transparent);
+    padding:1px 5px; border-radius:5px }
+</style>
+</head>
+<body>
+<header>
+  <h1>Buildanta Solutions site (family)</h1>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>9474a6c</code> · updated 2026-08-11 · generated 2026-08-11 09:21 UTC</div>
+</header>
+
+<section>
+  <h2>Map</h2>
+  <div class="panel"><pre class="mermaid">flowchart TD
+  SITE[&quot;Flagship scroll film&lt;br/&gt;Vite, dev 5280 (LAN)&quot;] --&gt; ACTS[&quot;Acts 01…N&lt;br/&gt;WebGL + DOM scroll sequence&quot;]
+  ACTS -.-&gt;|&quot;carved out, port back via PORT-BACK.md&quot;| WESCALE[&quot;WE SCALE / ACT 04&lt;br/&gt;~/we-scale, 5341&quot;]
+  SITE -.-&gt;|&quot;COPY — ports back only on Yash's go&quot;| WORLD[&quot;World-in-the-black-hole&lt;br/&gt;~/buildanta-site-world, 5290&quot;]
+  WORLD --&gt; ENDUR[&quot;Endurance contact module&lt;br/&gt;~/endurance, 5291&quot;]
+  LAB[&quot;Satellite experiments&lt;br/&gt;unseen-world 5331 · unseen-tunnel 5321 · orb-engine 5311&quot;] -.-&gt;|techniques feed in| SITE
+  CMS[&quot;CMS (decided, NOT built)&lt;br/&gt;Supabase + team logins&quot;] -.-&gt; SITE</pre></div>
+  <ul class="mapnotes"><li><strong>The family pattern:</strong> heavy act work happens in carved-out repos with their own verify suites, then ports back deliberately — never edited live in the flagship.</li><li>Content today is a <strong>hand-edited <code>world.json</code></strong>; the CMS (Supabase, team logins, whole site, build-time + live preview) is decided but unbuilt.</li><li><strong>Traps live in <code>CLAUDE.md</code></strong> — design freeze (UX4), no beat retiming without asking, page-scoped ids, world stays in the copy.</li></ul>
+</section>
+
+<section>
+  <h2>Progress — 10 items</h2>
+  <div class="cols"><div class="col done"><h3>✅ Done <span class="count">5</span></h3><ul><li>Perf + colour audit, all 4 stages shipped 8 Aug — GPU 8.84 → 3.93 Mpx; the 287ms stall was 19 shaders compiling mid-scroll, fixed</li><li>WE SCALE (ACT 04) carved out and rebuilt — 33/33 headless checks</li><li>World-inside-the-black-hole working in the copy — Projects sits at the black hole and falls into the world</li><li>Endurance contact module built — Contact = fly into the ship; 12 MCQs settled</li><li>CMS decided — 9 decisions on 11 Aug (Supabase + team logins + whole site + both preview modes)</li></ul></div><div class="col wip"><h3>🔧 In progress <span class="count">0</span></h3><ul></ul></div><div class="col pending"><h3>⏳ Pending <span class="count">3</span></h3><ul><li>Port the world + Endurance into the real site — <strong>waits on Yash's explicit go</strong></li><li>Build the CMS (auto-fit on upload; card geometry from <code>image_size</code>, not the file)</li><li>WE SCALE port-back per PORT-BACK.md</li></ul></div><div class="col blocked"><h3>🔴 Blocked / waiting <span class="count">2</span></h3><ul><li>Pre-existing portal bug — Yash's open item, not being chased silently</li><li>Endurance: form-send method + phone/WhatsApp number owed by Yash</li></ul></div></div>
+</section>
+
+<section>
+  <h2>Decisions — 6 logged</h2>
+  <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
+  <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
+  <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>Once Yash approves a design it is FROZEN; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving.</dd>
+    <dt>Why</dt><dd>A &quot;leveled-up&quot; rebuild silently redrew approved UI once; that class of loss is now banned by rule.</dd>
+    <dt>Alternatives considered</dt><dd>Trust each session's judgment — rejected, that's how it happened.</dd>
+    <dt>Decided by</dt><dd>Yash</dd>
+    <dt>Source</dt><dd>Vault rule UX4 (2026-08-10)</dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-002 projects lives at the black hole and falls you into the world the projects entry sits beside contact at the black hole; entering it drops the visitor into the explorable world. one gravity-well moment carries both destinations — the site's signature move stays singular. separate projects page/nav — rejected as ordinary.">
+  <summary><span class="did">D-002</span> Projects lives AT the black hole and falls you into the world <span class="ddate">2026-08 (approx)</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>The Projects entry sits beside Contact at the black hole; entering it drops the visitor into the explorable world.</dd>
+    <dt>Why</dt><dd>One gravity-well moment carries both destinations — the site's signature move stays singular.</dd>
+    <dt>Alternatives considered</dt><dd>Separate Projects page/nav — rejected as ordinary.</dd>
+    <dt>Decided by</dt><dd>Yash</dd>
+    <dt>Source</dt><dd>Seeded 2026-08-11 from the world build</dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-003 contact = fly into the endurance ship the contact experience is the interstellar-style ship beside the black hole; flying in reveals the form. contact should be a scene, not a form field — consistent with the film language of the site. standard contact section — rejected.">
+  <summary><span class="did">D-003</span> Contact = fly INTO the Endurance ship <span class="ddate">2026-08 (approx)</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>The contact experience is the Interstellar-style ship beside the black hole; flying in reveals the form.</dd>
+    <dt>Why</dt><dd>Contact should be a scene, not a form field — consistent with the film language of the site.</dd>
+    <dt>Alternatives considered</dt><dd>Standard contact section — rejected.</dd>
+    <dt>Decided by</dt><dd>Yash (12 MCQs)</dd>
+    <dt>Source</dt><dd>Seeded 2026-08-11 from the Endurance module build</dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-004 cms: supabase + team logins + whole site + both previews the cms covers the whole site (not just the world), runs on supabase with team logins, and supports build-time and live preview; uploads auto-fit because card geometry comes from `image_size`, not the file. the team must edit content without claude in the loop, and previews must match both publish paths. world-only cms; file-based editing — rejected in the 9-decision mcq round.">
+  <summary><span class="did">D-004</span> CMS: Supabase + team logins + whole site + both previews <span class="ddate">2026-08-11</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>The CMS covers the WHOLE site (not just the world), runs on Supabase with team logins, and supports build-time AND live preview; uploads auto-fit because card geometry comes from <code>image_size</code>, not the file.</dd>
+    <dt>Why</dt><dd>The team must edit content without Claude in the loop, and previews must match both publish paths.</dd>
+    <dt>Alternatives considered</dt><dd>World-only CMS; file-based editing — rejected in the 9-decision MCQ round.</dd>
+    <dt>Decided by</dt><dd>Yash (9 MCQs)</dd>
+    <dt>Source</dt><dd>CMS decision round, 11 Aug 2026</dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-005 acts get carved out, worked in isolation, and ported back heavy act rework happens in a dedicated repo (e.g. we-scale) with its own verify suite and a written port-back.md path. two agents once overwrote each other six times editing the flagship concurrently; isolation plus a deliberate port-back ended that. work acts live in the flagship — rejected after the collision.">
+  <summary><span class="did">D-005</span> Acts get carved out, worked in isolation, and ported back <span class="ddate">2026-08 (approx)</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>Heavy act rework happens in a dedicated repo (e.g. we-scale) with its own verify suite and a written PORT-BACK.md path.</dd>
+    <dt>Why</dt><dd>Two agents once overwrote each other six times editing the flagship concurrently; isolation plus a deliberate port-back ended that.</dd>
+    <dt>Alternatives considered</dt><dd>Work acts live in the flagship — rejected after the collision.</dd>
+    <dt>Decided by</dt><dd>Yash + Claude (logged)</dd>
+    <dt>Source</dt><dd>Seeded 2026-08-11 from the WE SCALE carve-out</dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-006 beat boundaries never move without asking no retiming of any scroll act's beat boundaries without yash's explicit yes. an act 03 retime silently ate the we scale act twice — and its own tests passed both times. rely on tests to catch it — proven insufficient, twice.">
+  <summary><span class="did">D-006</span> Beat boundaries never move without asking <span class="ddate">2026-08 (approx)</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>No retiming of any scroll act's beat boundaries without Yash's explicit yes.</dd>
+    <dt>Why</dt><dd>An ACT 03 retime silently ate the WE SCALE act twice — and its own tests passed both times.</dd>
+    <dt>Alternatives considered</dt><dd>Rely on tests to catch it — proven insufficient, twice.</dd>
+    <dt>Decided by</dt><dd>Yash</dd>
+    <dt>Source</dt><dd>Seeded 2026-08-11 from the ACT 03 incident</dd>
+  </dl>
+</details>
+</section>
+
+<div class="foot">Generated by the build-standards vault (rule W3). Do not edit this file — edit <code>ARCHITECTURE.md</code> and regenerate. Ask Claude "why D-nnn?" — the answer comes from the log above; if it's not in the log, it's not recorded.</div>
+
+<script>
+  const f = document.getElementById('filter');
+  if (f) f.addEventListener('input', () => {
+    const q = f.value.toLowerCase().trim();
+    document.querySelectorAll('.decision').forEach((d) => {
+      d.style.display = !q || d.dataset.text.includes(q) ? '' : 'none';
+    });
+  });
+</script>
+<script type="module">
+  const pre = document.querySelector('.mermaid');
+  try {
+    const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+    mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'neutral' });
+    await mermaid.run({ nodes: [pre] });
+  } catch (e) {
+    pre.insertAdjacentHTML('beforebegin',
+      '<div style="color:var(--dim);font-size:12px;margin-bottom:8px">Offline — showing diagram source; open with internet for the drawn map.</div>');
+  }
+</script>
+</body>
+</html>
