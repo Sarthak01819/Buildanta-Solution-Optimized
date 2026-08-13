@@ -136,7 +136,8 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Date:** 2026-08-13
 - **Decision:** `splitText.js` groups each word's character spans in a `.word` wrapper carrying `white-space: nowrap`.
 - **Why:** Every character is its own `inline-block`, and a line may break between any two of them — so the contact heading rendered "GOT SOMETHI / NG TO BUILD?" on every laptop-width screen. `word-break` could not fix it: the browser was not breaking the word, it was breaking between two boxes.
-- **Cost, accepted:** that heading now takes 3 lines instead of 2 at 1024–1440px. Correct words beat a tighter block. Nothing else moved — all 11 split headings were measured at five widths before and after, and only this one changed.
-- **Alternatives:** shrink the font so it still fits two lines (rejected for now — that is a design change, and this is a defect fix); leave it (rejected, it is the flagship's contact headline).
-- **Decided by:** Claude (defect fix, logged for Yash — say the word and the 2-line composition can come back via type size)
+- **Composition held at TWO lines** (Yash, same day): the wrapper alone pushed the contact heading to 3 lines at 1024–1440px, so `.contact__title` went from `6.6vw` to `5.7vw`. The line box is ~44.7% of the viewport and "GOT SOMETHING" needs 7.72x the font size in width; measured at eight widths from 820 to 1920, the exact fit is **5.76vw at every one of them**, so one coefficient covers the band with ~1% slack. The 104px cap is unchanged — it engages at 1825px, where the column is 816px against the 803px needed.
+- **Verified:** all 11 split headings measured at five widths before and after. Contact: 2 lines with a broken word → 2 lines with none. The other ten: unchanged at every width.
+- **Alternatives:** leave it at 3 lines (rejected by Yash); leave the break (rejected, it is the flagship's contact headline).
+- **Decided by:** Claude found and fixed the break; Yash chose to keep the two-line composition
 - **Source:** Found while verifying the Endurance port request, 13 Aug 2026

@@ -2495,8 +2495,16 @@ html.t-forest #cursor-ring { border-color: rgba(242, 242, 233, 0.3); }
 .process p { font-size: 12.5px; line-height: 1.8; color: var(--dim); max-width: 48ch; }
 
 /* ─────────── contact ─────────── */
+/* 5.7vw, not 6.6vw — so "GOT SOMETHING" holds one line.
+   Yash wants this heading back to TWO lines, and it must not break mid-word.
+   The line box here is ~44.7% of the viewport (the room's text column), and
+   "GOT SOMETHING" needs 7.72x the font size in width. Measured at eight widths
+   from 820 to 1920: the exact fit is 5.76vw at every one of them, so a single
+   coefficient covers the whole band — 5.7 leaves ~1% of slack.
+   The 104px cap is unchanged and still fits: it engages at 1825px, where the
+   column is 816px against the 803px the line needs. */
 .contact__title {
-  margin-top: 20px; font-family: var(--display); font-size: clamp(30px, 6.6vw, 104px);
+  margin-top: 20px; font-family: var(--display); font-size: clamp(30px, 5.7vw, 104px);
   line-height: 0.98; font-weight: 600; letter-spacing: -0.035em; text-transform: uppercase;
 }
 .contact__mail {
