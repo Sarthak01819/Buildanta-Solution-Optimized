@@ -3,7 +3,7 @@
 > Truth file (vault rule W3). `dashboard.html` is generated from this — never edit it by hand.
 > Regenerate: `node ~/.claude/skills/build-standards/tools/gen-dashboard.mjs "~/claude code/buildanta-site"`
 
-_Updated: 2026-08-11_
+_Updated: 2026-08-13_
 
 ## Map
 
@@ -11,25 +11,47 @@ _Updated: 2026-08-11_
 flowchart TD
   SITE["Flagship scroll film<br/>Vite, dev 5280 (LAN)"] --> ACTS["Acts 01…N<br/>WebGL + DOM scroll sequence"]
   ACTS -.->|"carved out, port back via PORT-BACK.md"| WESCALE["WE SCALE / ACT 04<br/>~/we-scale, 5341"]
-  SITE -.->|"COPY — ports back only on Yash's go"| WORLD["World-in-the-black-hole<br/>~/buildanta-site-world, 5290"]
-  WORLD --> ENDUR["Endurance contact module<br/>~/endurance, 5291"]
-  LAB["Satellite experiments<br/>unseen-world 5331 · unseen-tunnel 5321 · orb-engine 5311"] -.->|techniques feed in| SITE
-  CMS["CMS (decided, NOT built)<br/>Supabase + team logins"] -.-> SITE
+  SITE --> WORLD["World-in-the-black-hole<br/>src/world/ — PORTED 13 Aug"]
+  WORLD -.->|"upstream: fix bugs THERE"| UW["unseen-world, 5331<br/>137-check suite"]
+  SITE -.->|"COPY — historical, do not merge from"| OLD["~/buildanta-site-world, 5290"]
+  ENDUR["Endurance contact module<br/>~/endurance, 5291 — NOT ported"] -.->|awaits Yash| SITE
+  CMS["buildanta-cms<br/>Supabase + admin 5300"] -->|"build-content.cjs"| CONTENT["content/world.json<br/>content/site.json"]
+  CONTENT --> WORLD
+  CONTENT --> REEL["services reel<br/>src/modules/services.js"]
 ```
 
 - **The family pattern:** heavy act work happens in carved-out repos with their own verify suites, then ports back deliberately — never edited live in the flagship.
-- Content today is a **hand-edited `world.json`**; the CMS (Supabase, team logins, whole site, build-time + live preview) is decided but unbuilt.
-- **Traps live in `CLAUDE.md`** — design freeze (UX4), no beat retiming without asking, page-scoped ids, world stays in the copy.
+- Content comes from **buildanta-cms**, not from files here. `content/` is generated — see *Changing the words* below.
+- The world is **ported, not forked**: its source of truth is `~/claude code/unseen-world`. Fix bugs there first.
+- **Traps live in `CLAUDE.md`** — design freeze (UX4), no beat retiming without asking, page-scoped ids, never hand-edit `content/`, never copy files in from the old 5290 copy.
+
+## Changing the words
+
+Nothing here is edited by hand. The loop is:
+
+1. Edit in the admin — `cd ~/claude code/buildanta-cms/admin && npm run dev` → **localhost:5300**
+   (Supabase must be up: `supabase start` in `buildanta-cms`. First account created becomes owner.)
+2. Press **Publish** in the admin. That writes one immutable snapshot.
+3. Build it into this site:
+   `SUPABASE_SERVICE_KEY=$(supabase status -o json | jq -r .SERVICE_ROLE_KEY) \`
+   `node tools/build-content.cjs --out "$HOME/claude code/buildanta-site" --art world/art`
+   (run from `buildanta-cms`. The `--art world/art` is required — without it the media
+   lands in `public/art/`, which nothing here reads.)
+4. Commit `content/` and `public/world/art/`. Both are tracked on purpose.
+
+If the CMS has never been published, the services reel falls back to the hardcoded
+array in `src/modules/services.js` and the site looks exactly as it always did. The
+world does not have a fallback: `content/world.json` is committed, so a fresh clone works.
 
 ## Progress
 
 - ✅ Perf + colour audit, all 4 stages shipped 8 Aug — GPU 8.84 → 3.93 Mpx; the 287ms stall was 19 shaders compiling mid-scroll, fixed
 - ✅ WE SCALE (ACT 04) carved out and rebuilt — 33/33 headless checks
-- ✅ World-inside-the-black-hole working in the copy — Projects sits at the black hole and falls into the world
+- ✅ **World PORTED into this repo (13 Aug, `d5a032c`)** — 26/26 embedded checks; canvas count back to the pre-port baseline of 7
 - ✅ Endurance contact module built — Contact = fly into the ship; 12 MCQs settled
-- ✅ CMS decided — 9 decisions on 11 Aug (Supabase + team logins + whole site + both preview modes)
-- ⏳ Port the world + Endurance into the real site — **waits on Yash's explicit go**
-- ⏳ Build the CMS (auto-fit on upload; card geometry from `image_size`, not the file)
+- ✅ CMS BUILT and wired — 58 projects, 12 with real copy, 9 services + 5 headings; this site reads its output
+- ⏳ Port the **Endurance** contact module — still waits on Yash's explicit go
+- ⏳ 46 of the 58 projects still carry placeholder names and art
 - ⏳ WE SCALE port-back per PORT-BACK.md
 - 🔴 Pre-existing portal bug — Yash's open item, not being chased silently
 - 🔴 Endurance: form-send method + phone/WhatsApp number owed by Yash
@@ -83,3 +105,27 @@ flowchart TD
 - **Alternatives:** Rely on tests to catch it — proven insufficient, twice.
 - **Decided by:** Yash
 - **Source:** Seeded 2026-08-11 from the ACT 03 incident
+
+### D-007 — The services reel reads from the CMS, with the hardcoded array as fallback
+- **Date:** 2026-08-13
+- **Decision:** `src/modules/services.js` merges `content/site.json` over its hardcoded array per-plate; the array stays as the fallback and as the readable definition of the shape.
+- **Why:** Otherwise the CMS's Site content screen controls nothing on the real site. Per-plate merge, not all-or-nothing, so a service the CMS has not been given yet keeps its copy instead of vanishing from the reel — the failure that would be noticed last and hurt most.
+- **Alternatives:** Leave services hardcoded (rejected — makes the admin pointless here); replace the array entirely (rejected — a missing build would blank the reel).
+- **Decided by:** Yash (MCQ, 13 Aug)
+- **Source:** World port, 13 Aug 2026
+
+### D-008 — The world's media is committed, not generated on clone
+- **Date:** 2026-08-13
+- **Decision:** `public/world/art/` (3.7 MB, 58 files) and `content/` are tracked in git.
+- **Why:** Another session opening this repo gets a working world with no build step. Yash weighed that against repo size and chose "just works on open".
+- **Alternatives:** Gitignore them and require `build-content.cjs` before first run — rejected; the cost lands on whoever opens the repo cold, which is exactly when they can least diagnose it.
+- **Decided by:** Yash (MCQ, 13 Aug)
+- **Source:** World port, 13 Aug 2026
+
+### D-009 — The world is ported by hand, never by copying files
+- **Date:** 2026-08-13
+- **Decision:** Changes come across as applied hunks onto this tree's current files, never by `cp` from `~/claude code/buildanta-site-world`.
+- **Why:** That copy has no shared git history with this repo, so git cannot three-way merge it. Three of its files are OLDER than ours — copying `main.js` wholesale re-added the crash recorder removed in `dd983a4`, and an over-long slice of its tail duplicated `boot()`, booting the whole site twice and doubling four canvases. Both were caught only by measuring against the pre-port tree.
+- **Alternatives:** `cp -R` the copy over this repo — rejected, it silently reverts work.
+- **Decided by:** Claude (logged; the hazard is recorded in CLAUDE.md)
+- **Source:** World port, 13 Aug 2026
