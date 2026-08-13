@@ -14,7 +14,8 @@ flowchart TD
   SITE --> WORLD["World-in-the-black-hole<br/>src/world/ — PORTED 13 Aug"]
   WORLD -.->|"upstream: fix bugs THERE"| UW["unseen-world, 5331<br/>137-check suite"]
   SITE -.->|"COPY — historical, do not merge from"| OLD["~/buildanta-site-world, 5290"]
-  ENDUR["Endurance contact module<br/>~/endurance, 5291 — NOT ported"] -.->|awaits Yash| SITE
+  SITE --> ENDUR["Endurance contact room<br/>src/gl/endurance/ — ported 6 Aug"]
+  ENDUR -.->|"sandbox, stages 1+2 shipped"| ESB["~/claude code/endurance, 5291"]
   CMS["buildanta-cms<br/>Supabase + admin 5300"] -->|"build-content.cjs"| CONTENT["content/world.json<br/>content/site.json"]
   CONTENT --> WORLD
   CONTENT --> REEL["services reel<br/>src/modules/services.js"]
@@ -50,7 +51,8 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - ✅ **World PORTED into this repo (13 Aug, `d5a032c`)** — 26/26 embedded checks; canvas count back to the pre-port baseline of 7
 - ✅ Endurance contact module built — Contact = fly into the ship; 12 MCQs settled
 - ✅ CMS BUILT and wired — 58 projects, 12 with real copy, 9 services + 5 headings; this site reads its output
-- ⏳ Port the **Endurance** contact module — still waits on Yash's explicit go
+- ✅ **Endurance contact module — already IN this repo** (`src/gl/endurance/`, ported 6 Aug across `c25506b`/`2df6082`/`9c4a069` with Yash's own MCQ rounds). The "waiting to be ported" note carried in this file was stale; verified 13 Aug by flying into the ship and reaching the room.
+- 🔴 The contact form still composes a **mailto:** — Yash owes the real send method + the phone/WhatsApp number
 - ⏳ 46 of the 58 projects still carry placeholder names and art
 - ⏳ WE SCALE port-back per PORT-BACK.md
 - 🔴 Pre-existing portal bug — Yash's open item, not being chased silently
@@ -129,3 +131,12 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Alternatives:** `cp -R` the copy over this repo — rejected, it silently reverts work.
 - **Decided by:** Claude (logged; the hazard is recorded in CLAUDE.md)
 - **Source:** World port, 13 Aug 2026
+
+### D-010 — Split headings wrap by word, not by character
+- **Date:** 2026-08-13
+- **Decision:** `splitText.js` groups each word's character spans in a `.word` wrapper carrying `white-space: nowrap`.
+- **Why:** Every character is its own `inline-block`, and a line may break between any two of them — so the contact heading rendered "GOT SOMETHI / NG TO BUILD?" on every laptop-width screen. `word-break` could not fix it: the browser was not breaking the word, it was breaking between two boxes.
+- **Cost, accepted:** that heading now takes 3 lines instead of 2 at 1024–1440px. Correct words beat a tighter block. Nothing else moved — all 11 split headings were measured at five widths before and after, and only this one changed.
+- **Alternatives:** shrink the font so it still fits two lines (rejected for now — that is a design change, and this is a defect fix); leave it (rejected, it is the flagship's contact headline).
+- **Decided by:** Claude (defect fix, logged for Yash — say the word and the 2-line composition can come back via type size)
+- **Source:** Found while verifying the Endurance port request, 13 Aug 2026

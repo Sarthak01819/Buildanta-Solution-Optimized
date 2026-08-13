@@ -16,6 +16,26 @@ export function splitChars(el) {
   const chars = [];
   const frag = document.createDocumentFragment();
 
+  /* Har character apne inline-block span mein hai, aur do inline-block ke beech
+     line TOOT sakti hai. Isi wajah se contact ka heading "GOT SOMETHI / NG TO
+     BUILD?" ban jaata tha — beech-o-beech shabd ke. `word-break` se fark nahi
+     padta: browser shabd nahi tod raha, wo do boxes ke beech tod raha hai.
+
+     Isliye ek word wrapper: uske andar nowrap, to shabd kabhi nahi tootega;
+     shabdon ke BEECH break allowed rehta hai, jo chahiye bhi tha.
+
+     `chars` array bilkul wahi rehta hai — same elements, same order — to har
+     animation jaisi thi waisi hi chalti hai. */
+  let word = null;
+  const closeWord = () => { word = null; };
+  const openWord = () => {
+    if (word) return word;
+    word = document.createElement("span");
+    word.className = "word";
+    frag.appendChild(word);
+    return word;
+  };
+
   const emit = (c, accent) => {
     const s = document.createElement("span");
     s.className = accent ? "char char--accent" : "char";
@@ -23,10 +43,13 @@ export function splitChars(el) {
     if (c === " ") {
       s.innerHTML = "&nbsp;";
       s.style.width = "0.28em";
+      // Space khud break point hai — wrapper ke bahar, warna sirf ek hi line.
+      closeWord();
+      frag.appendChild(s);
     } else {
       s.textContent = c;
+      openWord().appendChild(s);
     }
-    frag.appendChild(s);
     chars.push(s);
   };
 

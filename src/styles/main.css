@@ -5351,3 +5351,11 @@ html.is-in-world .world-host button,
 html.is-in-world #world-exit,
 html.is-in-world .world-details__hit,
 html.is-in-world .world-details__nav { cursor: pointer !important; }
+
+/* Split headings: shabd ke beech se line na toote.
+   Har character apne inline-block span mein hai, aur browser do inline-block ke
+   beech line tod sakta hai — isi se contact ka heading "GOT SOMETHI / NG TO
+   BUILD?" ban gaya tha. splitText.js ab har shabd ko is wrapper mein daalta hai;
+   andar nowrap, to shabd salaamat rehta hai aur break sirf shabdon ke beech
+   hota hai. */
+.word { white-space: nowrap; }
