@@ -1405,7 +1405,10 @@ export function createIntro({ onProgress } = {}) {
      structure is final so filling it in later is a content job, not a build. */
   const sheet = root.querySelector(".service-sheet");
   let sheetOpen = false, sheetLast = null;
-  const WA_NUMBER = "";   // ⚠️ Yash's WhatsApp number still needed — falls back to email
+  /* Read from BRAND, never retyped here. This constant sat empty for weeks, so
+     the WhatsApp button on every service sheet stayed hidden and email — which
+     was itself bouncing — was the only route out of the site. */
+  const WA_NUMBER = BRAND.whatsapp || "";
   function openSheet(card) {
     if (!sheet || sheetOpen) return;
     const sv = SERVICES.find((x) => x.id === card.dataset.service);
@@ -1421,7 +1424,7 @@ export function createIntro({ onProgress } = {}) {
     const msg = encodeURIComponent(`Hi Buildanta — I'd like to talk about ${sv.word}.`);
     const wa = sheet.querySelector("[data-sheet-wa]");
     const mail = sheet.querySelector("[data-sheet-mail]");
-    if (mail) mail.href = `mailto:hello@buildanta.com?subject=${encodeURIComponent(sv.word + " — Buildanta")}`;
+    if (mail) mail.href = `mailto:${BRAND.email}?subject=${encodeURIComponent(sv.word + " — Buildanta")}`;
     if (wa) {
       if (WA_NUMBER) { wa.href = `https://wa.me/${WA_NUMBER}?text=${msg}`; wa.hidden = false; }
       else wa.hidden = true;          // no number yet: email carries it

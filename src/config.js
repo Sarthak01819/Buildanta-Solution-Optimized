@@ -21,8 +21,18 @@ export const BRAND = {
     "From sensors in the field to dashboards in the boardroom — we build the infrastructure the daily work runs on. Five deployed systems, one engineering standard.",
   since: "2019",
   location: "IN · 19.07°N 72.87°E",
-  email: "hello@buildanta.com",       // TODO: asli email
-  phone: "+91 00000 00000",           // TODO: asli number
+  /* ── THE ONLY PLACE CONTACT DETAILS LIVE ──
+     Confirmed by Yash 13 Aug 2026. Until then this said hello@buildanta.com
+     and +91 00000 00000, and both were LIVE: buildanta.com has no MX record,
+     so every enquiry the Endurance contact room sent did not go to spam, it
+     bounced. Nobody would have reported it — the sender sees mail leave.
+     ⚠️ Anything that needs an address or a number reads it from BRAND. Do not
+     hardcode it again; two copies had already drifted here by 13 Aug. */
+  email: "buildantapvtltd@gmail.com",
+  phone: "+91 91960 27117",
+  /* wa.me wants country code + number and nothing else — no +, spaces or
+     dashes. Kept beside the display number so the two can never disagree. */
+  whatsapp: "919196027117",
   socials: [
     { label: "LINKEDIN", href: "#" },
     { label: "GITHUB", href: "#" },
