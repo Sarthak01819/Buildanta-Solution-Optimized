@@ -45,6 +45,30 @@ if (FINALE) document.documentElement.classList.add("bh-final");
    restore after this script runs, so the position is forced again on load and
    on pageshow (which is what fires when coming back via the bfcache). */
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+/* ⚠️ AND SAY IT THROUGH ScrollTrigger, OR IT IS UNDONE.
+   The line above is not enough on its own. ScrollTrigger CACHES this property
+   when it initialises (`_scrollRestoration = history.scrollRestoration ||
+   "auto"`) and writes its cached copy back on every refresh. registerPlugin
+   runs above this block, so it caches the browser default "auto" and then
+   restores "auto" over us — and the browser puts the visitor back mid-film.
+
+   Measured in a real browser on 13 Aug 2026: scroll to 62%, hit refresh, and
+   the page came back at 41%, then drifted as the acts rebuilt — exactly the
+   lurch Yash reported. `history.scrollRestoration` read "auto" throughout,
+   despite the assignment above.
+
+   clearScrollMemory is the API that actually owns it: it sets the property AND
+   ScrollTrigger's cached copy, so every later internal refresh writes "manual"
+   too. ⚠️ NOT `ScrollTrigger.config({scrollRestoration})` — config accepts only
+   limitCallbacks, syncInterval, ignoreMobileResize and autoRefreshEvents, and
+   silently ignores anything else, so it looks right and does nothing.
+
+   Why this was missed on 10 Aug: a headless check NAVIGATES to the URL, which
+   has no position to restore, so it lands at the top and passes. Only a real
+   RELOAD from a scrolled position reproduces it. */
+ScrollTrigger.clearScrollMemory("manual");
+
 const toTop = () => window.scrollTo(0, 0);
 toTop();
 addEventListener("load", toTop);
