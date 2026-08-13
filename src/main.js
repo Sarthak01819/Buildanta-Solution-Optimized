@@ -15,6 +15,9 @@ import { createFinaleRoom } from "./modules/finaleRoom.js";
 import { createEntryGate } from "./modules/entryGate.js";
 import { initCursor, initMagnetic, countUp } from "./modules/interactions.js";
 import "lenis/dist/lenis.css";
+import { createWorldFall } from "./modules/worldFall.js";
+import { createWorld } from "./world/world-app.js";
+import { injectWorldMarkup } from "./world/world-markup.js";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -520,5 +523,75 @@ function boot() {
     window.__buildanta = { intro, entryGate, scene, lenis, heroIntro, ScrollTrigger, gsap };
   }
 }
+
+/* ── PROJECTS: fall into the black hole, arrive in the world ───────────────
+   Deliberately the LAST thing wired and entirely additive: nothing above is
+   modified, so if this whole block is deleted the site is exactly what it was.
+   That is the point of proving it in a copy first. */
+(function wireWorld() {
+  const host = document.getElementById("world-host");
+  if (!host) return;
+
+  const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let worldApi = null;
+
+  const exitBtn = document.createElement("button");
+  exitBtn.id = "world-exit";
+  exitBtn.type = "button";
+  exitBtn.textContent = "← Leave the world";
+  document.body.appendChild(exitBtn);
+
+  const fall = createWorldFall({
+    reducedMotion: REDUCED,
+    // The scene the visitor is already looking at — not a second one.
+    // An overlay covered the finale, which is why the Endurance vanished the
+    // moment you clicked. Falling through the real scene means it simply stays
+    // where it is and drifts out of frame as the camera passes it.
+    // Via the site's own global, not a closure variable: wireWorld runs BEFORE
+    // boot(), so `intro` does not exist yet here — it is only assigned to
+    // window.__buildanta at the end of boot. Read at click time, by which point
+    // it does.
+    getBeat: () => window.__buildanta?.intro?.blackholeBeat || null,
+    onMountWorld: () => {
+      host.hidden = false;
+      // Injected rather than written into index.html: the world owns the shape
+      // of its own markup, and a hand-copied duplicate here would drift the
+      // moment either side renamed an id — with a silent null as the symptom.
+      injectWorldMarkup(host);
+      worldApi = createWorld({ host, mountRoot: host });
+      worldApi.setPaused(true);   // stays frozen until the veil lifts
+      return worldApi;
+    },
+    onUnmountWorld: () => {
+      worldApi?.dispose?.();
+      worldApi = null;
+      host.hidden = true;
+      host.innerHTML = "";
+    }
+  });
+
+  /* Delegated, not bound per element.
+     The finale builds its Projects control when the black hole settles, long
+     after this runs — a querySelectorAll at boot finds nothing and the button
+     ends up inert, which looks exactly like a broken feature. Listening on the
+     document covers every entry point, whenever it appears. */
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest?.(".js-world-enter");
+    if (!t) return;
+    e.preventDefault();
+    fall.enter();
+  });
+  exitBtn.addEventListener("click", () => fall.exit());
+  addEventListener("keydown", (e) => {
+    // Escape belongs to the world first — it closes an open card there. Only
+    // when nothing inside is open does it mean "leave".
+    if (e.key !== "Escape") return;
+    if (document.documentElement.classList.contains("world-open")) return;
+    if (document.documentElement.classList.contains("world-project")) return;
+    fall.exit();
+  });
+
+  window.__worldFall = fall;
+})();
 
 boot();

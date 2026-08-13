@@ -77,17 +77,40 @@ export async function createBlackholeGateBeat(container, opts = {}) {
   }
   size();
 
+  // Runtime, not construction-time.
+  //
+  // The fall borrows the intro's OWN beat rather than painting a second black
+  // hole on top of it — which is what made the Endurance vanish, since an
+  // overlay covers the whole scene. But the intro drives this same beat by
+  // scroll and must never dive, so the flag has to be switchable rather than
+  // baked in when the beat is built.
+  let CONFIG_DIVE = opts.dive === true;
+
   function stateAt(p, tSec) {
     // Emergence: far + dark → settled framing. Swallow: exposure white-out.
     const emerge = smooth(clamp01(p / 0.22));   // meets the fading flare
     const swallow = smooth(clamp01((p - 0.75) / 0.25));
     const breath = 0.5 - 0.5 * Math.cos((2 * Math.PI * tSec) / CONFIG.breathing.period);
+
+    /* DIVE — opt-in, and off for every existing caller.
+       The intro's beat settles the camera at distMul 1 by p=0.22 and stays
+       there: emergence, then a white swallow. That is an APPROACH. Projects
+       needs the visitor to go THROUGH the horizon, so when dive is on, the
+       back three-quarters of the scrub keeps closing the distance instead of
+       holding it — 1x down to 0.06x, which is inside. The disk blazes as it
+       passes, then there is nothing to light, which is the arrival.
+       Nothing above this line changed, so the intro beat is untouched. */
+    const dive = CONFIG_DIVE ? smooth(clamp01((p - 0.25) / 0.75)) : 0;
+    const distMul = (2.6 - 1.6 * emerge) * (1 - 0.94 * dive);
+
     return {
       tSec,
       yawRad: 0, pitchRad: 0,           // site scroll owns the camera here;
       distOffset: 0,                     // drift via distMul keeps it simple
-      distMul: 2.6 - 1.6 * emerge,       // 2.6× distance (tiny) → 1× (full)
-      exposureMul: (0.05 + 0.95 * emerge) * (1 + 14 * swallow * swallow),
+      distMul,
+      exposureMul: (0.05 + 0.95 * emerge) * (1 + 14 * swallow * swallow)
+        // Crossing the disk blazes; past it there is nothing left to light.
+        * (1 + 6 * dive * (1 - dive) * 4),
       breath,
       cursorBoost: 0,
       lean: { x: 0, y: 0 },
@@ -112,6 +135,7 @@ export async function createBlackholeGateBeat(container, opts = {}) {
     // One still, no loop: visible whenever progress > 0, no churn, no drift.
     render();
     return {
+      setDive(on) { CONFIG_DIVE = on === true; },
       setProgress(p) { progress = clamp01(p); syncOpacity(); render(); },
       tick() {},
       resize() { size(); render(); },
@@ -121,6 +145,7 @@ export async function createBlackholeGateBeat(container, opts = {}) {
   }
 
   return {
+    setDive(on) { CONFIG_DIVE = on === true; },
     setProgress(p) { progress = clamp01(p); syncOpacity(); },
     tick(dt) {
       if (disposed || progress <= 0) return;

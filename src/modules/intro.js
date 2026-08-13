@@ -1485,6 +1485,11 @@ export function createIntro({ onProgress } = {}) {
   return {
     corridor, sound, st,
     rawForP,
+    /* The finale's black hole, exposed so Projects can fall through the scene
+       the visitor is already looking at instead of overlaying another one.
+       A getter, not the value: it is created asynchronously and is still null
+       for the first moments after boot. */
+    get blackholeBeat() { return blackholeBeat; },
 
     /**
      * Force every shader in the intro to compile NOW, behind the loader.

@@ -13,8 +13,18 @@
  * `art` points at /assets/reel/<file>. The current files are the Codex plates
  * from the marketing round, mapped by feel; the replacement art brief lives in
  * docs/codex-reel-prompts-v2.md.
+  *
+ * ── CMS ──
+ * The plates now come from site_content, built into content/site.json by
+ * buildanta-cms. The array below stays as the FALLBACK and is still the thing
+ * to read to understand the shape — a build that has never run, or a checkout
+ * without the generated file, renders exactly what it always did rather than an
+ * empty reel. Edit the copy in the admin; edit the fallback only when adding a
+ * field.
  */
-export const SERVICES = [
+import siteContent from '../../content/site.json'
+
+const FALLBACK = [
   {
     id: "seo",
     word: "SEO",
@@ -106,3 +116,21 @@ export const SERVICES = [
     who: "Anyone still checking a machine by walking up to it.",
   },
 ];
+
+// Services from the CMS, in their authored order. Anything missing falls back.
+//
+// Merged per-plate rather than all-or-nothing: a service the CMS has not been
+// given yet keeps its hardcoded copy instead of vanishing from the reel, which
+// is the failure that would be noticed last and hurt most.
+function fromCms() {
+  const rows = Object.entries(siteContent || {})
+    .filter(([k]) => k.startsWith('service.'))
+    .map(([, v]) => v)
+    .filter((v) => v && v.id)
+  if (!rows.length) return null
+  rows.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+  const byId = Object.fromEntries(FALLBACK.map((s) => [s.id, s]))
+  return rows.map((r) => ({ ...(byId[r.id] || {}), ...r }))
+}
+
+export const SERVICES = fromCms() || FALLBACK

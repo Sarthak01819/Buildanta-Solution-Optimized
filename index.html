@@ -353,6 +353,11 @@
     </div>
   </section>
 
+  <!-- The world's host. Empty until Projects is clicked; the world injects its
+       own markup here and mounts into it, so nothing of it touches <body> —
+       which the finale already relocates #contact into. -->
+  <div id="world-host" class="world-host" hidden></div>
+
   <header class="nav">
     <a class="nav__brand" href="#top">
       <b data-brand></b><span data-designation></span>
@@ -362,6 +367,9 @@
       <a href="#modules">Modules</a>
       <a href="#infra">Infra</a>
       <a href="#sequence">Sequence</a>
+      <!-- Falls into the black hole and arrives in the world. Not an anchor to
+           a section: there is no section, the work lives inside Gargantua. -->
+      <a href="#projects" class="js-world-enter">Projects</a>
     </nav>
     <div class="nav__status"><i class="nav__dot"></i><span>ALL SYSTEMS NOMINAL</span></div>
   </header>

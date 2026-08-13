@@ -1,0 +1,639 @@
+:root {
+  --bg: #050505;
+  --fg: #ffffff;
+  --muted: rgba(255, 255, 255, 0.55);
+  --line: rgba(255, 255, 255, 0.14);
+  --pad: clamp(16px, 2vw, 28px);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Neue Montreal", system-ui, -apple-system, sans-serif;
+  font-size: 14.4px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* M3 — every interactive control shows a visible keyboard focus state. */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip {
+  position: absolute;
+  left: var(--pad); top: -60px;
+  z-index: 60;
+  padding: 8px 14px;
+  background: var(--fg); color: var(--bg);
+  transition: top 160ms ease;
+}
+.skip:focus { top: var(--pad); }
+
+/* Bars sit above the canvas. The canvas is pointer-events:none, so links
+   stay clickable, but z-index keeps them legible over the scene. */
+.bar {
+  position: fixed;
+  left: 0; right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--pad);
+  /* No blend mode and no filter — src: Round 2 Task E measured plain
+     rgb(255,255,255). `difference` looked clever and made the nav vanish
+     wherever it crossed a mid-tone card. */
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
+}
+.bar--top { top: 0; }
+.bar--bottom { bottom: 0; color: var(--muted); }
+
+/* Without the scene the page scrolls, and a fixed footer then sits on top of
+   the work instead of below it. */
+html:not(.world-live) .bar--bottom {
+  position: static;
+  margin-top: calc(var(--pad) * -2);
+}
+.bar nav { display: flex; gap: clamp(14px, 2vw, 26px); }
+.brand { letter-spacing: 0.01em; }
+
+#recentre {
+  font: inherit;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+#recentre:hover { color: var(--fg); border-color: var(--fg); }
+/* Only in the browsing state. There is nothing to recentre from behind an open
+   card, the index or a project page — each of those has its own way back, and
+   two exits on screen at once reads as a rendering bug. */
+html.world-open #recentre,
+html.world-index #recentre,
+html.world-project #recentre { display: none; }
+
+/* ---------------------------------------------------------------- the grid
+
+   The DOM version is the default and it ships first. The scene's own class
+   hides it — never the reverse, or one WebGL failure ships a blank page.
+   When the scene is live the grid stays in the document and stays focusable,
+   so keyboard and screen-reader users keep the whole index. */
+
+.world-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: clamp(16px, 2vw, 32px);
+  padding: calc(var(--pad) * 3.5) var(--pad) calc(var(--pad) * 4);
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.card { display: block; }
+.card__media {
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+.card__title { margin: 10px 0 0; font-weight: 500; }
+.card__meta { margin: 2px 0 0; color: var(--muted); }
+
+.card:hover .card__media,
+.card:focus-visible .card__media { filter: brightness(1.08); }
+
+html.world-live .world-grid {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+/* Opened deliberately from the nav. Same un-clipping as the focus case, but it
+   persists until dismissed instead of vanishing the moment focus moves. */
+html.world-live.world-index .world-grid,
+/* A sighted keyboard user must not be tabbing into an invisible list — but this
+   must never fire while a card is open, or the index paints over the whole open
+   state as an opaque full-screen layer. */
+html.world-live:not(.world-open) .world-grid:focus-within {
+  position: static;
+  width: auto; height: auto;
+  clip-path: none;
+  background: var(--bg);
+  position: relative;
+  z-index: 45;
+}
+
+#world-gl {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  width: 100%;
+  height: 100%;
+  display: none;
+  pointer-events: none;
+  user-select: none;
+}
+html.world-live #world-gl { display: block; }
+html.world-live { overflow: hidden; }
+
+/* While the scene owns the screen, the browser must not claim the gesture.
+   Without this a touch drag becomes a scroll or a pull-to-refresh and the
+   pointer events are cancelled mid-drag — the world simply stops following
+   the finger, which reads as the page being broken. */
+html.world-live,
+html.world-live body {
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* The DOM index is still reachable by keyboard, and it must stay selectable
+   and scrollable when it is revealed. */
+html.world-live .world-grid:focus-within {
+  touch-action: auto;
+  user-select: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip { transition: none; }
+}
+
+/* ---------------------------------------------------------------- phase 4
+
+   The surface is what the pointer actually hits over the field: the canvas is
+   pointer-events:none, so it can never be the element a cursor is read from.
+   It sits under the bars (50) and under the focus-revealed index (45). */
+
+.world-surface { display: none; }
+html.world-live .world-surface {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  touch-action: none;
+  cursor: grab;
+}
+/* The keyword cursors stay as the fallback beneath the drawn hands: cursor.js
+   sets an inline `url(...), auto` on this element, which wins, and if that data
+   URL is ever rejected these still describe the right intent. */
+html.world-live .world-surface[data-cursor="grabbing"] { cursor: grabbing; }
+html.world-live .world-surface[data-cursor="pointer"] { cursor: pointer; }
+/* A mouse must still be able to reach the 58 real links when the index is up. */
+html.world-live .world-grid:focus-within ~ .world-surface,
+html.world-live.world-open .world-surface { pointer-events: none; }
+
+.world-caption {
+  position: fixed;
+  left: var(--pad);
+  bottom: calc(var(--pad) * 3.2);
+  z-index: 44;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* width, not max-width: an absolutely positioned box has no width to cap, so
+     max-width alone shrink-wraps it to a ragged column. */
+  width: min(38ch, calc(100vw - var(--pad) * 2));
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  /* src: Round 3 — on open the panel starts fading in at +497ms and reaches
+     opacity 1 at +1430ms, so 497ms delay over a 933ms fade. Close is 461ms with
+     no delay. It is NOT a hover affordance: measured opacity 0 / visibility
+     hidden through an entire hover, including a swap between two cards. */
+  transition: opacity 461ms ease, transform 461ms ease, visibility 0s linear 461ms;
+  pointer-events: none;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
+}
+.world-caption.is-on {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 933ms ease 497ms, transform 933ms ease 497ms,
+              visibility 0s linear 497ms;
+}
+.world-caption.is-instant { transition-delay: 0s; transition-duration: 200ms; }
+.world-caption__title { font-weight: 500; }
+.world-caption__meta { color: var(--muted); }
+
+/* Unused since round 3 measured that a plain click commits — kept because the
+   reference's own cursor still reads "Click & Hold" and a future round may find
+   the hold path. Costs nothing while no element carries the class.
+   The hold-to-open ring. A conic gradient on one element — no extra pass, no
+   extra render target, and it cannot desynchronise from the gesture because it
+   reads the same clock. */
+.world-ring {
+  position: fixed;
+  left: var(--x, 50%);
+  top: var(--y, 50%);
+  width: 72px;
+  height: 72px;
+  margin: -23px 0 0 -23px;
+  border-radius: 50%;
+  z-index: 46;
+  opacity: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    var(--fg) calc(var(--p, 0) * 360deg),
+    rgba(255, 255, 255, 0.16) 0
+  );
+  mask: radial-gradient(circle, transparent 58%, #000 60%);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%);
+  transition: opacity 120ms ease;
+}
+.world-ring.is-on { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .world-caption { transition: none; }
+  .world-ring { transition: none; }
+}
+
+/* ---------------------------------------------------------------- open state
+
+   Centred, not projected. The open card is flown to the centre of the frame,
+   and the barrel warp's displacement is `cc * dot(cc, cc)` — zero at the centre
+   and cubic away from it. So at the one place this panel lives there is nothing
+   to invert, and nothing has to be recomputed per frame. `--half` is the open
+   card's rendered half-height, set once on open and on resize. */
+
+.world-details {
+  position: fixed;
+  inset: 0;
+  z-index: 46;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 461ms ease, visibility 0s linear 461ms;
+}
+html.world-open .world-details.is-on {
+  opacity: 1;
+  visibility: visible;
+  /* src: Round 3 — the panel starts fading in +497ms after commit and is full
+     at +1430ms. Out is 461ms with no delay.
+     Visibility flips IMMEDIATELY though, with no delay: an element inside a
+     visibility:hidden subtree cannot take focus, so delaying it left the prev/
+     next controls unfocusable for the first half second after opening. The
+     opacity delay is the measured one and still does the visual work. */
+  transition: opacity 933ms ease 497ms, visibility 0s linear 0s;
+}
+
+.world-details__title,
+.world-details__meta {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(46ch, calc(100vw - var(--pad) * 2));
+  text-align: center;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.6);
+}
+.world-details__title {
+  bottom: calc(50% + var(--half, 200px) + var(--gap, 26px));
+  margin: 0;
+  font-size: clamp(20px, 2.4vw, 34px);
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
+}
+.world-details__meta {
+  top: calc(50% + var(--half, 200px) + var(--gap, 26px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.world-details__author {
+  margin: 0;
+  color: var(--muted);
+  font-style: italic;
+}
+.world-details__caption { margin: 0; color: var(--muted); }
+
+.world-details__cta {
+  pointer-events: auto;
+  margin-top: 4px;
+  padding: 7px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--fg);
+}
+.world-details__cta:hover { border-color: var(--fg); }
+.world-details__cta[hidden] { display: none; }
+
+/* At the measured navHandsSpaceFromCenter offset, so the composition matches
+   even though these are buttons rather than their hand meshes. */
+.world-details__nav {
+  position: absolute;
+  top: 50%;
+  pointer-events: auto;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--fg);
+  background: none;
+  /* No chrome. The reference's hands float beside the open card with no ring
+     around them, and a circle drawn around a pixel hand reads as a UI widget
+     bolted next to the artwork. The button semantics stay — this is still a
+     real <button> a keyboard and a screen reader can reach — only the painted
+     border goes. The focus ring below is what a keyboard user gets instead. */
+  border: 0;
+  cursor: pointer;
+  transform: translateY(-50%);
+  /* Opacity only, and slower. Yash: a gentle brighten. */
+  transition: opacity 320ms ease;
+  opacity: 0.85;
+}
+/* NOT a transform.
+ *
+ * This was `transform: translateY(-50%) scale(1.06)`, which REPLACED the
+ * positioning transform on --prev / --next (translate(-50%, -50%), and a
+ * scaleX(-1) on prev). So hovering snapped the control sideways by half its
+ * width — out from under the pointer, which un-hovered it, which moved it back,
+ * which hovered it again. A feedback loop several times a second, and exactly
+ * the "glitching and flickering" Yash reported. Any hover effect on these has
+ * to avoid `transform`, because the transform is load-bearing for position. */
+.world-details__nav:hover { opacity: 1; }
+.world-details__nav:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.world-details__nav--prev {
+  left: calc(50% - var(--control-x, 520px));
+  /* NO scaleX(-1) here. The prev hand is already mirrored in its BITMAP
+     (details.js draws it with flip: true), so flipping the button as well
+     flipped it back — both hands ended up pointing the same way. One flip,
+     and it lives with the image that is actually being mirrored. */
+  transform: translate(-50%, -50%);
+}
+.world-details__nav--next { left: calc(50% + var(--control-x, 520px)); transform: translate(-50%, -50%); }
+
+/* On a narrow screen the measured offset would push both controls off-screen. */
+@media (max-width: 760px) {
+  .world-details__nav--prev { left: var(--pad); transform: translateY(-50%); }
+  .world-details__nav--next { left: auto; right: var(--pad); transform: translateY(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-details { transition: none; }
+  html.world-open .world-details.is-on { transition: none; }
+}
+
+/* ---------------------------------------------------------------- index view
+
+   The back control. Fixed rather than in flow: the index is 7703px tall, and a
+   door out that you have to scroll to the top to find is not a door. */
+#index-close {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(8, 8, 8, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+#index-close:hover { border-color: rgba(255, 255, 255, 0.6); }
+#index-close:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+#index-close[hidden] { display: none; }
+/* If the list is on screen at all, the exit is too — including the keyboard's
+   :focus-within route, which reaches the list without going through the nav.
+   This wins over the [hidden] rule above on purpose: visible list, visible way
+   out, no matter which path or whether the JS state has caught up yet. */
+html.world-live:has(.world-grid:focus-within) #index-close[hidden] { display: block; }
+
+/* Give the list room to clear the fixed control. */
+html.world-index .world-grid { padding-top: 64px; }
+
+/* Without the scene there is no world to go back TO, so the control would be a
+   lie — the list is simply the page. */
+html:not(.world-live) #index-close { display: none; }
+
+/* The pointing hand inside the prev/next controls. image-rendering matters:
+   the bitmap is 16 cells scaled 4x, and letting the browser smooth it turns
+   crisp pixel art into a blurry sticker. Sized to read at the same weight as
+   the reference's, which are hands in the composition rather than icons. */
+.world-details__hand {
+  width: 56px;
+  height: 56px;
+  display: block;
+  image-rendering: pixelated;
+  -ms-interpolation-mode: nearest-neighbor;
+}
+
+/* The open photograph as a link. Sized from the card's projected half-extents
+   (details.js), sitting exactly over it, and invisible — the affordance is the
+   photograph, not a box drawn on top of it. */
+.world-details__hit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--half-w, 180px) * 2);
+  height: calc(var(--half, 180px) * 2);
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.world-details__hit:focus-visible { outline: 2px solid var(--fg); outline-offset: 6px; }
+
+/* ---------------------------------------------------------------- project page
+
+   Answers the #/work/<slug> links every item already carried. Deliberately
+   quiet: the world is the spectacle, and a case study that shouts over its own
+   photographs is the usual failure here. Type and rhythm only, plus the card's
+   accent as the one colour. */
+
+.project {
+  position: relative;
+  z-index: 70;                 /* above the bars (50) and the index (45) */
+  background: var(--bg);
+  min-height: 100vh;
+  padding: 0 var(--pad) clamp(60px, 10vh, 140px);
+  margin: 0 auto;
+  max-width: 1100px;
+}
+.project[hidden] { display: none; }
+.project:focus { outline: none; }
+
+/* While a page is up the world behind it is paused and must not be reachable —
+   a hidden canvas that still takes pointer events swallows clicks meant for the
+   article, which reads as a dead page. */
+html.world-project #world-gl,
+html.world-project .world-surface,
+html.world-project .world-details { display: none; }
+html.world-project .world-grid { display: none; }
+/* The world's own bars go too. The article is max-width and centred, so the
+   fixed bars showed THROUGH its side gutters — "buildanta" on one edge, the
+   Lite toggle floating over the copy on the other — which reads as two pages
+   stacked. The page carries its own back control, which is the only navigation
+   it needs. */
+html.world-project .bar { display: none; }
+html.world-project #index-close { display: none; }
+
+.project__bar {
+  position: sticky;
+  top: 0;
+  padding: 14px 0;
+  background: linear-gradient(var(--bg) 65%, transparent);
+  z-index: 2;
+}
+.project__back {
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(8, 8, 8, 0.82);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+.project__back:hover { border-color: var(--fg); }
+.project__back:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+
+.project__hero {
+  margin: 8px 0 clamp(28px, 5vh, 56px);
+  /* The accent, used once and structurally — a hairline under the hero rather
+     than a tint over the photograph, which would fight the art. */
+  border-bottom: 2px solid var(--accent, var(--line));
+  padding-bottom: clamp(20px, 3vh, 36px);
+}
+.project__hero img,
+.project__hero video {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 62vh;   /* the title has to be reachable without scrolling */
+  object-fit: contain;
+}
+
+.project__title {
+  font-size: clamp(2rem, 6vw, 4.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+  font-weight: 500;
+}
+.project__meta {
+  margin: 0 0 clamp(28px, 5vh, 52px);
+  color: var(--accent, var(--fg));
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.project__body {
+  max-width: 62ch;
+  margin: 0 0 clamp(40px, 7vh, 84px);
+}
+.project__body p {
+  margin: 0 0 1.1em;
+  font-size: clamp(1rem, 1.4vw, 1.16rem);
+  line-height: 1.62;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.project__gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: clamp(12px, 2vw, 24px);
+  margin: 0 0 clamp(48px, 8vh, 96px);
+}
+.project__shot { margin: 0; }
+/* A fixed 4:3 window with the art cropped to fill it.
+   The manifest spans 0.29 to 3.48 in aspect, so letting these size themselves
+   left a portrait hanging half a screen below its neighbours with a dead gap
+   beside it. The hero above still shows its image WHOLE (object-fit: contain) —
+   that one is the subject and must not be cropped. */
+.project__shot img,
+.project__shot video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  height: auto;
+  object-fit: cover;
+}
+
+.project__next {
+  border-top: 1px solid var(--line);
+  padding-top: clamp(22px, 4vh, 40px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.project__next-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.project__next-link {
+  font-size: clamp(1.6rem, 4vw, 2.8rem);
+  color: var(--fg);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.project__next-link:hover { color: var(--accent, var(--fg)); }
+.project__next-link:focus-visible { outline: 2px solid var(--fg); outline-offset: 4px; }
+
+/* The way back out of an OPEN CARD. Escape did this and nothing else did, which
+   is invisible to a mouse. Same pill as the index's exit on purpose — one way
+   back, one look, wherever you are. The panel itself is pointer-events:none
+   (it must not eat drags), so this control opts itself back in. */
+.world-details__close {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(8, 8, 8, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  /* Waits for the card to arrive rather than racing it — the open state's own
+     copy fades in at +497ms (measured), and an exit that appears before the
+     thing it exits is jarring. */
+  transition: opacity 260ms ease 320ms, visibility 0s linear 320ms;
+}
+html.world-open .world-details__close {
+  opacity: 1;
+  visibility: visible;
+}
+.world-details__close:hover { border-color: var(--fg); }
+.world-details__close:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+/* Never both at once: the index's exit and the card's exit are the same pill in
+   the same place, and two stacked reads as a rendering bug. */
+html.world-open #index-close { display: none; }

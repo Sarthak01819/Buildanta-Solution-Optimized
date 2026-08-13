@@ -66,6 +66,17 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
   cta.textContent = "Contact us";
   document.body.appendChild(cta);
 
+  /* Projects sits BESIDE Contact, at the black hole.
+     Two things you can do once Gargantua is in front of you: fly into the ship
+     (Contact) or fall into the hole (Projects). It rides the same visibility as
+     the Contact control, so both arrive when the finale settles and neither
+     exists before it. */
+  const worldCta = document.createElement("button");
+  worldCta.type = "button";
+  worldCta.className = "finale-cta finale-cta--world js-world-enter";
+  worldCta.textContent = "Projects";
+  document.body.appendChild(worldCta);
+
   const flash = document.createElement("div");
   flash.className = "finale-flash";
   flash.setAttribute("aria-hidden", "true");
@@ -175,6 +186,7 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
     blackholeHost.style.opacity = outside.toFixed(3);
     blackholeHost.style.pointerEvents = "none";
     cta.classList.toggle("finale-cta--gone", flight > 0.02);
+    worldCta.classList.toggle("finale-cta--gone", flight > 0.02);
     document.documentElement.classList.toggle("finale-inside", roomFade > 0.85);
   }
 
@@ -193,7 +205,7 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
     if (live) { ship?.load(); ensureSky(); }
     // rewinding back out of the finale must also put us outside the room
     if (!live && flight > 0) { tweening = false; applyFlight(0); }
-    if (!live) cta.classList.remove("finale-cta--in");
+    if (!live) { cta.classList.remove("finale-cta--in"); worldCta.classList.remove("finale-cta--in"); }
   }
   const beatWatch = new MutationObserver(syncBeat);
   beatWatch.observe(blackholeHost, { attributes: true, attributeFilter: ["class"] });
@@ -215,7 +227,9 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
          polled here. The finale keeps its observer: polling it universally
          made that path flaky, because the intro's own class flickers. */
       if (isLive) syncBeat();
-      cta.classList.toggle("finale-cta--in", beatLive && flight <= 0.02);
+      const ctaOn = beatLive && flight <= 0.02;
+      cta.classList.toggle("finale-cta--in", ctaOn);
+      worldCta.classList.toggle("finale-cta--in", ctaOn);
       if (tweening) {
         const k = Math.min(1, (performance.now() - tweenT0) / tweenDur);
         /* LINEAR. This is the piece that made the site's flight differ from

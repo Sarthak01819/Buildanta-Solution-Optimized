@@ -11,10 +11,12 @@ import up from "./shaders/bloom_up.frag.glsl?raw";
 import composite from "./shaders/composite.frag.glsl?raw";
 import { createBlackholeGateBeat } from "./BlackholeGateBeat.js";
 
-export function mountBlackholeBeat(host, { reducedMotion = false } = {}) {
+export function mountBlackholeBeat(host, { reducedMotion = false, dive = false } = {}) {
   return createBlackholeGateBeat(host, {
     shaders: { vert, scene, prefilter, down, up, composite },
     reducedMotion,
+    // Off by default: the intro's beat is an approach and must stay one.
+    dive,
     dprCap: 1.5,          // between the site's ConsultHand (1.2) and Scene (1.75)
   });
 }

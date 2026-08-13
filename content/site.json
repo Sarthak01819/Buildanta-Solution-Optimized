@@ -1,0 +1,173 @@
+{
+  "service.ads": {
+    "id": "ads",
+    "art": "03-paid.jpg",
+    "tag": "GOOGLE · META · CREATIVE",
+    "who": "Businesses that need customers this month, not next quarter.",
+    "gets": [
+      "Campaigns built, launched and tuned weekly",
+      "Ad creative written and designed",
+      "One report that shows spend against results"
+    ],
+    "line": "We buy attention that<br>pays for itself.",
+    "what": "Paid advertising management — running your Google and Meta campaigns so the money spent comes back as customers, and you can see exactly how.",
+    "word": "ADS",
+    "position": 30
+  },
+  "service.aeo": {
+    "id": "aeo",
+    "art": "09-reach.jpg",
+    "tag": "CHATGPT · GEMINI · PERPLEXITY",
+    "who": "Anyone who wants to be found in the next five years, not the last five.",
+    "gets": [
+      "Your facts structured so AI models can quote them",
+      "Presence on the sources those models read",
+      "Monthly checks on what the assistants actually say about you"
+    ],
+    "line": "We make you the answer<br>AI assistants give.",
+    "what": "Answer engine optimisation — being the business ChatGPT, Gemini and Perplexity name when someone asks them for a recommendation. Search is moving here, and almost nobody is optimised for it yet.",
+    "word": "AEO",
+    "position": 20
+  },
+  "service.crm": {
+    "id": "crm",
+    "art": "06-lifecycle.jpg",
+    "tag": "PIPELINE · FOLLOW-UP · REPORTS",
+    "who": "Teams losing deals in the gaps between people.",
+    "gets": [
+      "A pipeline that matches how you actually sell",
+      "Automatic follow-ups and reminders",
+      "Reports you will genuinely read"
+    ],
+    "line": "We put every customer<br>in one place.",
+    "what": "CRM development — one system holding every lead, customer and conversation, so nothing is forgotten and everyone on your team knows where a deal stands.",
+    "word": "CRM",
+    "position": 80
+  },
+  "service.iot": {
+    "id": "iot",
+    "art": "04-sales.jpg",
+    "tag": "SENSORS · GATEWAY · DASHBOARD",
+    "who": "Anyone still checking a machine by walking up to it.",
+    "gets": [
+      "Sensor hardware chosen, built and installed",
+      "A gateway and data pipeline that survives bad networks",
+      "Live dashboards and threshold alerts"
+    ],
+    "line": "We put your machines<br>online.",
+    "what": "Hardware and IoT — sensors on real equipment, sending real readings to a dashboard you can open from anywhere. Water tanks, meters, machines, vehicles.",
+    "word": "IoT",
+    "position": 90
+  },
+  "service.seo": {
+    "id": "seo",
+    "art": "01-seo.jpg",
+    "tag": "TECHNICAL · CONTENT · AUTHORITY",
+    "who": "Businesses whose customers search before they buy.",
+    "gets": [
+      "Technical fixes so Google can read your site",
+      "Pages written around what buyers actually search",
+      "Authority built through links and listings"
+    ],
+    "line": "We make you the answer<br>Google trusts.",
+    "what": "Search engine optimisation — the work that makes your business show up when someone types what you sell into Google, without paying for the click.",
+    "word": "SEO",
+    "position": 10
+  },
+  "section.infra": {
+    "lines": [
+      "Request path.",
+      "Ek request device se data tak kaise pahunchti hai. Har layer alag se monitor hoti hai,\n          aur har layer ka apna budget hai."
+    ],
+    "eyebrow": "03 / Infrastructure"
+  },
+  "service.social": {
+    "id": "social",
+    "art": "07-momentum.jpg",
+    "tag": "CALENDAR · CREATIVE · COMMUNITY",
+    "who": "Brands whose customers scroll before they call.",
+    "gets": [
+      "A month of posts planned and designed",
+      "Publishing handled across every platform",
+      "Comments and DMs answered in your voice"
+    ],
+    "line": "We keep you in the feed,<br>not the archive.",
+    "what": "Social media management — the posting, designing and replying that keeps your brand alive on Instagram, LinkedIn and Facebook without you touching it.",
+    "word": "SOCIAL",
+    "position": 40
+  },
+  "section.contact": {
+    "lines": [
+      "Got something to build?",
+      "Send a message",
+      "Starfield: Carina Nebula, NASA/ESA Hubble — public domain"
+    ],
+    "eyebrow": "05 / Establish Link"
+  },
+  "section.modules": {
+    "lines": [
+      "Sensor to",
+      "dashboard."
+    ],
+    "eyebrow": "02 / Core Modules"
+  },
+  "section.systems": {
+    "lines": [
+      "Five units.",
+      "One standard."
+    ],
+    "eyebrow": "01 / Deployed Systems"
+  },
+  "service.content": {
+    "id": "content",
+    "art": "05-creative.jpg",
+    "tag": "STRATEGY · WRITING · VIDEO",
+    "who": "Businesses selling something people research first.",
+    "gets": [
+      "A topic plan built from real search demand",
+      "Written and filmed content, produced monthly",
+      "Everything optimised for search and AI answers"
+    ],
+    "line": "We publish what your<br>buyers are searching for.",
+    "what": "Content marketing — articles, videos and pages that answer your customers' real questions, so you earn the trust before the sales call.",
+    "word": "CONTENT",
+    "position": 50
+  },
+  "service.website": {
+    "id": "website",
+    "art": "10-ads.jpg",
+    "tag": "DESIGN · BUILD · CARE",
+    "who": "Anyone whose website is older than their ambitions.",
+    "gets": [
+      "Design and build, end to end",
+      "Speed, security and mobile handled properly",
+      "Ongoing care so it never goes stale"
+    ],
+    "line": "We build sites that<br>load fast and sell.",
+    "what": "Website design and development — a site that looks like your business at its best, opens instantly on a cheap phone, and turns visitors into enquiries.",
+    "word": "WEBSITE",
+    "position": 60
+  },
+  "section.sequence": {
+    "lines": [
+      "Four steps.",
+      "No surprises."
+    ],
+    "eyebrow": "04 / Operational Sequence"
+  },
+  "service.software": {
+    "id": "software",
+    "art": "08-growth.jpg",
+    "tag": "WEB · MOBILE · BACKEND",
+    "who": "Businesses outgrowing spreadsheets and WhatsApp groups.",
+    "gets": [
+      "Web and mobile apps built for your process",
+      "The backend, database and hosting handled",
+      "Support and iteration after launch"
+    ],
+    "line": "We build the systems<br>your business runs on.",
+    "what": "Custom software — the tools your business needs but cannot buy off the shelf: billing, inventory, field teams, dashboards. Built around how you already work.",
+    "word": "SOFTWARE",
+    "position": 70
+  }
+}

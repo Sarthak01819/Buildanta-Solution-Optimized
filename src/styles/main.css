@@ -5256,3 +5256,98 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
   /* the close button is the worst of them at 16x27 — it gets real room too */
   .room__close { min-width: 44px; min-height: 44px; }
 }
+
+
+/* ─────────────────────────────────────────────── the world, inside the hole */
+
+/* The host is inert until the fall arrives. Fixed and full-bleed: the world is
+   a place you are in, not a section you scroll past. */
+.world-host {
+  position: fixed;
+  inset: 0;
+  /* Above the fall's black hole (500) — see the note in main.js. */
+  z-index: 520;
+  background: #050505;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 500ms ease;
+}
+.world-host[hidden] { display: none; }
+html.is-in-world .world-host { opacity: 1; visibility: visible; }
+
+/* The site itself is not merely covered — it stops. Leaving it scrollable
+   behind a full-screen scene means a stray wheel event lands you somewhere
+   else entirely when you fly back out. */
+html.is-in-world, html.is-falling { overflow: hidden; }
+html.is-in-world .nav,
+html.is-in-world #progress { opacity: 0; pointer-events: none; }
+
+/* The fall's own darkness. Above the black hole, below the world, so it can
+   cover the swap in both directions. */
+.world-fall__veil {
+  position: fixed;
+  inset: 0;
+  z-index: 510;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+html.is-falling .world-fall__veil { pointer-events: auto; }
+
+/* The way back out. Fixed, always reachable — the world's own exits close
+   things WITHIN the world; this one leaves it. */
+#world-exit {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 530;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.28);
+  background: rgba(8,8,8,0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 300ms ease 400ms;
+}
+html.is-in-world #world-exit { opacity: 1; visibility: visible; }
+#world-exit:hover { border-color: #fff; }
+
+/* Projects, beside Contact at the black hole. Inherits every bit of
+   .finale-cta's behaviour — position, transition, the --in / --gone states —
+   and only steps sideways, so the two controls can never drift apart.
+
+   BOTH states have to be written. .finale-cta--in rewrites `transform`
+   wholesale to slide the control up on arrival, so an offset declared only on
+   the resting state is discarded the instant it becomes visible — the two
+   would stack on the same spot exactly when you can see them. */
+.finale-cta--world { transform: translate(calc(-50% - 92px), 14px); }
+.finale-cta--world.finale-cta--in { transform: translate(calc(-50% - 92px), 0); }
+.finale-cta:not(.finale-cta--world) { transform: translate(calc(-50% + 92px), 14px); }
+.finale-cta:not(.finale-cta--world).finale-cta--in { transform: translate(calc(-50% + 92px), 0); }
+
+/* Give the cursor back, inside the world only.
+
+   The site hides it site-wide — `html, body, body * { cursor: none !important }`
+   in the head, because it draws its own. Inside the world that leaves every
+   control looking dead and the drag hands invisible.
+
+   `inherit`, not `auto`. The host carries the hand (set inline-with-important
+   by cursor.js) and every descendant inherits it, so the hand survives wherever
+   the pointer is. Forcing `auto` here instead was measured across 112 points:
+   hand everywhere while browsing, plain arrow everywhere with a card open —
+   because opening one makes the surface pointer-events:none and the element
+   under the pointer changes. Controls override with a pointer, which is what a
+   control should say. */
+html.is-in-world .world-host * { cursor: inherit !important; }
+html.is-in-world .world-host a,
+html.is-in-world .world-host button,
+html.is-in-world #world-exit,
+html.is-in-world .world-details__hit,
+html.is-in-world .world-details__nav { cursor: pointer !important; }
