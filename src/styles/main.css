@@ -3512,6 +3512,30 @@ body * { cursor:none !important; }
      a green bloom instead, which is what sells "the green glows" (MCQ'd). */
   filter:saturate(1.04) contrast(1.015) drop-shadow(0 0 2.8rem rgba(46,220,142,.2));
 }
+/* ── THE THINKER (Yash, 8 MCQs 14 Aug 2026) ──
+   The statue from the OLD consult film, dormant in /assets since the mint
+   world hid that film — his reference screenshot turned out to be this very
+   file on an older deployment, so "same colour contrast" is the untouched
+   asset on the same measured near-black. Right half, full-bleed, gazing left
+   at the globe; behind the hand canvas (z2 < z5) so the glowing world stays
+   the foreground. The left edge melts into the ground through a mask — a
+   hard rectangle seam is what would betray it as a pasted photo. Fades up
+   with the act's own reveal (--zero-hand-copy), no new motion language. */
+.consult-zero__statue {
+  display:block !important;
+  position:absolute;
+  z-index:2;
+  top:0;
+  right:0;
+  height:100%;
+  width:clamp(24rem,46vw,58rem);
+  object-fit:cover;
+  object-position:62% 14%;
+  opacity:var(--zero-hand-copy);
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 24%);
+  mask-image:linear-gradient(to right,transparent 0,#000 24%);
+  pointer-events:none;
+}
 .consult-zero__opening-copy {
   /* BLACK REDESIGN: title rides top-centre now (Yash, MCQ'd 14 Aug 2026);
      the art owns the left, so the copy no longer shares a side with it.
@@ -3617,6 +3641,10 @@ body * { cursor:none !important; }
   .consult-zero__opening-copy p,
   .consult-zero__wealth-proof { display:none !important; }
   .consult-zero__capital-line { bottom:4.5rem; }
+  /* Full statue on phones too (Yash's pick over my desktop-only advice):
+     it takes the right ~62vw and the hand renders in front of it, so the
+     frame reads statue-behind-world rather than crowded. */
+  .consult-zero__statue { width:62vw; object-position:58% 10%; }
 }
 
 /* ─── ACCESS GATE / automatic Franklin portrait resolve ─── */
