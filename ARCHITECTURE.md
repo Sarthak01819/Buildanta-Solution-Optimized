@@ -167,3 +167,10 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Decided by:** Yash
 - **Source:** 15 MCQs in batches of 4, 14 Aug 2026 · deployed same day
 - **⚠️ Trap for later:** the ORIGINAL film writer was never deleted — it computes zeros and writes them onto `.consult-zero` every frame. The epilogue's writer must stay AFTER it and on the SAME element or it is silently shadowed. `--film-earth-turn` takes degrees.
+
+### D-014 — The desk page leaves the film
+- **Date:** 2026-08-14 18:31
+- **Decision:** The desk/laptop-globe page (establish shot, ghost CONSULT, laptop portal) is removed from the epilogue film. Two beats remain — "Stop wasting growth hours." and the BOOK A GROWTH CALL card — over two screens (filmStretch 3.0→2.0, same dwell per beat).
+- **Why:** Yash sent a screenshot of the page and said "remove this page and integrate the rest."
+- **Decided by:** Yash
+- **Note:** the page's DOM stays dormant; restoring it = re-adding its film-live rules + s1/dolly variable writes (see d6335b1 for what they were).
