@@ -150,3 +150,11 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Decided by:** Yash
 - **Source:** MCQs, 14 Aug 2026 · commit 34d2f1b
 - **⚠️ Consequence:** the `we-scale` carve-out repo (port 5341) still wears the MINT look — its PORT-BACK.md must not be run as-is now; the flagship is ahead of it.
+
+### D-012 — The thinker statue joins the black WE SCALE
+- **Date:** 2026-08-14
+- **Decision:** consult-shot-profile.webp (dormant since the mint world hid the consult film) mounts full-bleed on the right half, facing the globe; faithful bronze grade; title stays top-centre; full statue on phones too; no caption line; fades with the act's own reveal.
+- **Why:** Yash pasted the statue from an older vercel deployment of this same site asking why it was removed — the asset never left the repo, only the film that showed it. 8 MCQs settled placement, size, title, grade, entrance, phones, copy, and shot.
+- **Alternatives:** Desktop-only statue (my advice, rejected — full on phones); green-graded or mono (rejected — faithful bronze); caption line (rejected).
+- **Decided by:** Yash
+- **Source:** 8 MCQs in batches of two, 14 Aug 2026 · deployed same day
