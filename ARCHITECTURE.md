@@ -158,3 +158,12 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Alternatives:** Desktop-only statue (my advice, rejected — full on phones); green-graded or mono (rejected — faithful bronze); caption line (rejected).
 - **Decided by:** Yash
 - **Source:** 8 MCQs in batches of two, 14 Aug 2026 · deployed same day
+
+### D-013 — The old WE CONSULT film returns inside the black act
+- **Date:** 2026-08-14
+- **Decision:** The timeline holds at consultLocal .848 while ~3 screens of raw scroll play the revived film: desk + laptop-globe under ghost CONSULT → "Stop wasting growth hours." with live streaks → "BOOK A GROWTH CALL ↗" closing card (not a link). No stats, no steps. Fully reversible; full film on phones; silent.
+- **Why:** Yash asked for the old deployment's consult part added after the act without replacing anything; 15 MCQs + his two screenshots fixed the cut and the text verbatim.
+- **Alternatives:** After the burn (rejected — sacred chain stays last); crossfade (rejected for through-the-darkness); stats row and steps ladder (dropped).
+- **Decided by:** Yash
+- **Source:** 15 MCQs in batches of 4, 14 Aug 2026 · deployed same day
+- **⚠️ Trap for later:** the ORIGINAL film writer was never deleted — it computes zeros and writes them onto `.consult-zero` every frame. The epilogue's writer must stay AFTER it and on the SAME element or it is silently shadowed. `--film-earth-turn` takes degrees.
