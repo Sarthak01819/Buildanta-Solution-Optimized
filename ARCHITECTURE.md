@@ -3,7 +3,7 @@
 > Truth file (vault rule W3). `dashboard.html` is generated from this — never edit it by hand.
 > Regenerate: `node ~/.claude/skills/build-standards/tools/gen-dashboard.mjs "~/claude code/buildanta-site"`
 
-_Updated: 2026-08-13_
+_Updated: 2026-08-14_
 
 ## Map
 
@@ -141,3 +141,12 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Alternatives:** leave it at 3 lines (rejected by Yash); leave the break (rejected, it is the flagship's contact headline).
 - **Decided by:** Claude found and fixed the break; Yash chose to keep the two-line composition
 - **Source:** Found while verifying the Endurance port request, 13 Aug 2026
+
+### D-011 — WE SCALE goes black (supersedes the mint look AND the carve-out's)
+- **Date:** 2026-08-14
+- **Decision:** WE SCALE's ground is reference-black (measured off buildanta-solutions.vercel.app: #000 corners, green-tinted near-black atmosphere), globe+hand move LEFT, title top-centre in glowing green, the six ambient money notes / birds / feed orbs are retired (hero burn note stays), ticker + HUD go dark.
+- **Why:** Yash wanted the act to match his black reference; 6 MCQs settled text position, black depth, green treatment, type colour, bills, and the strip.
+- **Alternatives:** White type like the reference (rejected — glowing green); keeping the bills on black (rejected — only globe+hand remain).
+- **Decided by:** Yash
+- **Source:** MCQs, 14 Aug 2026 · commit 34d2f1b
+- **⚠️ Consequence:** the `we-scale` carve-out repo (port 5341) still wears the MINT look — its PORT-BACK.md must not be run as-is now; the flagship is ahead of it.
