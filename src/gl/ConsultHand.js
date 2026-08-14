@@ -1312,6 +1312,24 @@ export function createConsultHand(canvas) {
   perchedMoneyBirds.visible = false;
   scene.add(perchedMoneyBirds);
 
+  /* ── BLACK REDESIGN (Yash, 14 Aug 2026): the ambient money story retires ──
+     His call, MCQ'd: on the black ground only the glowing globe and hand
+     remain — the six orbiting notes, their fold-into-bird flights, the perched
+     birds, and the nutrient orbs they fed into the stem all go.
+
+     DETACHED from the scene graph rather than hidden: render() rewrites
+     .visible on every one of these each frame, and the warm-up traversal flips
+     hidden objects visible while it compiles shaders, so a visibility flag
+     survives neither. A detached node keeps updating its matrices harmlessly
+     and renders nothing; restoring the story is scene.add() again.
+
+     ⚠️ bills[6] — the hero note that flies in and BURNS into the finale — is
+     deliberately NOT detached. Only the six with userData.deposit go. */
+  bills.forEach((bill) => { if (bill.userData.deposit) scene.remove(bill); });
+  moneyBirdFlightMeshes.forEach((mesh) => scene.remove(mesh));
+  scene.remove(perchedMoneyBirds);
+  feedOrbs.forEach((feed) => plant.remove(feed.orb));
+
   const moneyBirdRig = new Object3D();
   const moneyBirdLeftPose = new Object3D();
   const moneyBirdRightPose = new Object3D();
@@ -1416,10 +1434,18 @@ export function createConsultHand(canvas) {
     focusBurnBackdrop.visible = false;
 
     const wide = camera.aspect > 1.15;
-    const handAnchorX = wide ? 2.0 : 0.35;
+    /* ── BLACK REDESIGN (Yash, 14 Aug 2026): globe + hand live on the LEFT ──
+       Mirrored X only — Y, Z, camera and every beat timing untouched. The
+       title moved to top-centre (CSS), so the left half is theirs now. The
+       plant is a child of the globe and the money-bird orbit follows
+       globe.position, so nothing else needs retargeting. */
+    const handAnchorX = wide ? -2.0 : -0.35;
     const handAnchorY = wide ? -2.05 : -1.72;
-    const globeAnchorX = wide ? 2.25 : 0.72;
-    const globeAnchorY = wide ? 1.82 : 1.58;
+    const globeAnchorX = wide ? -2.25 : -0.72;
+    /* Narrow screens: the title now lives at the top (CSS), and at Y 1.58 the
+       globe sat straight under it — measured overlap on a 583px pane. 0.95
+       drops the globe into the mid-frame; the wide anchor is untouched. */
+    const globeAnchorY = wide ? 1.82 : 0.95;
     const globeAnchorZ = wide ? 0.52 : 0.42;
     globe.position.x = MathUtils.lerp(0, globeAnchorX, globeIn);
     globe.position.y = MathUtils.lerp(0, globeAnchorY, globeIn);
@@ -1723,10 +1749,21 @@ export function createConsultHand(canvas) {
           billScale,
         );
       }
+      /* BLACK REDESIGN: with the six ambient notes retired, the hero note
+         orbiting from ~24% of the act read as one leftover floater on the
+         black (seen on the first screenshot). It now stays unborn until just
+         before its focus flight (.87): fading in .85→.88, it reads as the
+         note LEAVING the glowing system on its way to the burn, not as
+         furniture that was always there. Position/rotation are untouched —
+         the orbit maths still runs, only opacity gates the entrance. */
+      const heroArrival = isFocusDollar
+        ? smooth((progress - 0.85) / 0.03)
+        : 1;
       const billOpacity = billIn
         * (1 - birdFold)
         * (1 - exit)
         * supportingFade
+        * heroArrival
         * (isFocusDollar ? 1 - dollarMorph : 1);
       if (isFocusDollar) {
         /* While focused, the note is the nearest thing in the shot — but the

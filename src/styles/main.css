@@ -3456,10 +3456,16 @@ body * { cursor:none !important; }
   transform:translate(-50%,-50%) scale(calc(.62 + var(--zero-light,0) * .62));
 }
 .consult-zero__hand-stage {
+  /* ── BLACK REDESIGN (Yash, 14 Aug 2026) ──
+     Ground MEASURED off the reference (buildanta-solutions.vercel.app, dark
+     statue frame, sampled at 5 points): corners are true #000000 and the
+     atmosphere carries a faint GREEN-tinted near-black (#010804, #050e08) —
+     not the grey charcoal an eyeball guess would have picked. The glow pools
+     bottom-LEFT now, where the globe and hand moved. */
   background:
-    radial-gradient(circle at 76% 22%,rgba(248,255,216,.94) 0 5%,rgba(210,255,222,.58) 21%,transparent 43%),
-    radial-gradient(circle at 14% 82%,rgba(35,178,116,.24),transparent 36%),
-    linear-gradient(126deg,#e5f8ea 0%,#c9f3d5 38%,#8fe1ac 68%,#46b982 100%);
+    radial-gradient(120% 90% at 24% 78%,rgba(5,14,8,.9) 0%,rgba(1,8,4,.6) 44%,transparent 72%),
+    radial-gradient(80% 60% at 78% 18%,rgba(2,5,3,.8),transparent 60%),
+    #000;
   perspective:1200px;
 }
 .consult-zero__hand-stage::before {
@@ -3502,24 +3508,30 @@ body * { cursor:none !important; }
 .consult-zero__hand-canvas {
   display:block !important;
   z-index:5;
-  filter:saturate(1.04) contrast(1.015) drop-shadow(-1.8rem 2.2rem 2.6rem rgba(0,73,43,.2));
+  /* A dark drop-shadow is invisible on the black ground — the canvas now casts
+     a green bloom instead, which is what sells "the green glows" (MCQ'd). */
+  filter:saturate(1.04) contrast(1.015) drop-shadow(0 0 2.8rem rgba(46,220,142,.2));
 }
 .consult-zero__opening-copy {
+  /* BLACK REDESIGN: title rides top-centre now (Yash, MCQ'd 14 Aug 2026);
+     the art owns the left, so the copy no longer shares a side with it.
+     The press-lift (4vh drift until the hand presses) is kept — only the
+     -50% vertical centring went, since the block anchors from the top. */
   display:block !important;
   z-index:10;
-  left:clamp(1.4rem,5vw,5.8rem);
-  top:48%;
-  width:min(40rem,42vw);
-  color:#123b2a;
-  text-align:left;
-  text-shadow:0 1rem 3.5rem rgba(231,255,236,.62);
+  left:50%;
+  top:clamp(3rem,7vh,5.5rem);
+  width:min(52rem,78vw);
+  color:#bdf5d9;
+  text-align:center;
+  text-shadow:0 0 2.2rem rgba(52,222,148,.34);
   opacity:var(--zero-hand-copy);
-  transform:translate3d(0,calc(-50% + (1 - var(--zero-hand-press)) * 4vh),0);
+  transform:translate3d(-50%,calc((1 - var(--zero-hand-press)) * 4vh),0);
 }
 .consult-zero__opening-copy small {
   display:block;
   margin-bottom:clamp(.9rem,1.8vh,1.4rem);
-  color:rgba(13,73,48,.58);
+  color:rgba(141,255,213,.5);
   font:600 clamp(.45rem,.6vw,.64rem)/1 "DM Mono",monospace;
   letter-spacing:.28em;
 }
@@ -3531,68 +3543,77 @@ body * { cursor:none !important; }
   letter-spacing:-.065em;
   white-space:nowrap;
 }
-.consult-zero__opening-copy span { color:#163f2e; }
+/* Glowing green on the measured black — the title is now a light source.
+   Two intensities keep the old two-tone hierarchy: WE paler, SCALE. hotter. */
+.consult-zero__opening-copy span {
+  color:#8dffcf;
+  text-shadow:0 0 1.1rem rgba(94,255,187,.5),0 0 3.4rem rgba(46,222,148,.32);
+}
 .consult-zero__opening-copy strong {
-  margin-left:clamp(1rem,4vw,4.6rem);
-  color:#07935f;
+  margin-left:0;
+  color:#35eb98;
   font-style:italic;
   font-weight:400;
+  text-shadow:0 0 1.2rem rgba(53,235,152,.62),0 0 4rem rgba(38,214,136,.4),0 0 8rem rgba(38,214,136,.22);
 }
 .consult-zero__currency-word {
   display:block;
   margin:clamp(.9rem,1.8vh,1.35rem) 0 0;
-  color:#08784f;
+  color:#3fdf9a;
   font:600 clamp(.48rem,.64vw,.68rem)/1 "DM Mono",monospace;
   letter-spacing:.22em;
 }
 .consult-zero__opening-copy p {
   max-width:31rem;
-  margin:clamp(.9rem,1.8vh,1.4rem) 0 0;
-  color:rgba(14,62,43,.67);
+  margin:clamp(.9rem,1.8vh,1.4rem) auto 0;
+  color:rgba(168,236,203,.62);
   font:500 clamp(.62rem,.78vw,.82rem)/1.65 "DM Mono",monospace;
 }
+/* Chip and proof pills flip for the black ground: the chip becomes the one
+   solid-green object in the frame, the pills go glassy-dark. */
 .consult-zero__wealth-action {
   display:inline-flex;
   margin-top:clamp(.9rem,1.8vh,1.4rem);
-  color:#f5fff8;
-  background:#103e2b;
-  box-shadow:0 1.2rem 3rem rgba(8,73,44,.18);
+  color:#03130b;
+  background:#2fe392;
+  box-shadow:0 0 2.4rem rgba(47,227,146,.34);
 }
-.consult-zero__wealth-action i { color:#0d3a28; background:#dff9e6; }
+.consult-zero__wealth-action i { color:#dfffeF; background:#0b6a43; }
 .consult-zero__wealth-proof {
   display:flex !important;
-  justify-content:flex-start;
+  justify-content:center;
   margin-top:clamp(1rem,2vh,1.65rem);
 }
 .consult-zero__wealth-proof span {
-  border-color:rgba(13,89,57,.14);
-  background:rgba(239,255,242,.4);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.56);
+  border-color:rgba(94,255,187,.16);
+  background:rgba(6,20,13,.55);
+  box-shadow:inset 0 1px 0 rgba(141,255,213,.1);
 }
-.consult-zero__wealth-proof span b { color:#0b704a; }
-.consult-zero__wealth-proof span em { color:rgba(13,63,43,.55); }
+.consult-zero__wealth-proof span b { color:#4bf0a6; }
+.consult-zero__wealth-proof span em { color:rgba(160,232,198,.5); }
+/* The ticker goes dark with the frame (Yash: one dark scene, MCQ'd). */
 .consult-zero__capital-line {
   display:block !important;
   z-index:12;
-  color:rgba(12,71,47,.48);
-  border-color:rgba(9,82,52,.13);
-  background:rgba(224,250,231,.32);
+  color:rgba(142,236,192,.5);
+  border-color:rgba(94,255,187,.13);
+  background:rgba(3,10,6,.66);
 }
 .consult-zero__hud {
   display:flex !important;
-  color:rgba(12,65,44,.48);
+  color:rgba(140,214,180,.42);
 }
-.consult-zero__hud b { color:#087d52; }
+.consult-zero__hud b { color:#2fe392; }
 
 @media (max-width:760px) {
   .consult-zero__opening-copy {
-    left:1.2rem;
-    top:29%;
-    width:78vw;
+    left:50%;
+    top:9%;
+    width:88vw;
   }
   .consult-zero__opening-copy span,
   .consult-zero__opening-copy strong { font-size:clamp(3.1rem,16vw,5.8rem); }
-  .consult-zero__opening-copy strong { margin-left:.7rem; }
+  .consult-zero__opening-copy strong { margin-left:0; }
   .consult-zero__opening-copy p,
   .consult-zero__wealth-proof { display:none !important; }
   .consult-zero__capital-line { bottom:4.5rem; }
