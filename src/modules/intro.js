@@ -919,6 +919,7 @@ export function createIntro({ onProgress } = {}) {
          not as something you entered */
       const consultOpacity = smoothstep((p - 0.756) / 0.010) * consultOut;
       const consultLocal = Math.max(0, Math.min(1, (p - 0.768) / 0.224));
+
       // The same palm globe begins around the camera and zooms out into place.
       // Bring its mint world in immediately—there is no separate space scene.
       const handBg = smoothstep(consultLocal / 0.10);
@@ -1022,6 +1023,52 @@ export function createIntro({ onProgress } = {}) {
       consultZero.style.setProperty("--film-t7", segmentProgress(consultLocal, 0.710, 0.925).toFixed(3));
       consultZero.style.setProperty("--film-t8", segmentProgress(consultLocal, 0.835, 1.00).toFixed(3));
       consultZero.style.setProperty("--zero-drift", `${((consultLocal - 0.5) * 5).toFixed(2)}vh`);
+
+      /* ── THE EPILOGUE FILM's writer (Yash, 15 MCQs 14 Aug 2026) ──
+         ⚠️ MUST run AFTER the original --film-* writer above and on the SAME
+         element. The old film's writer was never deleted — it lives just up
+         there, computing zeros in today's timeline, and it cost half a day:
+         my first writer targeted #intro and ran earlier in the frame, so the
+         original's zeros on .consult-zero (a closer ancestor) shadowed every
+         value it wrote. Same element + later write = this one wins.
+         Beats per the MCQs: darkness in → desk + turning laptop-globe under
+         the ghost CONSULT → streaks + "Stop wasting growth hours." → the
+         BOOK A GROWTH CALL card (not a link) → darkness out, world returns
+         for the note's departure. All from filmLocal — scrubs both ways. */
+      {
+        const F = filmLocal;
+        const bg = smoothstep(F / 0.09) * (1 - smoothstep((F - 0.93) / 0.07));
+        const s1 = smoothstep((F - 0.07) / 0.07) * (1 - smoothstep((F - 0.38) / 0.06));
+        const t1 = smoothstep((F - 0.05) / 0.36);
+        /* the establish shot carries the old film's CAMERA: --film-dolly pulls
+           it from a 4.65x close-up back to the wide desk — undriven it froze
+           at a black haze that took an hour to recognise as the desk seen
+           from an inch away */
+        const dolly = smoothstep((F - 0.05) / 0.28);
+        const lens = smoothstep((F - 0.33) / 0.08) * (1 - smoothstep((F - 0.65) / 0.07));
+        const s2 = smoothstep((F - 0.37) / 0.07) * (1 - smoothstep((F - 0.64) / 0.06));
+        const t2 = smoothstep((F - 0.36) / 0.30);
+        const s8 = smoothstep((F - 0.63) / 0.07) * (1 - smoothstep((F - 0.93) / 0.06));
+        const t8 = smoothstep((F - 0.63) / 0.22);
+        const cta = smoothstep((F - 0.68) / 0.10) * (1 - smoothstep((F - 0.93) / 0.06));
+        if (F > 0) {
+          consultZero.style.setProperty("--film-bg", bg.toFixed(3));
+          consultZero.style.setProperty("--film-s1", s1.toFixed(3));
+          consultZero.style.setProperty("--film-t1", t1.toFixed(3));
+          consultZero.style.setProperty("--film-dolly", dolly.toFixed(3));
+          consultZero.style.setProperty("--film-lens", lens.toFixed(3));
+          consultZero.style.setProperty("--film-s2", s2.toFixed(3));
+          consultZero.style.setProperty("--film-t2", t2.toFixed(3));
+          consultZero.style.setProperty("--film-s8", s8.toFixed(3));
+          consultZero.style.setProperty("--film-t8", t8.toFixed(3));
+          consultZero.style.setProperty("--film-cta", cta.toFixed(3));
+          /* ⚠️ DEGREES — the CSS multiplies var(--film-earth-turn, 0deg) in a
+             calc; a unitless value silently voids the whole transform. One
+             slow scroll-owned turn across the film. */
+          consultZero.style.setProperty("--film-earth-turn", (F * 360).toFixed(1) + "deg");
+        }
+        root.classList.toggle("film-live", bg > 0.001);
+      }
     }
 
     /* har act ka text apni khidki se */
@@ -1119,25 +1166,55 @@ export function createIntro({ onProgress } = {}) {
      isliye acts/consult ki pacing ko ye chhoota tak nahi. */
   const beatStretch = beatEnabled ? 1.0 : 0;
   const consultTimelineStart = HANDOVER_P1;
+  /* ── THE CONSULT EPILOGUE FILM (Yash, 15 MCQs 14 Aug 2026) ──
+     The old deployment's WE CONSULT film — desk + laptop-globe, "Stop wasting
+     growth hours.", "BOOK A GROWTH CALL ↗" — returns as a film INSIDE the
+     consult act: after the world, before the burn. The timeline p pauses at
+     FILM_P (consultLocal .848, chosen because the hero note is born at .85 —
+     the pause sits one breath BEFORE the sacred note→burn→hole chain, which
+     then runs contiguous and untouched) while raw scroll keeps travelling
+     through a zero-span segment. filmLocal is that segment's own 0→1.
+     ⚠️ The film DOM+CSS were never deleted, only their variable-writer was —
+     the writer below drives the ORIGINAL --film-* variables, so the look and
+     the words are the old film's own. */
+  const FILM_P = 0.768 + 0.848 * 0.224;   // consultLocal .848 in timeline p
+  const filmStretch = reduced ? 0 : 3.0;  // "about three screens" (MCQ)
   /* Piecewise timeline: each row is [pFrom, pTo, extra-vh]. The base cost of a
-     p-span is span * baseScrollLength; a stretch simply adds vh to that row. */
+     p-span is span * baseScrollLength; a stretch simply adds vh to that row.
+     A row with pFrom === pTo is a HOLD: p stands still while its vh scrolls. */
   const SEGMENTS = [
     [0, MARKET_P0, 0],
     [MARKET_P0, MARKET_P1, marketStretch],
     [MARKET_P1, HANDOVER_P1, handoverStretch],
-    [HANDOVER_P1, 1, consultStretch],
+    [HANDOVER_P1, FILM_P, consultStretch * 0.85],
+    [FILM_P, FILM_P, filmStretch],
+    [FILM_P, 1, consultStretch * 0.15],
   ].map(([p0, p1, extra]) => ({ p0, p1, vh: (p1 - p0) * baseScrollLength + extra }));
   const introScrollLength = SEGMENTS.reduce((a, seg) => a + seg.vh, 0);
   const totalScrollLength = introScrollLength + beatStretch;
   const introRawEnd = introScrollLength / totalScrollLength;
+  /* Side-channel from the mapper: how far through the flat film segment the
+     last mapped scroll position was. 0 before it, 1 past it. */
+  let filmLocal = 0;
   const mapScrollProgress = (raw) => {
     let v = Math.min(raw / introRawEnd, 1) * introScrollLength;   // vh travelled
+    let f = 0;
     for (const seg of SEGMENTS) {
+      /* Zero-vh rows (reduced motion sets stretches to 0) would divide 0/0
+         below — they occupy no scroll, so they simply don't participate. */
+      if (seg.vh <= 0) continue;
       if (v <= seg.vh || seg === SEGMENTS[SEGMENTS.length - 1]) {
+        if (seg.p1 === seg.p0) {          // inside the film's hold
+          filmLocal = Math.min(v / seg.vh, 1);
+          return seg.p0;
+        }
+        filmLocal = f;
         return seg.p0 + Math.min(v / seg.vh, 1) * (seg.p1 - seg.p0);
       }
+      if (seg.p1 === seg.p0) f = 1;       // the hold is fully behind us
       v -= seg.vh;
     }
+    filmLocal = f;
     return 1;
   };
   /* Gargantua sirf ENTER ke baad (Yash, 6 Aug 16:18 MCQ): pehle ka 0.008
@@ -1476,6 +1553,15 @@ export function createIntro({ onProgress } = {}) {
   const rawForP = (target) => {
     let v = 0;
     for (const seg of SEGMENTS) {
+      /* The film's hold row spans zero p — no p value lives inside it, and its
+         (p1 - p0) is zero, which the division below cannot meet. rawForP(p)
+         for p past the hold must still CROSS its vh, so it adds and moves on;
+         rawForP(FILM_P) itself resolves to the hold's start, which is the
+         stable convention for tests that scroll "to" a beat. */
+      if (seg.p1 === seg.p0) {
+        if (target > seg.p0) v += seg.vh;
+        continue;
+      }
       if (target <= seg.p1 || seg === SEGMENTS[SEGMENTS.length - 1]) {
         v += ((target - seg.p0) / (seg.p1 - seg.p0)) * seg.vh;
         break;

@@ -3647,6 +3647,68 @@ body * { cursor:none !important; }
   .consult-zero__statue { width:62vw; object-position:58% 10%; }
 }
 
+/* ─── THE CONSULT EPILOGUE FILM (Yash, 15 MCQs 14 Aug 2026) ───
+   The old WE CONSULT film returns INSIDE the black act: the timeline holds at
+   consultLocal .848 while three screens of raw scroll play the film, then the
+   world comes back for one breath and the note departs for the burn.
+   Everything here is scoped to #intro.film-live, which intro.js toggles only
+   while the film's darkness is up — outside that span this block is inert and
+   the act is exactly the approved black world. The film DOM, its words and
+   its variables are the ORIGINAL ones; only the writer was ever missing. */
+#intro.film-live .consult-zero__hand-stage::before {
+  /* the darkness itself — covers world, statue, copy and ticker (z12) */
+  inset:0;
+  z-index:15;
+  opacity:var(--film-bg,0);
+  background:#000;
+  -webkit-mask-image:none;
+  mask-image:none;
+  transform:none;
+}
+#intro.film-live .consult-film__shot--establish {
+  display:block !important;
+  z-index:17;
+  opacity:var(--film-s1,0);
+  transform:scale(calc(1.06 - var(--film-t1,0) * .06));
+  -webkit-mask-image:radial-gradient(130% 130% at 50% 48%,#000 58%,transparent 97%);
+  mask-image:radial-gradient(130% 130% at 50% 48%,#000 58%,transparent 97%);
+  pointer-events:none;
+}
+#intro.film-live .consult-zero__word {
+  /* the ghost CONSULT looms over the desk; the laptop portal (z19) occludes
+     it exactly where the screen sits, which is how the reference framed it */
+  display:block !important;
+  z-index:18;
+  top:6%;
+  opacity:calc(var(--film-s1,0) * .9);
+  pointer-events:none;
+}
+#intro.film-live .consult-film__laptop-portal {
+  display:block !important;
+  z-index:19;
+  opacity:var(--film-s1,0);
+  pointer-events:none;
+}
+#intro.film-live .consult-film__lens-bridge { display:block !important; pointer-events:none; }
+#intro.film-live .consult-film__shot--think {
+  display:block !important;
+  z-index:20;
+  -webkit-mask-image:radial-gradient(135% 135% at 50% 46%,#000 60%,transparent 98%);
+  mask-image:radial-gradient(135% 135% at 50% 46%,#000 60%,transparent 98%);
+  pointer-events:none;
+}
+#intro.film-live .consult-film__copy--hours { display:block !important; z-index:21; pointer-events:none; }
+#intro.film-live .consult-film__final-scene {
+  display:block !important;
+  z-index:22;
+  pointer-events:none;
+}
+/* No mask on the final shot: the scene is a full-viewport layer with its own
+   grey wall behind the img — a mask would cut windows into the grey, not melt
+   anything. Full-bleed layers have no seam to hide. */
+/* the film ends on the call line ALONE — the idea card stays retired (MCQ) */
+#intro.film-live .consult-film__idea { display:none !important; }
+
 /* ─── ACCESS GATE / automatic Franklin portrait resolve ─── */
 html.entry-pending,
 html.entry-pending body {
