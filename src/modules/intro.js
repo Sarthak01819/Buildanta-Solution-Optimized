@@ -1037,35 +1037,27 @@ export function createIntro({ onProgress } = {}) {
          for the note's departure. All from filmLocal — scrubs both ways. */
       {
         const F = filmLocal;
+        /* Two beats since 14 Aug 18:31 (Yash removed the desk/laptop page from
+           his own screenshot of it): darkness in → streaks + "Stop wasting
+           growth hours." → the BOOK A GROWTH CALL card → darkness out. The
+           desk group's variables (s1/t1/dolly/earth-turn) are simply no longer
+           written — the ORIGINAL writer above zeroes them every frame, which
+           for once is exactly the behaviour we want. */
         const bg = smoothstep(F / 0.09) * (1 - smoothstep((F - 0.93) / 0.07));
-        const s1 = smoothstep((F - 0.07) / 0.07) * (1 - smoothstep((F - 0.38) / 0.06));
-        const t1 = smoothstep((F - 0.05) / 0.36);
-        /* the establish shot carries the old film's CAMERA: --film-dolly pulls
-           it from a 4.65x close-up back to the wide desk — undriven it froze
-           at a black haze that took an hour to recognise as the desk seen
-           from an inch away */
-        const dolly = smoothstep((F - 0.05) / 0.28);
-        const lens = smoothstep((F - 0.33) / 0.08) * (1 - smoothstep((F - 0.65) / 0.07));
-        const s2 = smoothstep((F - 0.37) / 0.07) * (1 - smoothstep((F - 0.64) / 0.06));
-        const t2 = smoothstep((F - 0.36) / 0.30);
-        const s8 = smoothstep((F - 0.63) / 0.07) * (1 - smoothstep((F - 0.93) / 0.06));
-        const t8 = smoothstep((F - 0.63) / 0.22);
-        const cta = smoothstep((F - 0.68) / 0.10) * (1 - smoothstep((F - 0.93) / 0.06));
+        const lens = smoothstep((F - 0.08) / 0.09) * (1 - smoothstep((F - 0.46) / 0.07));
+        const s2 = smoothstep((F - 0.10) / 0.08) * (1 - smoothstep((F - 0.48) / 0.06));
+        const t2 = smoothstep((F - 0.10) / 0.34);
+        const s8 = smoothstep((F - 0.47) / 0.08) * (1 - smoothstep((F - 0.93) / 0.06));
+        const t8 = smoothstep((F - 0.47) / 0.24);
+        const cta = smoothstep((F - 0.53) / 0.10) * (1 - smoothstep((F - 0.93) / 0.06));
         if (F > 0) {
           consultZero.style.setProperty("--film-bg", bg.toFixed(3));
-          consultZero.style.setProperty("--film-s1", s1.toFixed(3));
-          consultZero.style.setProperty("--film-t1", t1.toFixed(3));
-          consultZero.style.setProperty("--film-dolly", dolly.toFixed(3));
           consultZero.style.setProperty("--film-lens", lens.toFixed(3));
           consultZero.style.setProperty("--film-s2", s2.toFixed(3));
           consultZero.style.setProperty("--film-t2", t2.toFixed(3));
           consultZero.style.setProperty("--film-s8", s8.toFixed(3));
           consultZero.style.setProperty("--film-t8", t8.toFixed(3));
           consultZero.style.setProperty("--film-cta", cta.toFixed(3));
-          /* ⚠️ DEGREES — the CSS multiplies var(--film-earth-turn, 0deg) in a
-             calc; a unitless value silently voids the whole transform. One
-             slow scroll-owned turn across the film. */
-          consultZero.style.setProperty("--film-earth-turn", (F * 360).toFixed(1) + "deg");
         }
         root.classList.toggle("film-live", bg > 0.001);
       }
@@ -1178,7 +1170,10 @@ export function createIntro({ onProgress } = {}) {
      the writer below drives the ORIGINAL --film-* variables, so the look and
      the words are the old film's own. */
   const FILM_P = 0.768 + 0.848 * 0.224;   // consultLocal .848 in timeline p
-  const filmStretch = reduced ? 0 : 3.0;  // "about three screens" (MCQ)
+  /* 2.0, was 3.0: Yash removed the desk/laptop-globe page (18:31, from his
+     own screenshot of it) — two beats keep the same dwell each that three had,
+     so the film shortens by the page it lost instead of crawling. */
+  const filmStretch = reduced ? 0 : 2.0;
   /* Piecewise timeline: each row is [pFrom, pTo, extra-vh]. The base cost of a
      p-span is span * baseScrollLength; a stretch simply adds vh to that row.
      A row with pFrom === pTo is a HOLD: p stands still while its vh scrolls. */

@@ -3665,67 +3665,11 @@ body * { cursor:none !important; }
   mask-image:none;
   transform:none;
 }
-#intro.film-live .consult-film__shot--establish {
-  display:block !important;
-  z-index:17;
-  opacity:var(--film-s1,0);
-  /* ⚠️ NO transform here — the ORIGINAL rule carries translate3d(-50%,-50%)
-     + perspective + the --film-dolly camera, and the laptop-portal's own
-     transform is calibrated against exactly that geometry. A decorative
-     override replaced all of it once: the shot fell un-centred into the
-     bottom-right quadrant and the portal floated tilted where the laptop
-     wasn't — caught by Yash on the LIVE site, missed here because the only
-     beat-1 screenshot was taken mid-dolly where the zoom hides layout. */
-  -webkit-mask-image:radial-gradient(130% 130% at 50% 48%,#000 58%,transparent 97%);
-  mask-image:radial-gradient(130% 130% at 50% 48%,#000 58%,transparent 97%);
-  pointer-events:none;
-}
-/* The ghost's parent: .consult-zero__world is display-hidden by the ACT-04
-   list and its opacity rides --zero-world, so the word inside could never
-   paint (caught only when the settled desk was finally screenshotted — the
-   word was silently absent). In film-live the world becomes a TRANSPARENT
-   pass-through for the word alone: its green backdrop, grid, node system and
-   drift transform are all neutralised, and every other child stays hidden. */
-#intro.film-live .consult-zero__world {
-  display:block !important;
-  /* ⚠️ 20, not 18: the hand-stage is z19 and its `perspective` makes it a
-     stacking CONTEXT — every film layer (15–24) lives inside it, so a sibling
-     at z18 is covered whole and the word inside it can never paint. Above 19
-     the ghost rides over the film; the letters sit at top 6% so only the
-     laptop's top bezel ever meets them. */
-  z-index:20;
-  inset:0;
-  opacity:1;
-  transform:none;
-  background:none;
-  pointer-events:none;
-}
-#intro.film-live .consult-zero__world::before,
-#intro.film-live .consult-zero__world::after { display:none; }
-#intro.film-live .consult-zero__grid,
-#intro.film-live .consult-zero__system { display:none !important; }
-#intro.film-live .consult-zero__word {
-  /* The ghost CONSULT looms over the desk; the laptop portal (z19) occludes
-     it exactly where the screen sits, which is how the reference framed it.
-     RESTYLED for the film: the zero-world's 1px mint stroke at 24% alpha
-     painted zero measurable pixels on the grey wall (scanned the band —
-     nothing). The reference's ghost is solid letterpress grey, so here it is
-     solid letterpress grey. */
-  display:block !important;
-  top:6%;
-  color:#585d59;
-  -webkit-text-stroke:0;
-  text-shadow:0 .04em .08em rgba(0,0,0,.55);
-  opacity:calc(var(--film-s1,0) * .85);
-  pointer-events:none;
-}
-#intro.film-live .consult-zero__word::after { display:none; }
-#intro.film-live .consult-film__laptop-portal {
-  display:block !important;
-  z-index:19;
-  opacity:var(--film-s1,0);
-  pointer-events:none;
-}
+/* The desk/laptop-globe page (establish shot, ghost CONSULT, laptop portal)
+   was REMOVED by Yash on 14 Aug 18:31 from his own screenshot of it — the
+   film opens straight into the streaks now. Its DOM stays dormant like the
+   rest of the old film; only these re-display rules were deleted, so putting
+   the page back is re-adding them plus the s1/dolly writes. */
 #intro.film-live .consult-film__lens-bridge { display:block !important; pointer-events:none; }
 #intro.film-live .consult-film__shot--think {
   display:block !important;
