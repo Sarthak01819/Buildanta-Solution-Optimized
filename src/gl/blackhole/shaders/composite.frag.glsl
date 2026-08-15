@@ -38,7 +38,21 @@ float hash21(vec2 p) {
 }
 
 void main() {
-  vec3 c = texture(uScene, vUv).rgb + texture(uBloom, vUv).rgb * uBloomStrength;
+  vec4 sceneTex = texture(uScene, vUv);
+  /* THE SHADOW IS A HOLDOUT. scene alpha is 0 inside the event horizon (see
+     scene.frag). Bloom from the disk is enormous and spreads everywhere,
+     including across the void — which is what left the interior sitting at
+     ~5/255 with visibly crawling grain instead of black. Suppressing bloom
+     there costs the disk nothing (the matte is only the horizon) and gives
+     the shadow the dead black of the plate. Feathered by one pixel so the
+     rim does not turn into a hard cut-out. */
+  float px = 1.0 / max(uRes.y, 1.0);
+  float holdout = sceneTex.a;
+  holdout = min(holdout, texture(uScene, vUv + vec2(px, 0.0)).a);
+  holdout = min(holdout, texture(uScene, vUv - vec2(px, 0.0)).a);
+  holdout = min(holdout, texture(uScene, vUv + vec2(0.0, px)).a);
+  holdout = min(holdout, texture(uScene, vUv - vec2(0.0, px)).a);
+  vec3 c = sceneTex.rgb + texture(uBloom, vUv).rgb * uBloomStrength * holdout;
 
   // The light leans toward the cursor: bright content on the cursor's side of
   // the hole lifts, the far side dips. Masked by luminance so space stays
@@ -63,14 +77,26 @@ void main() {
   float vig = pow(q.x * q.y * 15.0, 0.28);
   c *= mix(1.0, clamp(vig, 0.0, 1.0), uVignette);
 
-  // Fine animated grain + 1-bit dither: kills banding in the wide halo.
-  // Gated by luminance — grain on pure black would lift space to grey
-  // (tiny linear values decode to whole sRGB codes).
+  // Fine animated grain: kills banding in the wide halo. Gated by luminance —
+  // grain on pure black would lift space to grey.
   float g = hash21(vUv * uRes + fract(uTime * 13.7) * 101.0) - 0.5;
   float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c += g * uGrain * smoothstep(0.0, 0.16, lum);
-  c += (hash21(vUv * uRes + 0.5 + fract(uTime * 7.3) * 57.0) - 0.5) / 255.0;
 
   c = pow(max(c, 0.0), vec3(1.0 / 2.2));
+
+  /* ⚠️ DITHER BELONGS IN DISPLAY SPACE, NOT LINEAR SPACE.
+     This ±0.5/255 nudge used to sit ABOVE the gamma encode — the very trap
+     the grain comment warns about, two lines up. In linear space 0.5/255 is
+     not half a code: pow(0.00196, 1/2.2) = 15/255, so the horizon interior
+     carried up to 15 codes of animated noise instead of being black. That is
+     what Yash saw ("it should be black, man"), and why he ALSO saw it through
+     the Endurance window, whose grade sets grain: 0 — the gated grain was
+     already off there; this ungated line was the whole remaining source.
+
+     After the encode, 1/255 is genuinely one code: it still breaks banding in
+     the halo and is invisible on black. */
+  c += (hash21(vUv * uRes + 0.5 + fract(uTime * 7.3) * 57.0) - 0.5) / 255.0;
+
   outColor = vec4(c, 1.0);
 }

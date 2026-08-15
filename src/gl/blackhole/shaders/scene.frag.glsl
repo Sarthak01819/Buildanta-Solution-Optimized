@@ -275,9 +275,24 @@ void main() {
     col += stars(normalize(v), uTime) * (1.0 - alphaAcc);
   }
 
-  // The photon ring: a razor-thin brilliant line where rays graze r = 1.5.
-  float ring = exp(-pow(abs(minR - 1.5) / uRingWidth, 1.6));
-  col += uColHot * ring * uRingGain * (1.0 - alphaAcc * 0.55);
+  /* The photon ring: a razor-thin brilliant line where rays graze r = 1.5.
+     ⚠️ ESCAPED RAYS ONLY. minR is the closest approach, and a ray that dives
+     THROUGH the photon sphere into the hole also has a minR near 1.5 — so this
+     term was painting ring light onto captured rays, i.e. glow inside the
+     shadow, from light that by definition never escaped. Measured on the live
+     finale: the horizon interior sat at ~10/255 instead of black, which is
+     what Yash saw ("it should be black, man"). Gating on `captured` costs the
+     ring nothing — the ring IS the escaping grazers — and lets the shadow be
+     the true void the plate has. */
+  if (!captured) {
+    float ring = exp(-pow(abs(minR - 1.5) / uRingWidth, 1.6));
+    col += uColHot * ring * uRingGain * (1.0 - alphaAcc * 0.55);
+  }
 
-  outColor = vec4(col, 1.0);
+  /* ⚠️ ALPHA IS THE SHADOW HOLDOUT MATTE, not opacity.
+     The composite needs to know where the event horizon is so it can keep
+     bloom off it — a black hole that glows from the inside is the one thing
+     the shadow must never do. 0 inside the horizon, 1 everywhere else; the
+     bloom chain reads .rgb only, so nothing else is affected. */
+  outColor = vec4(col, captured ? 0.0 : 1.0);
 }
