@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>9c0cfc0</code> · updated 2026-08-14 · generated 2026-08-15 12:26 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>7c2ca57</code> · updated 2026-08-14 · generated 2026-08-15 12:42 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 21 logged</h2>
+  <h2>Decisions — 22 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -314,6 +314,16 @@
   <dl>
     <dt>Decision</dt><dd>(1) Projects fall reads the beat through a module-scope bridge (liveIntro) instead of the dev-gated window.__buildanta — the LIVE site was hard-cutting into the world because getBeat() was null in every build. (2) The finale beat has a 1.5× resolution FLOOR on desktop (was min(dpr,cap), which renders 1× on dpr-1 monitors and aliases the photon ring); phones keep the 1024 cap.</dd>
     <dt>Why</dt><dd>Yash's two reports from production: &quot;it just snaps inside&quot; and the hole's visible quality.</dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd></dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-022 the shadow is a true void three fixes so the event horizon renders dead black: (1) dither moved below the gamma encode (in linear space ±0.5/255 becomes 15/255 on black); (2) the photon ring gated to escaped rays only (captured rays share minr≈1.5 and were glowing); (3) scene alpha carries a holdout matte (0 inside the horizon) and the composite suppresses bloom by it, feathered 1px. yash: &quot;it should be black, man&quot; — on the finale and through the endurance window. ">
+  <summary><span class="did">D-022</span> The shadow is a true void <span class="ddate">2026-08-15</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>Three fixes so the event horizon renders dead black: (1) dither moved below the gamma encode (in linear space ±0.5/255 becomes 15/255 on black); (2) the photon ring gated to escaped rays only (captured rays share minR≈1.5 and were glowing); (3) scene alpha carries a HOLDOUT MATTE (0 inside the horizon) and the composite suppresses bloom by it, feathered 1px.</dd>
+    <dt>Why</dt><dd>Yash: &quot;it should be black, man&quot; — on the finale and through the Endurance window.</dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd></dd>
     <dt>Source</dt><dd></dd>
