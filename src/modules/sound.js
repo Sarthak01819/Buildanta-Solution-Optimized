@@ -9,7 +9,30 @@
  * rakhta hai. Isliye default bhale hi "on" ho, awaaz pehle click/keypress
  * ke baad hi aati hai — aur toggle hamesha asli state dikhata hai.
  */
-export function createSound({ volume = 0.22, enabled = true } = {}) {
+/* ── SOUND REMOVED (Yash, 15 Aug 2026: "first remove the sound in this") ──
+   createSound now returns an inert stub with the full original API: every
+   caller in intro.js (toggle paint, act-step blips, velocity intensity, the
+   eq bars via level()) keeps working against it, no AudioContext is ever
+   constructed, and no gesture can start audio. The real implementation stays
+   below, unexported — restoring sound is renaming the two functions back and
+   un-hiding .intro__sound in main.css. */
+export function createSound() {
+  return {
+    unlock: async () => {},
+    startAmbient: () => {},
+    stopAmbient: () => {},
+    setIntensity: () => {},
+    step: () => {},
+    level: () => 0,
+    setEnabled: () => {},
+    get enabled() { return false; },
+    get running() { return false; },
+    get state() { return "removed"; },
+  };
+}
+
+// eslint-disable-next-line no-unused-vars
+function createSoundRetired({ volume = 0.22, enabled = true } = {}) {
   let ctx = null, master = null, analyser = null, buf = null;
   let on = enabled;
   let running = false;

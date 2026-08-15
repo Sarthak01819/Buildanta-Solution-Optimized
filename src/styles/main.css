@@ -5466,3 +5466,8 @@ html.is-in-world .world-details__nav { cursor: pointer !important; }
    andar nowrap, to shabd salaamat rehta hai aur break sirf shabdon ke beech
    hota hai. */
 .word { white-space: nowrap; }
+
+/* ─── SOUND REMOVED (Yash, 15 Aug 2026) ───
+   The audio module is an inert stub (see modules/sound.js); this hides its
+   control everywhere so no dead "Tap for sound" button survives (D2). */
+.intro__sound { display:none !important; }
