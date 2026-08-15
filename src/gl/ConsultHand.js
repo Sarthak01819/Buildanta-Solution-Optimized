@@ -1838,7 +1838,14 @@ export function createConsultHand(canvas) {
             * 0.035
             * breakAway
             * (1 - ash);
-          fragment.group.visible = fragmentReveal > 0.02 && ignite > 0.02 && ash < 0.985;
+          /* RETIRED, not deleted (Yash, 15 Aug, circled every shard on his
+             screenshot: "remove this cutting notes part and the note in only
+             be burn"). The note now chars and embers IN PLACE — no torn
+             pieces breaking away. The fragment system stays intact behind
+             this one gate; restoring the debris is re-instating the original
+             expression:
+               fragmentReveal > 0.02 && ignite > 0.02 && ash < 0.985 */
+          fragment.group.visible = false;
           fragment.group.position.set(
             fragment.center.x + fragment.drift[0] * driftPower + flutter,
             fragment.center.y + fragment.drift[1] * driftPower
