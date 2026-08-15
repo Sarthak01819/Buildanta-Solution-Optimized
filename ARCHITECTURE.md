@@ -201,3 +201,10 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Decision:** The ad-strip note slides along its own diagonal across the beat (±0.5 world units, ~75% always on screen), settling as the burn ignites. Hover: lean toward cursor + 0.06 lift + 1.8% scale, eased, fading to zero at burn start. No material effects. Phones: travel only, no hover (no pointermove).
 - **Why:** Yash: "move diagonally but not disappear fully… put some hover effects… not overmake up the effects."
 - **Decided by:** Yash
+
+### D-019 — Clean black film frame
+- **Date:** 2026-08-15
+- **Decision:** The lens-bridge's green furniture (three ring borders, one dashed/turning; the conic aperture wheel with green glow) is display:none under film-live. The frame keeps only neutral elements: dark vignette, the shot's baked beams, the copy's white rules.
+- **Why:** Yash's arrowed screenshot: "remove this green shades from the frame this should be clean screen as the theme."
+- **Decided by:** Yash
+- **Note:** rawForP cannot address inside the film HOLD (p is pinned at FILM_P) — verify film beats by page-% jump on a fresh page.
