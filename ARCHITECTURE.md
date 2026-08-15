@@ -195,3 +195,9 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Why:** Yash circled every shard on his mid-burn screenshot: "remove this cutting notes part and the note in only be burn dont ruin this transion."
 - **Decided by:** Yash
 - **Restore:** re-instate the original gate expression preserved in the comment at the site of the change.
+
+### D-018 — The strip travels and answers the pointer
+- **Date:** 2026-08-15
+- **Decision:** The ad-strip note slides along its own diagonal across the beat (±0.5 world units, ~75% always on screen), settling as the burn ignites. Hover: lean toward cursor + 0.06 lift + 1.8% scale, eased, fading to zero at burn start. No material effects. Phones: travel only, no hover (no pointermove).
+- **Why:** Yash: "move diagonally but not disappear fully… put some hover effects… not overmake up the effects."
+- **Decided by:** Yash
