@@ -1060,6 +1060,12 @@ export function createIntro({ onProgress } = {}) {
           consultZero.style.setProperty("--film-cta", cta.toFixed(3));
         }
         root.classList.toggle("film-live", bg > 0.001);
+        /* After the card, the world's return is notes-only (Yash, 15 Aug):
+           globe + plant + hand stay dark, the flying dollars and the ground
+           remain. Threshold .90, not .999 — the swap must happen while the
+           film's blackness is still fully opaque in BOTH directions, or the
+           hand pops in/out on screen. */
+        consultHand?.setWorldCut(F >= 0.90);
       }
     }
 

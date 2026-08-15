@@ -720,6 +720,7 @@ export function createConsultHand(canvas) {
   scene.add(handRig);
 
   let handTextureReady = false;
+  let worldCut = false;   // post-film: globe+hand stay dark, notes keep flying
   const handTexture = new TextureLoader().load("/assets/consult-hand-v2.png", () => {
     handTextureReady = true;
     handRig.visible = true;
@@ -1427,8 +1428,15 @@ export function createConsultHand(canvas) {
        note's face reaches the hand's screen region. Holding any later parks
        a half-faded hand ON the note (depth can't save a fading sprite). */
     const fundedWorldFade = 1 - smooth((progress - 0.885) / 0.02);
-    globe.visible = fundedWorldFade > 0.002;
-    handRig.visible = handTextureReady && fundedWorldFade > 0.002;
+    /* worldCut: after the epilogue film has played (Yash, 15 Aug: "after book
+       a growth call remove the hands and plant thing and dont remove the
+       flying dollar") the globe — which owns the plant, its ecology and the
+       birds — and the hand stay dark; only the notes fly over the same
+       ground. The bills are scene children, never touched by this. The flag
+       must live INSIDE this expression: these two visibilities are rewritten
+       every frame, so a one-shot toggle elsewhere would last one frame. */
+    globe.visible = !worldCut && fundedWorldFade > 0.002;
+    handRig.visible = !worldCut && handTextureReady && fundedWorldFade > 0.002;
     focusBurnBackdropMaterial.uniforms.uTime.value = time;
     focusBurnBackdropMaterial.uniforms.uOpacity.value = 0;
     focusBurnBackdrop.visible = false;
@@ -1906,6 +1914,10 @@ export function createConsultHand(canvas) {
     setProgress,
     render,
     resize,
+    /* The film decides when the world stays dark — driven from intro.js with
+       filmLocal ≥ .90, i.e. while the epilogue's blackness is still opaque in
+       BOTH scroll directions, so the swap itself is never on screen. */
+    setWorldCut(on) { worldCut = on === true; },
     dispose() {
       removeEventListener("pointermove", onPointer);
       renderer.dispose();
