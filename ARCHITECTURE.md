@@ -174,3 +174,10 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Why:** Yash sent a screenshot of the page and said "remove this page and integrate the rest."
 - **Decided by:** Yash
 - **Note:** the page's DOM stays dormant; restoring it = re-adding its film-live rules + s1/dolly variable writes (see d6335b1 for what they were).
+
+### D-015 — Post-film handover is notes-only
+- **Date:** 2026-08-15
+- **Decision:** After the BOOK A GROWTH CALL card, the hand, globe and plant do not return — only the flying dollars over the unchanged ground, into the burn. Reverse below the film restores the full world.
+- **Why:** Yash: "after book a growth call remove the hands and plant thing and dont remove the flying dollar and background must be the same also."
+- **Decided by:** Yash
+- **Mechanics:** ConsultHand.setWorldCut(on) at filmLocal ≥ .90 (swap always under opaque film blackness, both directions); flag participates in the per-frame visibility expression or it would last one frame.
