@@ -48,7 +48,19 @@ export async function createBlackholeGateBeat(container, opts = {}) {
     if (disposed) return;
     const w = container.clientWidth || window.innerWidth;
     const h = container.clientHeight || window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
+    /* ⚠️ FLOOR as well as cap on desktop. Math.min(dpr, cap) only ever LOWERS:
+       on a devicePixelRatio-1 monitor (Yash's Lenovo) the beat rendered at
+       exactly 1x and the photon ring aliased into visible stairs — his
+       screenshot of the finale is what a raymarched high-contrast edge looks
+       like with zero supersampling. Desktop now renders at 1.5x ALWAYS:
+       dpr-1 screens get supersampled, dpr-2 screens keep the same 1.5 they
+       already had. Phones keep the 1024 longest-side cap below — their 3x
+       glass already resolves the edge, and their budget is memory. */
+    const fine = !(typeof matchMedia === 'function'
+      && matchMedia('(pointer: coarse)').matches);
+    const dpr = fine
+      ? dprCap
+      : Math.min(window.devicePixelRatio || 1, dprCap);
     let pw = Math.max(Math.round(w * dpr), 16);
     let ph = Math.max(Math.round(h * dpr), 16);
 

@@ -81,6 +81,15 @@ const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+/* ── PRODUCTION-SAFE BRIDGE to the live intro ──
+   The Projects fall used to read the finale beat via window.__buildanta —
+   which is DEV-GATED and stripped from the build, so on the LIVE site
+   getBeat() was always null and the fall's no-beat fallback fired: a hard
+   cut into the world instead of the dive. Caught by Yash on production
+   ("it just snaps inside it"); invisible in every dev check, exactly as the
+   project memory warned. Module scope, no window, survives the build. */
+let liveIntro = null;
+
 /* ══════════════════════════════════════════════════
    1. config → DOM
    ══════════════════════════════════════════════════ */
@@ -506,6 +515,7 @@ function boot() {
   });
 
   const intro = createIntro({ onProgress: onIntroProgress });
+  liveIntro = intro;   // the production-safe bridge (see its declaration)
 
   /* Warm every shader behind the entrance, then reveal. Guarded and capped:
      the preloader reveals on its own timer regardless, so a warm-up that
@@ -575,7 +585,7 @@ function boot() {
     // boot(), so `intro` does not exist yet here — it is only assigned to
     // window.__buildanta at the end of boot. Read at click time, by which point
     // it does.
-    getBeat: () => window.__buildanta?.intro?.blackholeBeat || null,
+    getBeat: () => liveIntro?.blackholeBeat || window.__buildanta?.intro?.blackholeBeat || null,
     onMountWorld: () => {
       host.hidden = false;
       // Injected rather than written into index.html: the world owns the shape
