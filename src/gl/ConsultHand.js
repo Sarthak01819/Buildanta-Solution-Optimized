@@ -721,6 +721,7 @@ export function createConsultHand(canvas) {
 
   let handTextureReady = false;
   let worldCut = false;   // post-film: globe+hand stay dark, notes keep flying
+  let stripHover = 0;     // eased 0..1 — pointer over the ad-strip note
   const handTexture = new TextureLoader().load("/assets/consult-hand-v2.png", () => {
     handTextureReady = true;
     handRig.visible = true;
@@ -1768,15 +1769,46 @@ export function createConsultHand(canvas) {
          "remain the same transition" means. Only under worldCut, so the
          pre-film act and the reverse path never see it. */
       if (worldCut && isFocusDollar && progress >= 0.849) {
-        bill.position.set(0, 0, 11.15);
-        bill.rotation.set(0, 0, 0.21);
         /* 0.95, not the zoom's 1.72: at z 11.15 the camera sees 0.774 world
            units of height, and the reference shows the WHOLE bill as a strip —
            its long edges inside the frame (0.78 × 0.95 ≈ 96% of the viewport's
            height), its ends running off-screen (1.82 × 0.95 ≈ 1.4× the
            width). 1.72 was Franklin's face wall-to-wall — a close-up, not a
-           strip. */
-        bill.scale.setScalar(0.95);
+           strip.
+
+           THE STRIP TRAVELS (Yash, 15 Aug 13:26): it slides along its own
+           diagonal as the scroll advances — low-left to up-right, the way a
+           shifted advertisement band moves — settling exactly as the burn
+           ignites. ±0.5 along the tilt keeps ~75% of the note on screen at
+           the extremes: it moves, it never fully leaves.
+
+           AND IT ANSWERS THE POINTER, quietly: over the note, it leans a few
+           degrees toward the cursor, lifts 0.06 toward the camera and grows
+           1.8% — eased both in and out, and faded to nothing as the burn
+           starts so the transition stays exactly as approved. No material
+           tricks, no glow: "not overmake up the effects". */
+        const slide = smooth((progress - 0.849) / 0.086);
+        const along = MathUtils.lerp(-0.5, 0.5, slide);
+        const sx = along * Math.cos(0.21);
+        const sy = along * Math.sin(0.21);
+        /* the pointer, in world units on the strip's plane, then in the
+           strip's own rotated frame — a plain rect test, no raycaster */
+        const halfH = Math.tan((camera.fov * Math.PI) / 360) * (camera.position.z - 11.15);
+        const halfW = halfH * camera.aspect;
+        const px = pointerX * halfW - sx;
+        const py = -pointerY * halfH - sy;
+        const lx = px * Math.cos(-0.21) - py * Math.sin(-0.21);
+        const ly = px * Math.sin(-0.21) + py * Math.cos(-0.21);
+        const over = Math.abs(lx) < 0.865 && Math.abs(ly) < 0.371;
+        const burnGate = 1 - smooth((dollarBurn - 0.02) / 0.06);
+        stripHover += ((over ? 1 : 0) * burnGate - stripHover) * 0.1;
+        bill.position.set(sx, sy, 11.15 + stripHover * 0.06);
+        bill.rotation.set(
+          pointerY * 0.045 * stripHover,
+          pointerX * 0.06 * stripHover,
+          0.21,
+        );
+        bill.scale.setScalar(0.95 * (1 + stripHover * 0.018));
       }
       /* BLACK REDESIGN: with the six ambient notes retired, the hero note
          orbiting from ~24% of the act read as one leftover floater on the
