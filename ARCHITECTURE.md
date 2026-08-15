@@ -208,3 +208,9 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Why:** Yash's arrowed screenshot: "remove this green shades from the frame this should be clean screen as the theme."
 - **Decided by:** Yash
 - **Note:** rawForP cannot address inside the film HOLD (p is pinned at FILM_P) — verify film beats by page-% jump on a fresh page.
+
+### D-020 — Sound removed
+- **Date:** 2026-08-15
+- **Decision:** createSound returns an inert full-API stub (no AudioContext ever constructed); .intro__sound hidden. Real implementation retained unexported (createSoundRetired) for cheap restoration.
+- **Why:** Yash: "first remove the sound in this."
+- **Decided by:** Yash

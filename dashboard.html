@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>f682252</code> · updated 2026-08-14 · generated 2026-08-15 08:14 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>a1614ff</code> · updated 2026-08-14 · generated 2026-08-15 11:53 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 19 logged</h2>
+  <h2>Decisions — 20 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -294,6 +294,16 @@
   <dl>
     <dt>Decision</dt><dd>The lens-bridge's green furniture (three ring borders, one dashed/turning; the conic aperture wheel with green glow) is display:none under film-live. The frame keeps only neutral elements: dark vignette, the shot's baked beams, the copy's white rules.</dd>
     <dt>Why</dt><dd>Yash's arrowed screenshot: &quot;remove this green shades from the frame this should be clean screen as the theme.&quot;</dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd>Yash</dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-020 sound removed createsound returns an inert full-api stub (no audiocontext ever constructed); .intro__sound hidden. real implementation retained unexported (createsoundretired) for cheap restoration. yash: &quot;first remove the sound in this.&quot; ">
+  <summary><span class="did">D-020</span> Sound removed <span class="ddate">2026-08-15</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>createSound returns an inert full-API stub (no AudioContext ever constructed); .intro__sound hidden. Real implementation retained unexported (createSoundRetired) for cheap restoration.</dd>
+    <dt>Why</dt><dd>Yash: &quot;first remove the sound in this.&quot;</dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd>Yash</dd>
     <dt>Source</dt><dd></dd>
