@@ -3671,6 +3671,13 @@ body * { cursor:none !important; }
    rest of the old film; only these re-display rules were deleted, so putting
    the page back is re-adding them plus the s1/dolly writes. */
 #intro.film-live .consult-film__lens-bridge { display:block !important; pointer-events:none; }
+/* Clean black frame (Yash, 15 Aug, arrows on the screenshot): the bridge's
+   GREEN furniture — three ring borders (one dashed, turning) and the conic
+   aperture wheel with its green glow — is retired. What stays is neutral:
+   the bridge's own dark vignette, the soft beams baked into the shot, and
+   the white rules that belong to the copy. */
+#intro.film-live .consult-film__lens-bridge i,
+#intro.film-live .consult-film__lens-bridge span { display:none; }
 #intro.film-live .consult-film__shot--think {
   display:block !important;
   z-index:20;
