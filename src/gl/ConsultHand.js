@@ -1757,6 +1757,27 @@ export function createConsultHand(canvas) {
           billScale,
         );
       }
+      /* ── THE AD-STRIP POSE (Yash, 15 Aug, from his screenshot) ──
+         After the film's card the hero note does not FLY anywhere: it is
+         simply there — fullscreen, tilted like an advertisement strip shifted
+         diagonally, cropped by the frame exactly as his reference shows.
+         Position/rotation/scale are pinned to the focus pose plus the tilt,
+         so there is no travel to watch. ⚠️ This sits BEFORE the burn block
+         below, whose curl/scorch ADD (+=) to the pose — the burn-into-galaxy
+         transition runs unchanged on top of the tilt, which is exactly what
+         "remain the same transition" means. Only under worldCut, so the
+         pre-film act and the reverse path never see it. */
+      if (worldCut && isFocusDollar && progress >= 0.849) {
+        bill.position.set(0, 0, 11.15);
+        bill.rotation.set(0, 0, 0.21);
+        /* 0.95, not the zoom's 1.72: at z 11.15 the camera sees 0.774 world
+           units of height, and the reference shows the WHOLE bill as a strip —
+           its long edges inside the frame (0.78 × 0.95 ≈ 96% of the viewport's
+           height), its ends running off-screen (1.82 × 0.95 ≈ 1.4× the
+           width). 1.72 was Franklin's face wall-to-wall — a close-up, not a
+           strip. */
+        bill.scale.setScalar(0.95);
+      }
       /* BLACK REDESIGN: with the six ambient notes retired, the hero note
          orbiting from ~24% of the act read as one leftover floater on the
          black (seen on the first screenshot). It now stays unborn until just
@@ -1764,14 +1785,20 @@ export function createConsultHand(canvas) {
          note LEAVING the glowing system on its way to the burn, not as
          furniture that was always there. Position/rotation are untouched —
          the orbit maths still runs, only opacity gates the entrance. */
+      /* Under worldCut the hero fades in already IN the strip pose (no float
+         to watch — the fade is the whole entrance), and the six supporting
+         notes never return with it: one note, one strip, per the reference. */
       const heroArrival = isFocusDollar
-        ? smooth((progress - 0.85) / 0.03)
+        ? (worldCut
+          ? smooth((progress - 0.849) / 0.015)
+          : smooth((progress - 0.85) / 0.03))
         : 1;
       const billOpacity = billIn
         * (1 - birdFold)
         * (1 - exit)
         * supportingFade
         * heroArrival
+        * (worldCut && !isFocusDollar ? 0 : 1)
         * (isFocusDollar ? 1 - dollarMorph : 1);
       if (isFocusDollar) {
         /* While focused, the note is the nearest thing in the shot — but the

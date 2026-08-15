@@ -8,9 +8,14 @@ let chromium;
 try { ({ chromium } = require('playwright')); }
 catch { ({ chromium } = require('/Users/buildanta/claude code/buildanta-showcase/node_modules/playwright')); }
 
-// 5290 = the DEV server: production strips `window.__buildanta`, which this
-// harness drives. 5280/the tunnel serve the built site for humans.
-const URL = process.env.SITE_URL || 'http://127.0.0.1:5290/';
+/* 5303 = THIS checkout's strictPort dev server. It was 5290 — and on 15 Aug
+   that port turned out to be serving ~/claude code/buildanta-site-world, the
+   STALE pre-redesign copy: every suite run that day passed GREEN against the
+   wrong site, and the title check below never noticed because the impostor is
+   the same site's older twin. Production strips `window.__buildanta`, which
+   this harness drives, so it must point at a dev server — but never trust the
+   port alone; see the build fingerprint check after goto. (Vault V8.) */
+const URL = process.env.SITE_URL || 'http://127.0.0.1:5303/';
 const OUT = path.join(__dirname, '..', 'shots-journey');
 
 (async () => {
@@ -22,6 +27,14 @@ const OUT = path.join(__dirname, '..', 'shots-journey');
 
   await page.goto(URL, { waitUntil: 'load' });
   if (!/^buildanta solutions/i.test(await page.title())) throw new Error('WRONG SERVER');
+  /* The title is NOT identity — the stale buildanta-site-world copy carries
+     the same title and passed that check for two days. Fingerprint the BUILD:
+     setWorldCut exists only in this checkout's ConsultHand (15 Aug). */
+  const fp = await page.evaluate(async () => {
+    try { return (await (await fetch('/src/gl/ConsultHand.js')).text()).includes('setWorldCut'); }
+    catch (e) { return false; }
+  });
+  if (!fp) throw new Error('WRONG BUILD on ' + URL + ' — this server is not this checkout (see 15 Aug 5290 hijack)');
   await page.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 30000 });
   await page.evaluate(() => new Promise((r) => setTimeout(r, 1200)));
 
