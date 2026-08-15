@@ -188,3 +188,10 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Why:** Yash's reference screenshot: "tilted… like an advertisement strip shifted diagonally… dont float the dollar… remain the same transition."
 - **Decided by:** Yash
 - **⚠️ Discovered en route:** port 5290 serves the stale buildanta-site-world copy — verify-journey ran green against the WRONG BUILD for two days. Suite now defaults to 5303 and fingerprints the build (setWorldCut) before trusting the page. Vault V8.
+
+### D-017 — The burn loses its debris
+- **Date:** 2026-08-15
+- **Decision:** The focusBurnFragments system (five bill-textured shards that ignite, break away and drift) is retired behind its single visibility gate. The note chars and embers in place; fire, embers, scorch and the galaxy handover untouched.
+- **Why:** Yash circled every shard on his mid-burn screenshot: "remove this cutting notes part and the note in only be burn dont ruin this transion."
+- **Decided by:** Yash
+- **Restore:** re-instate the original gate expression preserved in the comment at the site of the change.
