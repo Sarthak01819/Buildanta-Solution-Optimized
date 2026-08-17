@@ -3,6 +3,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { INTRO, BRAND } from "../config.js";
 import { splitChars } from "./splitText.js";
 import { createSound } from "./sound.js";
+import { createMusic } from "./music.js";
 import { createCorridor } from "../gl/Corridor.js";
 import { mountOrbHero } from "../gl/orb-hero/index.js";
 import { createConsultHand } from "../gl/ConsultHand.js";
@@ -305,6 +306,8 @@ export function createIntro({ onProgress } = {}) {
 
   /* ── sound ── */
   const sound = createSound(INTRO.sound);
+  /* The finale score. Nothing is fetched until ENTER. */
+  const music = createMusic();
   const soundBtn = root.querySelector("[data-sound]");
   const soundLabel = root.querySelector("[data-sound-label]");
   const paintSound = () => {
@@ -1340,6 +1343,13 @@ export function createIntro({ onProgress } = {}) {
     enteredOnce = true;
     hideHint();
 
+    /* THE SCORE ARRIVES HERE. ENTER is a genuine user gesture, so the browser
+       lets audio start, and it is also the exact dramatic moment the music
+       should appear — the two coincide, which is why no "click for sound"
+       prompt is needed anywhere on this site. It rises from silence over the
+       6s ride rather than cutting in. */
+    music.enter();
+
     /* The hole grows FROM the point you entered (Yash MCQ): offset the beat
        stage toward the door, then ease it home over the ride. The stage is
        black, so the exposed edge reads as deep space. */
@@ -1573,7 +1583,7 @@ export function createIntro({ onProgress } = {}) {
   };
 
   return {
-    corridor, sound, st,
+    corridor, sound, music, st,
     rawForP,
     /* The finale's black hole, exposed so Projects can fall through the scene
        the visitor is already looking at instead of overlaying another one.

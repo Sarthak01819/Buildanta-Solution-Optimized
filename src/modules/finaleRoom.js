@@ -41,7 +41,8 @@ const smoothstep = (a, b, x) => {
  *   room is an ordinary in-flow section and only the flight overlays.
  */
 export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
-                                   overlay = true, reduced = false, lite = false }) {
+                                   overlay = true, reduced = false, lite = false,
+                                   onScene = null }) {
   if (!blackholeHost || !roomSection) return null;
 
   /* The portal is the DOOR, not the destination: holding it open rides you
@@ -152,8 +153,15 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
   }, { passive: true });
 
   function applyFlight(v) {
+    const was = flight;
     flight = Math.min(1, Math.max(0, v));
     ship?.setFlyIn(flight);
+
+    /* The score warms as you fly into the Endurance and cools on the way out
+       (Yash: "it follows the journey"). Only on the crossings, so this costs
+       nothing on the frames in between. */
+    if (was <= 0.5 && flight > 0.5) onScene?.("endurance");
+    else if (was > 0.5 && flight <= 0.5) onScene?.("finale");
 
     // Bloom carries the handover: a long swell, peaking on the crossfade's
     // midpoint, then a shorter clear.

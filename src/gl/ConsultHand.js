@@ -43,6 +43,9 @@ function handPixelRatio() {
   return Math.min(devicePixelRatio, coarse ? 1 : 1.2);
 }
 
+import { createConsultNetwork } from "./consultNetwork.js";
+import { createConsultInside } from "./consultInside.js";
+
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 const smooth = (value) => {
   const t = clamp01(value);
@@ -400,11 +403,24 @@ export function createConsultHand(canvas) {
   /* Photographic 2.5D plant: one alpha atlas, baked per-tile UVs and lightly
      bowed planes. Its root crown lands directly on the wire globe floor—there
      is deliberately no secondary sphere or mound inside the globe. */
+  /* ── NETWORK PREVIEW SWITCH (Yash, 17 Aug) ──
+     ?inside=net-line | net-solid. Absent = the approved plant, untouched. */
+  const insideParam = (() => {
+    try { return new URLSearchParams(location.search).get("inside") || ""; }
+    catch (e) { return ""; }
+  })();
+  const netStyle = insideParam === "net-line" ? "line"
+    : insideParam === "net-solid" ? "solid" : null;
+  const insideForm = ["city", "tree", "engine", "armillary"].includes(insideParam) ? insideParam : null;
+  const consultNet = netStyle ? createConsultNetwork({ style: netStyle })
+    : insideForm ? createConsultInside({ form: insideForm }) : null;
+
   const plant = new Group();
   const plantBaseScale = 0.96;
   plant.position.set(0, -2.40, 0.16);
   plant.renderOrder = 3;
   globe.add(plant);
+  if (consultNet) globe.add(consultNet.root);
 
   let plantAtlasReady = false;
   const plantAtlasTexture = new TextureLoader().load(
@@ -1497,7 +1513,16 @@ export function createConsultHand(canvas) {
     continentMaterial.opacity *= MathUtils.lerp(1, 0.8, coreReveal);
     // All notes establish the orbit first. Supporting notes then fund the
     // plant one-by-one while every untouched note keeps circling the globe.
-    plant.visible = plantAtlasReady && progress > 0.383 && fundedWorldFade > 0.002;
+    /* ── THE NETWORK PREVIEW (Yash, 17 Aug) ──
+       ?inside=net-line or ?inside=net-solid swaps the plant for the growing
+       network so both candidates can be judged in the REAL act rather than in
+       a lighting mockup. Without the parameter this is a no-op and the
+       approved plant plays exactly as before — the design stays frozen until
+       Yash picks (UX4). Growth borrows the plant's own window so no beat
+       boundary moves; breathing runs on `time`, which never stops. */
+    if (consultNet) consultNet.update(smooth((progress - 0.388) / 0.30), time, fundedWorldFade);
+    plant.visible = !consultNet
+      && plantAtlasReady && progress > 0.383 && fundedWorldFade > 0.002;
     // The root atlas bottom lands at roughly -3.20, just inside the 3.24-radius
     // wire globe, so the plant grows straight from its inner bottom surface.
     plant.position.y = -2.40;
@@ -1999,6 +2024,7 @@ export function createConsultHand(canvas) {
       orbitMaterial.dispose();
       globeFumeGeometry.dispose();
       globeFumeMaterial.dispose();
+      consultNet?.dispose();
       plantAtlasTexture.dispose();
       plantAtlasMaterial.dispose();
       plantAtlasGeometries.forEach((geometry) => geometry.dispose());

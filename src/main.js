@@ -401,6 +401,7 @@ function boot() {
       finale = createFinaleRoom({
         blackholeHost: $(".intro__blackhole"),
         roomSection, shaders: BH_SHADERS, reduced: REDUCED, lite,
+        onScene: (st) => liveIntro?.music?.setScene(st),
       });
     } else if (roomSection) {
       /* MAIN SITE. The contact section carries the Endurance itself: the ship
@@ -587,6 +588,10 @@ function boot() {
     // it does.
     getBeat: () => liveIntro?.blackholeBeat || window.__buildanta?.intro?.blackholeBeat || null,
     onMountWorld: () => {
+      /* Inside the world the score goes distant and muffled — you are behind a
+         wall from it. It never stops, so returning feels like coming back to
+         something that was playing all along. */
+      liveIntro?.music?.setScene("world");
       host.hidden = false;
       // Injected rather than written into index.html: the world owns the shape
       // of its own markup, and a hand-copied duplicate here would drift the
@@ -597,6 +602,7 @@ function boot() {
       return worldApi;
     },
     onUnmountWorld: () => {
+      liveIntro?.music?.setScene("finale");
       worldApi?.dispose?.();
       worldApi = null;
       host.hidden = true;
@@ -611,6 +617,7 @@ function boot() {
      document covers every entry point, whenever it appears. */
   document.addEventListener("click", (e) => {
     const t = e.target.closest?.(".js-world-enter");
+    if (t) liveIntro?.music?.setScene("falling");
     if (!t) return;
     e.preventDefault();
     fall.enter();
