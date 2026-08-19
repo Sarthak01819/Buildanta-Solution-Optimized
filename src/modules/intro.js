@@ -744,8 +744,14 @@ export function createIntro({ onProgress } = {}) {
 
       /* black is fully up by .706 and HOLDS to .722 — a real beat of nothing,
          which is what makes the sphere land. The sphere is the consult world's
-         own clip-circle opening (see --zero-reveal below). */
-      const sphere = smoothstep((p - 0.768) / 0.056);      // .768 → .824
+         own clip-circle opening (see --zero-reveal below).
+         MOVED .768→.744 (project brief, 19 Aug): the blackout completes at
+         .738, so the old start left the screen empty .738→~.780 — a stall,
+         not a beat. One beat of black now, then the aperture. ⚠️ This window
+         must equal consultReveal's — they are the SAME circle seen from the
+         market side and the consult side; moving one without the other opens
+         a hole onto a still-clipped world and the stall survives. */
+      const sphere = smoothstep((p - 0.744) / 0.044);      // .744 → .788
       /* The layer turns the lens's near-black into TRUE black. It is full
          BEFORE the aperture opens, so what you pass through into is the dark
          and not the inside of a scaled photograph — it is hidden behind the
@@ -915,12 +921,12 @@ export function createIntro({ onProgress } = {}) {
          cut to black now, so there is nothing to bleed over the reel. */
       const lightFrame = 0;
       /* the sphere: the world's own clip-circle, opening AFTER the black beat */
-      const consultReveal = smoothstep((p - 0.768) / 0.056);
+      const consultReveal = smoothstep((p - 0.744) / 0.044);  // = the --hole window, always
       const consultOut = 1 - smoothstep((p - 0.992) / 0.008);
       /* fully painted behind the black before the circle opens, so the circle
          is the ONLY reveal — a world that also fades in reads as a dissolve,
          not as something you entered */
-      const consultOpacity = smoothstep((p - 0.756) / 0.010) * consultOut;
+      const consultOpacity = smoothstep((p - 0.732) / 0.010) * consultOut;  // painted before .744
       const consultLocal = Math.max(0, Math.min(1, (p - 0.768) / 0.224));
 
       // The same palm globe begins around the camera and zooms out into place.
