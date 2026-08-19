@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>camera match rig</title>
+<style>html,body{margin:0;background:transparent}canvas{display:block}</style>
+<script type="importmap">
+{ "imports": { "three": "/node_modules/three/build/three.module.js",
+               "three/addons/": "/node_modules/three/examples/jsm/" } }
+</script>
+<body>
+<script type="module">
+/* AGENT-2 RENDER RIG — orthographic front elevation at exactly 785x1511,
+   framing the model's bbox onto the reference content box 18,18-767,1493.
+   Two passes, selected by ?pass=alpha|shaded:
+     alpha  — every material black unlit, transparent ground: the silhouette
+     shaded — flat neutral light, original materials: interior features
+   Deterministic: window.__rigReady after the textures settle; no animation. */
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const q = new URLSearchParams(location.search);
+const GLB = q.get("glb");
+const PASS = q.get("pass") || "alpha";
+const yaw = parseFloat(q.get("yaw") || "0");   // front elevation = 0
+
+const W = 785, H = 1511;
+const CONTENT = { x0: 18, y0: 18, x1: 767, y1: 1493 };   // reference bbox
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true,
+  preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.setClearColor(0x000000, 0);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+if (PASS === "shaded") {
+  scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 1.4));
+}
+
+new GLTFLoader().load(GLB, (g) => {
+  const root = g.scene;
+  root.rotation.y = yaw;
+  root.updateMatrixWorld(true);
+  if (PASS === "alpha") {
+    root.traverse((o) => {
+      if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    });
+  }
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3());
+  const c = box.getCenter(new THREE.Vector3());
+  /* content box in px -> camera window in world units. The content centre is
+     the frame centre (measured: both are 392.5, 755.5), so centre on bbox. */
+  const cw = CONTENT.x1 - CONTENT.x0, ch = CONTENT.y1 - CONTENT.y0;
+  const winW = size.x * (W / cw);
+  const winH = size.y * (H / ch);
+  const cam = new THREE.OrthographicCamera(
+    -winW / 2, winW / 2, winH / 2, -winH / 2, 0.01, size.z * 10 + 10);
+  cam.position.set(c.x, c.y, c.z + size.z * 2 + 1);
+  cam.lookAt(c.x, c.y, c.z);
+  scene.add(root);
+  let n = 0;
+  renderer.setAnimationLoop(() => {
+    renderer.render(scene, cam);
+    if (++n === 8) { renderer.setAnimationLoop(null); window.__rigReady = true; }
+  });
+}, undefined, (e) => { window.__rigError = String(e && e.message || e); });
+</script>
+</body>
