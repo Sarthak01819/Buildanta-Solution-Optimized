@@ -877,14 +877,23 @@ export function createIntro({ onProgress } = {}) {
         marketCam3d = mountMarketCamera(marketPusherEl, { reduced });
       }
       if (marketCam3d) {
-        const camIn = smoothstep((p - 0.425) / 0.045);
-        const turn = smoothstep((p - 0.470) / 0.075);      // yaw done .545
-        const travel = smoothstep((p - 0.470) / 0.090);    // lands .560
+        /* RETIMED (Yash, 19 Aug 20:58): the brief's .425 start parked a
+           half-faded machine ON TOP of the act title — the title owns
+           .425-.498 (copy fades by local .28). The camera now enters as the
+           title ends and the film beat begins (filmIn completes at .510):
+           the machine arrives WITH its film. Contract at .684 unchanged. */
+        /* Measured, not assumed: the big title exits by a WIPE that ends
+           ~.555 (copyOpacity's .28-local window is only the small copy). The
+           camera enters after the wipe — Yash: "start the animation of camera
+           after the ending of We Market section transition." */
+        const camIn = smoothstep((p - 0.555) / 0.030);
+        const turn = smoothstep((p - 0.575) / 0.060);      // yaw done .635
+        const travel = smoothstep((p - 0.575) / 0.072);    // lands .647
         const ex = reduced ? 0
           : -34 * (1 - travel)
             + 0.7 * Math.sin(Math.max(0, (travel - 0.72)) / 0.28 * Math.PI);
         const es = reduced ? 1 : 0.41 + 0.59 * travel;
-        const spinUp = smoothstep((p - 0.50) / 0.045);
+        const spinUp = smoothstep((p - 0.590) / 0.045);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
         marketExperience.style.setProperty("--market-cam-vis", camVis.toFixed(3));
         marketExperience.style.setProperty("--market-cam-ex", ex.toFixed(2));
