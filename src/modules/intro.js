@@ -11,6 +11,7 @@ import { mountBlackholeBeat } from "../gl/blackhole/index.js";
 import { buildObjects, projectObjects } from "./introObjects.js";
 import { SERVICES } from "./services.js";
 import { createProjector } from "../gl/projector/index.js";
+import { mountMarketCamera } from "../gl/marketCamera.js";
 
 /**
  * SCROLL-DRIVEN INTRO
@@ -166,6 +167,8 @@ export function createIntro({ onProgress } = {}) {
   const irisEl = root.querySelector(".market-iris");
   const consultZero = root.querySelector(".consult-zero");
   const consultHandCanvas = root.querySelector(".consult-zero__hand-canvas");
+  const marketPusherEl = root.querySelector(".market-pusher");
+  let marketCam3d = null;
   const consultHand = !reduced && consultHandCanvas
     ? createConsultHand(consultHandCanvas)
     : null;
@@ -861,6 +864,49 @@ export function createIntro({ onProgress } = {}) {
       marketExperience.style.setProperty("--market-camera-flash", Math.max(0, cameraFlash).toFixed(3));
       marketExperience.style.setProperty("--market-camera-recoil", cameraRecoil.toFixed(3));
       marketExperience.style.setProperty("--market-camera-spin", cameraSpin.toFixed(3));
+
+      /* ── THE 3D CAMERA (rebuild brief, Agents 3+4, entry to x .684) ──
+         Lazy-mounted at the act's edge. The entry: fade in at screen left in
+         right-facing profile, travel to centre while the yaw unwinds — yaw
+         done at .545, translation at .560 with ~2% overshoot, so the machine
+         finishes turning just before it lands. Reels spin up .500-.545 as a
+         FACTOR on cameraSpin, so the one-driver law (spin follows the film)
+         is untouched from .545 on. approach/push begin at .684 exactly —
+         the handoff contract state is the rest state of this block. */
+      if (!marketCam3d && p > 0.40 && marketPusherEl) {
+        marketCam3d = mountMarketCamera(marketPusherEl, { reduced });
+      }
+      if (marketCam3d) {
+        const camIn = smoothstep((p - 0.425) / 0.045);
+        const turn = smoothstep((p - 0.470) / 0.075);      // yaw done .545
+        const travel = smoothstep((p - 0.470) / 0.090);    // lands .560
+        const ex = reduced ? 0
+          : -34 * (1 - travel)
+            + 0.7 * Math.sin(Math.max(0, (travel - 0.72)) / 0.28 * Math.PI);
+        const es = reduced ? 1 : 0.41 + 0.59 * travel;
+        const spinUp = smoothstep((p - 0.50) / 0.045);
+        const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
+        marketExperience.style.setProperty("--market-cam-vis", camVis.toFixed(3));
+        marketExperience.style.setProperty("--market-cam-ex", ex.toFixed(2));
+        marketExperience.style.setProperty("--market-cam-es", es.toFixed(3));
+        marketCam3d.setState({
+          visible: marketOpacity > 0.02 && p > 0.405 && p < 0.79,
+          yaw: reduced ? 0 : (1 - turn) * Math.PI / 2,
+          opacity: camIn,
+          spin: cameraSpin * (reduced ? 1 : spinUp),
+          crank: (cameraCrank * Math.PI) / 180,
+          drift: reduced ? 0 : camIn * (1 - travel),
+        }, performance.now());
+        /* anchors that can follow a rotating object: reel + lens positions in
+           canvas fractions, for the plate transport and the push assert */
+        if (marketCam3d.ready) {
+          const pa = marketCam3d.project("reel_a"), pb = marketCam3d.project("reel_b");
+          if (pa) { marketExperience.style.setProperty("--market-reel-ax", pa.x.toFixed(4));
+                    marketExperience.style.setProperty("--market-reel-ay", pa.y.toFixed(4)); }
+          if (pb) { marketExperience.style.setProperty("--market-reel-bx", pb.x.toFixed(4));
+                    marketExperience.style.setProperty("--market-reel-by", pb.y.toFixed(4)); }
+        }
+      }
       marketExperience.style.setProperty("--market-camera-crank", `${cameraCrank.toFixed(2)}deg`);
       /* same driver as the spools and the strip, same ratio through the
          handover, so the lock never breaks */

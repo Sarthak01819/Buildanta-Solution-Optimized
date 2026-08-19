@@ -8,7 +8,7 @@ let chromium;
 try { ({ chromium } = require('playwright')); }
 catch { ({ chromium } = require('/Users/buildanta/claude code/buildanta-showcase/node_modules/playwright')); }
 
-const URL = process.env.SITE_URL || 'http://127.0.0.1:5290/';
+const URL = process.env.SITE_URL || 'http://127.0.0.1:5303/';
 const OUT = path.join(__dirname, '..', 'shots-market');
 const P0 = 0.425, P1 = 0.696;
 

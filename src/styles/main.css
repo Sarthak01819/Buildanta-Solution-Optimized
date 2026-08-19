@@ -1346,7 +1346,9 @@ a { color: inherit; text-decoration: none; }
   right: auto;
   width: min(44vw, 74vh);
   height: auto;
-  opacity: var(--market-human-opacity, 0);
+  /* the 3D camera's ENTER (brief: fade-in from x .425) may precede the
+     film's own visibility curve — whichever is brighter wins */
+  opacity: max(var(--market-human-opacity, 0), var(--market-cam-vis, 0));
   transform:
     translateX(-50%)
     translateX(calc(var(--market-camera-capture, 0) * 3vw))
@@ -1354,20 +1356,24 @@ a { color: inherit; text-decoration: none; }
     perspective(900px)
     rotateY(calc(var(--market-camera-recoil, 0) * -3deg))
     rotateX(calc(var(--market-camera-recoil, 0) * 1.4deg))
-    scale(calc(1 + var(--market-camera-capture, 0) * 11.5 + var(--market-camera-recoil, 0) * .018));
+    translateX(calc(var(--market-cam-ex, 0) * 1vw))
+    scale(calc((1 + var(--market-camera-capture, 0) * 11.5 + var(--market-camera-recoil, 0) * .018) * var(--market-cam-es, 1)));
+  /* 43.5% 31% of this box IS the lens centre — true for the old PNG and true
+     for the canvas at yaw 0 by the drop-in contract (see marketCamera.js) */
   transform-origin: 43.5% 31%;
   will-change: opacity, transform;
   overflow: visible;
   filter: drop-shadow(-18px 14px 25px rgba(0,0,0,.58)) drop-shadow(-5px 0 18px rgba(61,42,255,.22));
 }
-.market-pusher img {
+canvas.market-camera3d {
   position: relative;
   z-index: 2;
   display: block;
   width: 100%;
   height: auto;
-  object-fit: contain;
-  object-position: center right;
+  /* the brief's tripod mask: the lower legs fade 60% -> 78% of height */
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 78%);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent 78%);
 }
 .market-camera__reel {
   position: absolute;

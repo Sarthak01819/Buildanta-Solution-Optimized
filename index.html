@@ -111,15 +111,13 @@
            instruction "remove the projector" — but only the markup went; the
            CSS and the --market-camera-* variables driving it have been live in
            the code the whole time, which is why it comes back working. -->
-      <div class="market-pusher" aria-hidden="true">
-        <span class="market-camera__reel market-camera__reel--a"></span>
-        <span class="market-camera__reel market-camera__reel--b"></span>
-        <span class="market-camera__drive market-camera__drive--a"></span>
-        <span class="market-camera__drive market-camera__drive--b"></span>
-        <span class="market-camera__lens"></span>
-        <span class="market-camera__portal"></span>
-        <img src="/market-cinema-camera-graded.png" alt="" />
-      </div>
+      <!-- THE CAMERA IS A MODEL NOW (rebuild brief, 19 Aug). The PNG and its
+           six overlay spans are retired: fixed percentage anchors cannot
+           follow a rotating object. src/gl/marketCamera.js appends its canvas
+           here; the canvas is pixel-equivalent to the old PNG at yaw 0, so
+           every .market-pusher transform (push, capture, recoil) is unchanged
+           and the 43.5% 31% pivot still lands on the lens. -->
+      <div class="market-pusher" aria-hidden="true"></div>
     </div>
     <!-- The lens, at full size, drawn at NATIVE RESOLUTION (Yash 20:24).
          Scaling the camera to 13x was blowing a 785px image up to 2900px and

@@ -48,6 +48,12 @@ BODY_BEVEL_SEG       = 2
 FRONT = -BODY_DEPTH / 2          # blender.y of the body front face
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+# ⚠️ Every helper DESELECTS ALL before adding its primitive. bpy ops like
+# transform_apply act on EVERY selected object — without the deselect, each new
+# part's apply re-applied earlier parts' pending transforms. That is how the
+# body's depth got silently doubled (to z ±300), swallowing the entire lens
+# inside it: invisible in the silhouette matcher (same alpha either way), found
+# only when the lens failed to render in the real scene.
 def B(x, y, z):        # model → blender
     return (x, -z, y)
 
@@ -56,6 +62,7 @@ def cyl(name, r, depth, at, seg, axis):
     of 'Y' put the tripod crown, head hub and every leg on the depth axis and
     rendered them face-on. 'Z' = vertical, 'Y' = depth (toward viewer),
     'X' = sideways."""
+    bpy.ops.object.select_all(action='DESELECT')
     bpy.ops.mesh.primitive_cylinder_add(vertices=seg, radius=r, depth=depth,
                                         location=at)
     o = bpy.context.object; o.name = name
@@ -70,6 +77,7 @@ def rod(name, r, p0, p1, seg):
     d = mathutils.Vector((p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]))
     L = d.length
     mid = ((p0[0]+p1[0])/2, (p0[1]+p1[1])/2, (p0[2]+p1[2])/2)
+    bpy.ops.object.select_all(action='DESELECT')
     bpy.ops.mesh.primitive_cylinder_add(vertices=seg, radius=r, depth=L, location=mid)
     o = bpy.context.object; o.name = name
     o.rotation_mode = 'QUATERNION'
@@ -78,6 +86,7 @@ def rod(name, r, p0, p1, seg):
     return o
 
 def ring(name, R, tube, at, seg_major, seg_minor=8):
+    bpy.ops.object.select_all(action='DESELECT')
     bpy.ops.mesh.primitive_torus_add(major_radius=R, minor_radius=tube,
         major_segments=seg_major, minor_segments=seg_minor, location=at,
         rotation=(math.pi/2, 0, 0))
@@ -90,6 +99,7 @@ def box(name, sx, sy, sz, at):
     half — so every box in the model rendered at HALF SIZE while all the
     cylinders were right. Found by scanline: the body measured 222px across
     where the spec (and the reference) say 444. size=2 cube × s/2 = s."""
+    bpy.ops.object.select_all(action='DESELECT')
     bpy.ops.mesh.primitive_cube_add(size=2, location=at)
     o = bpy.context.object; o.name = name
     o.scale = (sx / 2, sy / 2, sz / 2)
@@ -127,8 +137,10 @@ bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete()
 # ── 1 · body ─────────────────────────────────────────────────────────────────
 body = box("body", BODY_X * 2, BODY_DEPTH, BODY_TOP - BODY_BOT,
            B(0, (BODY_TOP + BODY_BOT) / 2, 0)); bevel(body, 8)
-plate = box("plate", PLATE_W, 8, PLATE_W, B(0, 0, -(FRONT) - 4 - 0))  # proud of front
-plate.location = B(0, 0, 0); plate.location.y = FRONT - 4
+# the recessed front plate: proud of the body's front face by 4mm, built in
+# ONE call — the old build-then-reassign dance left a phantom plate at double
+# depth that swallowed the lens
+plate = box("plate", PLATE_W, 8, PLATE_W, (0, FRONT - 4, 0))
 screws = []
 for sx in (-1, 1):
     for sz in (-1, 1):
@@ -264,6 +276,14 @@ for i, o in enumerate([camera_body, reel_a, reel_b, lens, crank, head, tripod]):
     o.data.materials.clear(); o.data.materials.append(m)
 
 # ── export ───────────────────────────────────────────────────────────────────
+# ── bounds audit: every part's blender-y (depth) range, so a part sitting in
+# front of the lens (y < -240) is caught at BUILD time, not in the site ──
+print("AUDIT depth ranges (blender y; lens occupies -150..-294):")
+for o in [camera_body, reel_a, reel_b, lens, crank, head, tripod]:
+    ys = [ (o.matrix_world @ v.co).y for v in o.data.vertices ]
+    flag = "  <-- IN FRONT OF LENS PLANE" if min(ys) < -244 and o.name != "lens" else ""
+    print(f"  {o.name:12} y {min(ys):8.1f} .. {max(ys):8.1f}{flag}")
+
 out = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else "/tmp/camera.glb"
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', use_selection=True)
