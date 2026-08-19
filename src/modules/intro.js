@@ -588,7 +588,11 @@ export function createIntro({ onProgress } = {}) {
       const zoomT = smoothstep((local - 0.08) / 0.38);
       const heroReveal = smoothstep((p - 0.472) / 0.028);
       const copyOpacity = heroReveal * (1 - smoothstep((local - 0.12) / 0.16));
-      const filmIn = smoothstep((local - 0.24) / 0.09);
+      /* The strip appears WITH the machine, not before it: it unspools
+         from the feed reel as the machine drives in (Yash, 22:58). Same
+         window as the entry translate below — fade and descent are one
+         motion. */
+      const filmIn = smoothstep((p - 0.553) / 0.032);
       /* filmOut used to end the strip at local .90 (p=.696) — before the
          camera had travelled at all, so the reel died and then a machine
          zoomed at an empty screen. The strip now lives through the whole
@@ -598,7 +602,11 @@ export function createIntro({ onProgress } = {}) {
       /* SETTLE AND HOLD (Yash MCQ): the strip is not linear in scroll. A
          detent curve spends most of its time parked with a plate in the gate
          and crosses the gap between plates quickly — a projector's rhythm. */
-      const filmRaw = smoothstep((local - 0.27) / 0.58);   // reel owns .27–.85
+      /* travel begins only once the strip has LANDED from the reel
+         (.586) — it used to start at local .27, which would now spend half
+         the plates while the band is still invisible/airborne. Same end
+         (.85 local = p .684), denser detent rhythm. */
+      const filmRaw = smoothstep((local - 0.44) / 0.41);   // reel owns .44–.85
       const slots = Math.max(filmCards.length - 1, 1);
       const pos = filmRaw * slots;
       const idx = Math.floor(pos);
@@ -902,14 +910,7 @@ export function createIntro({ onProgress } = {}) {
           : -72 * (1 - travel)
             + 0.9 * Math.sin(Math.max(0, (travel - 0.75)) / 0.25 * Math.PI);
         const es = reduced ? 1 : 0.86 + 0.14 * travel;
-        /* ARRIVE -> LOAD -> RUN (Yash, 22:22): the feed reel drops from
-           above AFTER the machine lands (.62), seats at .660 with a clunk,
-           and only then does the mechanism spin up — done .682, just in
-           time for the .684 contract. One spinUp for both spools keeps the
-           one-driver law: the machine starts when it is loaded, whole. */
-        const reelDrop = reduced ? 1
-          : Math.max(0, Math.min(1, (p - 0.622) / 0.038));
-        const spinUp = smoothstep((p - 0.662) / 0.020);
+        const spinUp = smoothstep((p - 0.565) / 0.040);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
         /* The old CSS transform chain, composed here in viewport px:
            translate(dx,dy) then scale about the lens pivot (43.5%, 31%).
@@ -940,9 +941,29 @@ export function createIntro({ onProgress } = {}) {
           crank: (cameraCrank * Math.PI) / 180,
           drift: reduced ? 0 : camIn * (1 - travel),
           recoil: cameraRecoil,
-          reelDrop,
           rect,
         }, performance.now());
+        /* THE FILM COMES OFF THE REEL (Yash, 22:58 — correcting 22:22: not
+           the camera's reel dropping in, the STRIP arriving from it; the
+           reels stay mounted and spinning as before). The band's gate point
+           starts AT the feed reel — projected live, so the origin tracks
+           the machine while it is still driving in — and descends to its
+           track as it fades in, on the same curve as filmIn. The strip's
+           rest centre is exactly (50vw, 50vh) by its own layout, so no
+           measurement is needed. */
+        {
+          const e = reduced ? 1 : filmIn;
+          let edx = 0, edy = 0;
+          if (e < 1 && marketCam3d.ready) {
+            const pa = marketCam3d.project("reel_a");
+            if (pa) {
+              edx = (pa.x - 0.5) * innerWidth * (1 - e);
+              edy = (pa.y - 0.5) * innerHeight * (1 - e);
+            }
+          }
+          marketExperience.style.setProperty("--market-film-edx", edx.toFixed(1) + "px");
+          marketExperience.style.setProperty("--market-film-edy", edy.toFixed(1) + "px");
+        }
         /* the takeover iris follows the lens's VISUAL circle, not the
            viewport centre — perspective shifts an off-axis circle's apparent
            centre, and the two rings visibly disagreed at the push's end */

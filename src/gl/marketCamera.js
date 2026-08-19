@@ -122,10 +122,10 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
   let ready = false;
   /* the lens flange's front rim, in the lens node's local space — measured
      from the geometry at load, used to project the VISUAL lens circle */
-  let rimR = 118, rimZ = 150, reelRestY = 0;
+  let rimR = 118, rimZ = 150;
   const state = {
     yaw: 0, opacity: 1, spin: 0, crank: 0, drift: 0, visible: false,
-    recoil: 0, rect: null, reelDrop: 1,
+    recoil: 0, rect: null,
   };
 
   new GLTFLoader().load(MODEL, (gltf) => {
@@ -213,7 +213,6 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
       });
       if (mx) { rimR = mx; rimZ = mz; }
     }
-    if (nodes.reel_a) reelRestY = nodes.reel_a.position.y;
     rig.add(model);
     ready = true;
     render(0);
@@ -249,16 +248,6 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
       + (reduced ? 0 : state.drift * Math.sin(t * 0.5) * 0.035);
     rig.rotation.x = state.recoil * 1.4 * Math.PI / 180;
     rig.position.y = reduced ? 0 : state.drift * Math.sin(t * 0.7) * 6;
-    /* THE FEED REEL ARRIVES FROM ABOVE (Yash, 22:22): the machine drives
-       in without it; the reel drops onto the spindle and the mechanism only
-       then spins up. Ease-out descent with a 10mm clunk at the seat. */
-    if (nodes.reel_a) {
-      const t = Math.max(0, Math.min(1, state.reelDrop));
-      const yOff = reduced ? 0
-        : (1 - (1 - Math.pow(1 - t, 3))) * 900
-          - Math.sin(Math.max(0, (t - 0.72)) / 0.28 * Math.PI) * 10;
-      nodes.reel_a.position.y = reelRestY + yOff;
-    }
     if (nodes.reel_a) nodes.reel_a.rotation.z = state.spin * Math.PI * 2;
     if (nodes.reel_b) nodes.reel_b.rotation.z = -state.spin * Math.PI * 2 * 1.08;
     if (nodes.crank) nodes.crank.rotation.z = state.crank;

@@ -5525,3 +5525,30 @@ canvas.market-camera3d {
   left: var(--lens-cx, 50%);
   top: var(--lens-cy, 50%);
 }
+
+/* ── THE STRIP UNSPOOLS FROM THE FEED REEL (Yash, 19 Aug 22:58) ─────────
+   Not the camera's reel arriving — the FILM's. The band's entrance is a
+   screen-space translate from reel_a's projected position (intro.js sets
+   --market-film-edx/edy, shrinking to 0 as filmIn completes), so the film
+   visibly pours off the spinning spool down onto its track. The whole
+   transform chain is restated here because only the LAST cascade block
+   for a property exists (D-025's lesson) — and the reduced-motion
+   override is re-asserted after it for the same reason. */
+.market-film {
+  /* ⚠️ This chain extends the 7 Aug "reel runs LEVEL" block, NOT the
+     original one further up — that one still carries rotate(-2.5deg) and
+     a base rotateX(3deg) that were measured killing the level reel (the
+     first draft of this rule copied it and the sprockets ran downhill
+     again). If the chain changes above, it must change here. */
+  transform:
+    translate(var(--market-film-edx, 0px), var(--market-film-edy, 0px))
+    translate(-50%, -50%)
+    translateX(var(--market-film-capture-x, var(--market-film-x)))
+    perspective(1600px)
+    rotateX(calc(var(--market-camera-capture, 0) * 12deg))
+    rotateY(calc(var(--market-camera-capture, 0) * -68deg))
+    scale(calc(1 - var(--market-camera-capture, 0) * .86));
+}
+@media (prefers-reduced-motion: reduce) {
+  .market-film { transform: translate(-50%,-50%); }
+}
