@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>1b154f3</code> · updated 2026-08-14 · generated 2026-08-19 15:47 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>5f3c92a</code> · updated 2026-08-14 · generated 2026-08-19 16:38 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 24 logged</h2>
+  <h2>Decisions — 25 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -343,6 +343,16 @@
   <summary><span class="did">D-024</span> The camera waits for the title <span class="ddate">2026-08-19</span></summary>
   <dl>
     <dt>Decision</dt><dd>Yash rejected the D-023 entry window (.425–.560): it overlapped the act title. The big &quot;We market&quot; exits via a WIPE ending ~p .555 — NOT at copyOpacity's fade (.4975), which only governs the small copy; the first retime keyed on it and failed. Entry now: fade-in .555–.585, yaw done .635, lands .647, spin-up .590–.635. Handoff contract at .684 untouched, re-verified front-on. Plates ride alone .495–.555 by his explicit instruction (&quot;start the camera after the ending of the We Market section transition&quot;).</dd>
+    <dt>Why</dt><dd></dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd></dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-025 optical zoom, drive-in entrance, real metal yash: pixelated push, machine appearing too late, &quot;make it look more real.&quot; one root cause: the canvas lived inside .market-pusher under css transforms — the final pusher transform block overrode the earlier block carrying the entry vars (the machine never travelled, it faded in place), and the push was scale(13) stretching a raster. rebuilt: canvas covers the act, intro.js composes the transform chain into a frame rect, marketcamera.js maps the model frame onto it with setviewoffset — native-res at every scale. entry: ease-out drive-in from off-screen left .545, nose on screen .550, lands .62 (title gone .546 — never co-visible). materials: pmrem env (sigma .04), creased normals 40°, seeded procedural grain/brushed maps tuned for the 13× moment, clearcoat lens. phone dpr cap 1→2 (the old cap re-created the bug on dpr-3 panels). verified by a 6-skeptic adversarial workflow + all three suites.  ">
+  <summary><span class="did">D-025</span> Optical zoom, drive-in entrance, real metal <span class="ddate">2026-08-19</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>Yash: pixelated push, machine appearing too late, &quot;make it look more real.&quot; One root cause: the canvas lived inside .market-pusher under CSS transforms — the FINAL pusher transform block overrode the earlier block carrying the entry vars (the machine never travelled, it faded in place), and the push was scale(13) stretching a raster. Rebuilt: canvas covers the act, intro.js composes the transform chain into a frame rect, marketCamera.js maps the model frame onto it with setViewOffset — native-res at every scale. Entry: ease-out drive-in from off-screen left .545, nose on screen .550, lands .62 (title gone .546 — never co-visible). Materials: PMREM env (sigma .04), creased normals 40°, seeded procedural grain/brushed maps tuned for the 13× moment, clearcoat lens. Phone dpr cap 1→2 (the old cap re-created the bug on dpr-3 panels). Verified by a 6-skeptic adversarial workflow + all three suites.</dd>
     <dt>Why</dt><dd></dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd></dd>
