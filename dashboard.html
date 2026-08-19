@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>5ddd147</code> · updated 2026-08-14 · generated 2026-08-19 15:22 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>1b154f3</code> · updated 2026-08-14 · generated 2026-08-19 15:47 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 23 logged</h2>
+  <h2>Decisions — 24 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -333,6 +333,16 @@
   <summary><span class="did">D-023</span> The market camera is a 3D model <span class="ddate">2026-08-19</span></summary>
   <dl>
     <dt>Decision</dt><dd>PNG + six overlay spans retired; procedural GLB (build_camera.py, 6-iteration matcher loop, IoU 0.739 accepted) rendered by marketCamera.js inside the same .market-pusher box. Drop-in contract: render frame locked to the model's mm=px coordinate system, so at yaw 0 the canvas is pixel-equivalent to the PNG — all existing push transforms unchanged, 43.5%/31% pivot still the lens. Entry x .425–.560 (profile fade-in, travel+turn, reels spin-up as a factor on cameraSpin). approach at .684 untouched.</dd>
+    <dt>Why</dt><dd></dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd></dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-024 the camera waits for the title yash rejected the d-023 entry window (.425–.560): it overlapped the act title. the big &quot;we market&quot; exits via a wipe ending ~p .555 — not at copyopacity's fade (.4975), which only governs the small copy; the first retime keyed on it and failed. entry now: fade-in .555–.585, yaw done .635, lands .647, spin-up .590–.635. handoff contract at .684 untouched, re-verified front-on. plates ride alone .495–.555 by his explicit instruction (&quot;start the camera after the ending of the we market section transition&quot;).  ">
+  <summary><span class="did">D-024</span> The camera waits for the title <span class="ddate">2026-08-19</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>Yash rejected the D-023 entry window (.425–.560): it overlapped the act title. The big &quot;We market&quot; exits via a WIPE ending ~p .555 — NOT at copyOpacity's fade (.4975), which only governs the small copy; the first retime keyed on it and failed. Entry now: fade-in .555–.585, yaw done .635, lands .647, spin-up .590–.635. Handoff contract at .684 untouched, re-verified front-on. Plates ride alone .495–.555 by his explicit instruction (&quot;start the camera after the ending of the We Market section transition&quot;).</dd>
     <dt>Why</dt><dd></dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd></dd>
