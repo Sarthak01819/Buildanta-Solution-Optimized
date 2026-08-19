@@ -73,7 +73,7 @@ function grainTex(size, amp, brushed) {
   return t;
 }
 
-export function mountMarketCamera(host, { reduced = false } = {}) {
+export function mountMarketCamera(host, { reduced = false, onReady = null } = {}) {
   const canvas = document.createElement("canvas");
   canvas.className = "market-camera3d";
   host.appendChild(canvas);
@@ -183,19 +183,29 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
         o.material.envMapIntensity = 0.55;
       }
     });
-    /* The lens is the destination of the push. Clearcoat glass: near-black,
-       one bright environment ring, tight highlights — a lens, not a panel. */
+    /* The lens is the destination of the push. Two materials, split by
+       mesh name (the GLB parents the glass as a child "l_glass"): the
+       SURROUND is bright machined metal — in the reference every ring is
+       silver and only the element is dark — and the glass itself is
+       near-black clearcoat with one bright environment ring. */
     const lensObj = model.getObjectByName("lens");
     if (lensObj) lensObj.traverse((o) => {
       if (o.isMesh && o.material) {
-        /* dark GLASS, not chrome: low metalness so the dome reads as a
-           deep element you could fall into, clearcoat for the one bright
-           environment ring on its crown */
-        const m = new MeshPhysicalMaterial({
-          color: 0x08080e, metalness: 0.45, roughness: 0.08,
-          clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 0.75,
-        });
-        o.material = m;
+        if (/glass/i.test(o.name)) {
+          o.material = new MeshPhysicalMaterial({
+            color: 0x08080e, metalness: 0.45, roughness: 0.08,
+            clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 0.75,
+          });
+        } else {
+          o.material = o.material.clone();
+          o.material.color = new Color(0x585866);
+          o.material.metalness = 0.95;
+          o.material.roughness = 0.26;
+          o.material.roughnessMap = brushed;
+          o.material.bumpMap = brushed;
+          o.material.bumpScale = 0.15;
+          o.material.envMapIntensity = 1.05;
+        }
       }
     });
     for (const n of ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod"])
@@ -216,6 +226,11 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
     rig.add(model);
     ready = true;
     render(0);
+    /* The site's handler is SCROLL-driven: if the page sits still while the
+       GLB loads (a programmatic jump, a slow network), every ready-gated
+       write upstream (lens centre, reel anchors) stays stale until the next
+       scroll. Hand control back once so the caller can re-apply its state. */
+    if (onReady) onReady();
   }, undefined, (e) => console.warn("[marketCamera]", e?.message || e));
 
   /* Canvas covers the act; the frame rect does the moving. dpr 2 on fine

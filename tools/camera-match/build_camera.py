@@ -106,6 +106,30 @@ def box(name, sx, sy, sz, at):
     bpy.ops.object.transform_apply(scale=True)
     return o
 
+def knurl(name, r, depth, at, axis, seg=SEG_KNOB):
+    """A dial that reads MACHINED: body cylinder + two edge rings + a proud
+    cap. The reference's side hardware is all knurled dials — plain cylinders
+    are what made the old build look like a toy (Yash, 23:23)."""
+    parts = [cyl(name, r, depth, at, seg, axis)]
+    off = (depth / 2 - 2)
+    for d in (-1, 1):
+        ra = list(at)
+        if axis == 'X': ra[0] += d * off; rot = (0, math.pi/2, 0)
+        elif axis == 'Y': ra[1] += d * off; rot = (math.pi/2, 0, 0)
+        else: ra[2] += d * off; rot = (0, 0, 0)
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.ops.mesh.primitive_torus_add(major_radius=r - 1, minor_radius=3.2,
+            major_segments=24, minor_segments=6, location=tuple(ra), rotation=rot)
+        t = bpy.context.object; t.name = name + "_ring"
+        bpy.ops.object.transform_apply(rotation=True)
+        parts.append(t)
+    capat = list(at)
+    if axis == 'X': capat[0] += off + 4
+    elif axis == 'Y': capat[1] += off + 4
+    else: capat[2] += off + 4
+    parts.append(cyl(name + "_cap", r * 0.44, 10, tuple(capat), 16, axis))
+    return join(parts, name)
+
 def bevel(o, width=6, segs=BODY_BEVEL_SEG):
     m = o.modifiers.new("bev", 'BEVEL'); m.width = width; m.segments = segs
     m.limit_method = 'ANGLE'; m.angle_limit = math.radians(40)
@@ -146,20 +170,50 @@ for sx in (-1, 1):
     for sz in (-1, 1):
         s = cyl("screw", 7, 6, (sx * (PLATE_W/2 - 18), FRONT - 8, sz * (PLATE_W/2 - 18)), 12, 'Y')
         screws.append(s)
-body_parts = [body, plate] + screws
+# raised bezel frame around the plate + mid-edge screws — the reference's
+# front is a BOLTED panel, not a flat card (detail pass, 23:23)
+F_IN = PLATE_W - 44
+frame_bars = [
+    box("fr_t", F_IN, 6, 10, (0, FRONT - 9, F_IN/2 - 5)),
+    box("fr_b", F_IN, 6, 10, (0, FRONT - 9, -F_IN/2 + 5)),
+    box("fr_l", 10, 6, F_IN, (-F_IN/2 + 5, FRONT - 9, 0)),
+    box("fr_r", 10, 6, F_IN, (F_IN/2 - 5, FRONT - 9, 0)),
+]
+for sx, sz in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+    screws.append(cyl("screw", 6, 6, (sx * (PLATE_W/2 - 18), FRONT - 8, sz * (PLATE_W/2 - 18)), 12, 'Y'))
+body_parts = [body, plate] + screws + frame_bars
 
 # ── 2 · lens (revolved stack on the origin, protruding forward) ──────────────
+# DETAIL PASS (Yash's reference, 23:23): the glass is RECESSED into the
+# barrel behind a retaining ring — the old dome bulged 64mm past the barrel
+# and read as a ball bearing, the single loudest "plain 3D" tell. Machined
+# ridge rings on the mid step give the assembly its lathe-turned character.
+BARREL_FRONT = FRONT - LENS_PROTRUDE          # blender.y of the barrel's front face
 lens_parts = [
     cyl("l_flange", LENS_R_FLANGE, 16, (0, FRONT - 8, 0), SEG_LENS, 'Y'),
     cyl("l_mid",    LENS_R_MID,    28, (0, FRONT - 16 - 14, 0), SEG_LENS, 'Y'),
     cyl("l_barrel", LENS_R_BARREL, LENS_PROTRUDE - 44,
         (0, FRONT - 44 - (LENS_PROTRUDE - 44) / 2, 0), SEG_LENS, 'Y'),
+    ring("l_ridge1", LENS_R_MID, 3.5, (0, FRONT - 18, 0), 48, 6),
+    ring("l_ridge2", LENS_R_MID, 3.5, (0, FRONT - 40, 0), 48, 6),
+    # the retaining ring: the bright machined lip that holds the glass
+    ring("l_retain", LENS_R_BARREL - 14, 5, (0, BARREL_FRONT + 2, 0), 48, 6),
+    # inner bore wall behind the retaining ring, so the recess has depth
+    cyl("l_bore", LENS_R_BARREL - 12, 26, (0, BARREL_FRONT + 14, 0), SEG_LENS, 'Y'),
 ]
+bpy.ops.object.select_all(action='DESELECT')
 bpy.ops.mesh.primitive_uv_sphere_add(segments=SEG_LENS, ring_count=32,
-    radius=LENS_DOME_R, location=(0, FRONT - LENS_PROTRUDE + 10, 0))
-dome = bpy.context.object; dome.name = "l_dome"
-lens = join(lens_parts + [dome], "lens")
+    radius=LENS_DOME_R, location=(0, BARREL_FRONT + LENS_DOME_R - 22, 0))
+dome = bpy.context.object; dome.name = "l_glass"
+# The GLASS is a CHILD of the lens node, not joined into it: the reference's
+# lens surround is BRIGHT machined metal and only the element is dark — two
+# materials need two meshes, and the runtime splits them by name (l_glass).
+lens = join(lens_parts, "lens")
 set_origin(lens, (0, 0, 0))
+bpy.ops.object.select_all(action='DESELECT')
+dome.select_set(True); lens.select_set(True)
+bpy.context.view_layer.objects.active = lens
+bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
 # ── 3 · reels (build A, then mirror-place B) ─────────────────────────────────
 def build_reel(name, mx):
@@ -179,7 +233,8 @@ def build_reel(name, mx):
                 (mx + math.cos(a) * HUB_HOLE_ON, ry, REEL_Y + math.sin(a) * HUB_HOLE_ON),
                 SEG_HOLE, 'Y')
         cut(hub, h)
-    reel = join([disc, rim, hub], name)
+    capc = cyl(name + "_cap", 13, 10, (mx, ry - REEL_THICK / 2 - 9, REEL_Y), 16, 'Y')
+    reel = join([disc, rim, hub, capc], name)
     set_origin(reel, (mx, REEL_Y, 0))   # origin on the spool axis
     return reel
 
@@ -200,10 +255,10 @@ bpy.ops.mesh.primitive_cone_add(vertices=SEG_KNOB, radius1=40, radius2=16,
 vf = bpy.context.object; vf.name = "viewfinder"
 knobs = []
 for sx in (-1, 1):
-    k = cyl("knob", KNOB_R, 30, (sx * KNOB_X, 0, KNOB_Y), SEG_KNOB, axis='X')
-    knobs.append(k)
-    k2 = cyl("knob2", KNOB_R * 0.62, 24, (sx * (KNOB_X - 6), 0, KNOB_Y - 148), SEG_KNOB, axis='X')
-    knobs.append(k2)
+    knobs.append(knurl("knob", KNOB_R, 30, (sx * KNOB_X, 0, KNOB_Y), 'X'))
+    knobs.append(knurl("knob2", KNOB_R * 0.62, 24, (sx * (KNOB_X - 6), 0, KNOB_Y - 148), 'X'))
+    # the small upper stud each side — the reference's flanks are BUSY
+    knobs.append(cyl("stud", 13, 26, (sx * (KNOB_X - 10), 0, KNOB_Y + 118), 16, 'X'))
 
 # side housings: the reference body reads wider than the ±222 core because of
 # motor/gear housings on both flanks (iter-3 band IoU: the largest mass gap)
@@ -234,24 +289,38 @@ h_mount = box("h_mount", 216, 180, (BODY_BOT - HEAD_TOP) * -1 + 4,
               B(0, (BODY_BOT + HEAD_TOP) / 2, 0))
 h_hub = cyl("h_hub", 62, HEAD_TOP - HEAD_BOT, (0, 0, (HEAD_TOP + HEAD_BOT) / 2), 32, 'Z')
 h_boss = cyl("h_boss", 44, 70, (0, 0, (HEAD_TOP + HEAD_BOT) / 2), SEG_KNOB, 'Y')
-h_k1 = cyl("h_k1", 24, 90, (-96, 0, HEAD_BOT + 30), SEG_HOLE, 'X')
-head = join([h_mount, h_hub, h_boss, h_k1], "head")
+# the tilt mechanism the reference shows under the body: a cross axle with
+# knurled locking knobs on BOTH ends, through the pivot boss
+h_axle = cyl("h_axle", 12, 300, (0, 0, HEAD_BOT + 30), SEG_HOLE, 'X')
+h_k1 = knurl("h_k1", 26, 24, (-152, 0, HEAD_BOT + 30), 'X', seg=24)
+h_k2 = knurl("h_k2", 26, 24, (152, 0, HEAD_BOT + 30), 'X', seg=24)
+h_plate = box("h_plate", 236, 190, 12, B(0, HEAD_TOP + 8, 0))
+head = join([h_mount, h_hub, h_boss, h_axle, h_k1, h_k2, h_plate], "head")
 set_origin(head, (0, (HEAD_TOP + HEAD_BOT) / 2, 0))
 
 # ── 9 · tripod ───────────────────────────────────────────────────────────────
 crown = cyl("crown", CROWN_R, CROWN_TOP - CROWN_BOT, (0, 0, (CROWN_TOP + CROWN_BOT) / 2), 32, 'Z')
-legs = []
+# legs read TELESCOPIC now (reference): fat upper tube, clamp collar, thinner
+# mid tube, second collar, thin lower tube, then a spike with a ball tip
+legs = [cyl("underplate", 96, 26, (0, 0, CROWN_BOT - 10), 32, 'Z')]
 for az in (210, 330, 90):
     a = math.radians(az)
     hip  = (math.cos(a) * 120, math.sin(a) * 120 * 0.9, CROWN_BOT)
     foot = (math.cos(a) * 300,            math.sin(a) * FEET_SPLAY_Z * 0.9,   FEET_Y)
-    mid  = tuple(hip[i] + (foot[i] - hip[i]) * 0.55 for i in range(3))
-    legs.append(rod("leg_u", 26, hip, mid, SEG_LEG))
-    legs.append(rod("leg_l", 18, mid, foot, SEG_LEG))
-    legs.append(cyl("coll", 22, 40, mid, SEG_LEG, 'Z'))
-    bpy.ops.mesh.primitive_cone_add(vertices=SEG_LEG, radius1=13, radius2=3, depth=46,
-        location=(foot[0], foot[1], FEET_Y + 23), rotation=(math.pi, 0, 0))
+    p40  = tuple(hip[i] + (foot[i] - hip[i]) * 0.40 for i in range(3))
+    p70  = tuple(hip[i] + (foot[i] - hip[i]) * 0.70 for i in range(3))
+    legs.append(rod("leg_u", 26, hip, p40, SEG_LEG))
+    legs.append(rod("leg_m", 19, p40, p70, SEG_LEG))
+    legs.append(rod("leg_l", 13, p70, foot, SEG_LEG))
+    legs.append(cyl("coll_a", 24, 42, p40, SEG_LEG, 'Z'))
+    legs.append(cyl("coll_b", 17, 36, p70, SEG_LEG, 'Z'))
+    bpy.ops.mesh.primitive_cone_add(vertices=SEG_LEG, radius1=11, radius2=3, depth=40,
+        location=(foot[0], foot[1], FEET_Y + 26), rotation=(math.pi, 0, 0))
     ft = bpy.context.object; ft.name = "foot"; legs.append(ft)
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=6, radius=8,
+        location=(foot[0], foot[1], FEET_Y + 2))
+    bt = bpy.context.object; bt.name = "balltip"; legs.append(bt)
 # spreader brace: three bars from the column to each leg at BRACE_Y
 tbr = (BRACE_Y - CROWN_BOT) / (FEET_Y - CROWN_BOT)
 for az in (210, 330, 90):

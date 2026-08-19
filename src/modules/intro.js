@@ -171,6 +171,7 @@ export function createIntro({ onProgress } = {}) {
   const consultHandCanvas = root.querySelector(".consult-zero__hand-canvas");
   const marketPusherEl = root.querySelector(".market-pusher");
   let marketCam3d = null;
+  let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
   const consultHand = !reduced && consultHandCanvas
     ? createConsultHand(consultHandCanvas)
     : null;
@@ -884,7 +885,17 @@ export function createIntro({ onProgress } = {}) {
          is untouched from .545 on. approach/push begin at .684 exactly —
          the handoff contract state is the rest state of this block. */
       if (!marketCam3d && p > 0.40 && marketPusherEl) {
-        marketCam3d = mountMarketCamera(marketExperience, { reduced });
+        marketCam3d = mountMarketCamera(marketExperience, {
+          reduced,
+          /* the handler is scroll-driven; if the model finishes loading
+             while the page sits still (programmatic jump, slow network),
+             re-apply the current state once so every ready-gated write
+             (lens centre, reel anchors) lands without waiting for the
+             user to move (found by the p=.730 skeptic: the iris overlay
+             sat on its 50% fallback in every jump-navigation test) */
+          onReady: () => applyRaw(lastRaw),
+        });
+        if (window.__buildanta) window.__buildanta.marketCam3d = marketCam3d;  // dev bridge
       }
       if (marketCam3d) {
         /* THE ENTRANCE IS A DRIVE-IN, NOT A FADE (Yash, 21:22: "coming in
@@ -970,8 +981,13 @@ export function createIntro({ onProgress } = {}) {
         if (marketCam3d.ready && approach > 0) {
           const lc = marketCam3d.projectLensCircle();
           if (lc) {
-            marketExperience.style.setProperty("--lens-cx", lc.x.toFixed(1) + "px");
-            marketExperience.style.setProperty("--lens-cy", lc.y.toFixed(1) + "px");
+            /* on ROOT, not marketExperience: the takeover/iris are NOT its
+               descendants (skeptic-measured 19 Aug 23:55 — the vars never
+               reached them and the overlay sat at its 50% fallback, dead on
+               screen centre, while the lens axis parks at ~(703,420)).
+               --lens-r already lives on root for the same reason. */
+            root.style.setProperty("--lens-cx", lc.x.toFixed(1) + "px");
+            root.style.setProperty("--lens-cy", lc.y.toFixed(1) + "px");
           }
         }
         /* anchors that can follow a rotating object: reel + lens positions in
@@ -1536,6 +1552,7 @@ export function createIntro({ onProgress } = {}) {
      nahi dikhti; 900ms ka CSS fade "instant but smooth" deta hai. */
   const wallRaw = introRawEnd - 0.0105;
   const applyRaw = (raw) => {
+    lastRaw = raw;
     beatLocal = beatUnlocked ? Math.min(mapBeatLocal(raw), FINALE_BEAT) : 0;
     if (portalOn) {
       if (portalState === "off" && raw >= wallRaw && raw < 0.999 &&
