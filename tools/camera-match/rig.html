@@ -47,18 +47,27 @@ new GLTFLoader().load(GLB, (g) => {
       if (o.isMesh) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
     });
   }
-  const box = new THREE.Box3().setFromObject(root);
-  const size = box.getSize(new THREE.Vector3());
-  const c = box.getCenter(new THREE.Vector3());
-  /* content box in px -> camera window in world units. The content centre is
-     the frame centre (measured: both are 392.5, 755.5), so centre on bbox. */
-  const cw = CONTENT.x1 - CONTENT.x0, ch = CONTENT.y1 - CONTENT.y0;
-  const winW = size.x * (W / cw);
-  const winH = size.y * (H / ch);
-  const cam = new THREE.OrthographicCamera(
-    -winW / 2, winW / 2, winH / 2, -winH / 2, 0.01, size.z * 10 + 10);
-  cam.position.set(c.x, c.y, c.z + size.z * 2 + 1);
-  cam.lookAt(c.x, c.y, c.z);
+  let cam;
+  if (q.get("frame") === "lens") {
+    /* THE COORDINATE RULE (project brief): model is mm at 1mm = 1px, origin
+       at the lens centre. The 785x1511 frame maps to model x [-341.5,+443.5],
+       y [+467,-1044] — a FIXED window. Alignment is a property of the frame,
+       not something the rig estimates from a bbox. */
+    cam = new THREE.OrthographicCamera(-341.5, 443.5, 467, -1044, 0.01, 20000);
+    cam.position.set(0, 0, 5000);
+    cam.lookAt(0, 0, 0);
+  } else {
+    const box = new THREE.Box3().setFromObject(root);
+    const size = box.getSize(new THREE.Vector3());
+    const c = box.getCenter(new THREE.Vector3());
+    const cw = CONTENT.x1 - CONTENT.x0, ch = CONTENT.y1 - CONTENT.y0;
+    const winW = size.x * (W / cw);
+    const winH = size.y * (H / ch);
+    cam = new THREE.OrthographicCamera(
+      -winW / 2, winW / 2, winH / 2, -winH / 2, 0.01, size.z * 10 + 10);
+    cam.position.set(c.x, c.y, c.z + size.z * 2 + 1);
+    cam.lookAt(c.x, c.y, c.z);
+  }
   scene.add(root);
   let n = 0;
   renderer.setAnimationLoop(() => {

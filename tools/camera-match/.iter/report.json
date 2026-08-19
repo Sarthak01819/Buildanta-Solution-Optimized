@@ -1,35 +1,40 @@
 {
-  "iou": 0.35285998549010045,
+  "iou": 0.7389445141936791,
   "meas": {
     "reel_a": {
-      "x": 225.22997206159445,
-      "y": 187.3910727048275,
-      "area": 30782,
-      "r": 98.98593292235743
+      "x": 171.9485872897506,
+      "y": 169.9789336316182,
+      "area": 48276,
+      "r": 123.96260752907983
     },
     "reel_b": {
-      "x": 417.165623952631,
-      "y": 223.92408669422412,
-      "area": 17902,
-      "r": 75.48763860700784
+      "x": 500.7044265767518,
+      "y": 167.17714952665025,
+      "area": 46266,
+      "r": 121.35454336026838
     },
-    "knob_l": null,
+    "knob_l": {
+      "x": 93.73404255319149,
+      "y": 473.6748293857888,
+      "area": 4982,
+      "r": 39.82235368442761
+    },
     "knob_r": {
-      "x": 636.3564307078764,
-      "y": 515.1191425722832,
-      "area": 2006,
-      "r": 25.269143865289227
+      "x": 580.2331170746093,
+      "y": 473.62842819227365,
+      "area": 6782,
+      "r": 46.46264788083508
     },
     "crank": {
-      "x": 652.2008998533946,
-      "y": 645.367574945655,
-      "area": 19781,
-      "r": 79.35041183637023
+      "x": 653.9594691535151,
+      "y": 608.2173601147776,
+      "area": 5576,
+      "r": 42.129513709047444
     },
     "lens": {
-      "x": 224.99405188476422,
-      "y": 481.4820123262147,
-      "r": 66.64605128444306
+      "x": 341,
+      "y": 466.5,
+      "r": 192.10634607984375
     }
   },
   "refMeas": {
@@ -70,39 +75,25 @@
     }
   },
   "topo": {
-    "tris": 1164,
-    "quadRatio": 0.8608247422680413
+    "tris": 15892,
+    "quadRatio": 0.940095645607853
   },
   "nodes": {
-    "missing": [
-      "camera_body",
-      "reel_a",
-      "reel_b",
-      "lens",
-      "crank",
-      "head",
-      "tripod"
-    ],
+    "missing": [],
     "axes": {
-      "reel_a": "no mesh",
-      "reel_b": "no mesh",
-      "crank": "no mesh"
+      "reel_a": {
+        "radialOffset": 0.0495,
+        "partRadius": 136.0495,
+        "onAxis": true
+      },
+      "reel_b": {
+        "radialOffset": 0.0495,
+        "partRadius": 136.0495,
+        "onAxis": true
+      }
     }
   },
   "defects": [
-    "silhouette IoU: 0.353 (gate >= 0.95)",
-    "lens centre: off by 111.1px vs reference-measured (dx -107.3, dy -29.0; tol 4)",
-    "reel_a centre: off by 50.6px vs reference-measured (dx +47.2, dy +18.3; tol 6)",
-    "reel_a radius: 99.0 vs ref-measured 123.7 (err -24.8; tol 5)",
-    "reel_b centre: off by 98.7px vs reference-measured (dx -83.2, dy +53.2; tol 6)",
-    "reel_b radius: 75.5 vs ref-measured 125.3 (err -49.8; tol 5)",
-    "knob_l: feature NOT FOUND in window",
-    "knob_r centre: off by 70.2px vs reference-measured (dx +50.0, dy +49.3; tol 8)",
-    "crank centre: off by 26.0px vs reference-measured (dx -16.1, dy +20.3; tol 8)",
-    "triangle count: 1164 (gate 15000-25000)",
-    "named nodes: MISSING: camera_body, reel_a, reel_b, lens, crank, head, tripod",
-    "reel_a origin: no mesh",
-    "reel_b origin: no mesh",
-    "crank origin: no mesh"
+    "silhouette IoU: 0.739 (gate >= 0.95)"
   ]
 }
