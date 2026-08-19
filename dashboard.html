@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>7c2ca57</code> · updated 2026-08-14 · generated 2026-08-15 12:42 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>5ddd147</code> · updated 2026-08-14 · generated 2026-08-19 15:22 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 22 logged</h2>
+  <h2>Decisions — 23 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -324,6 +324,16 @@
   <dl>
     <dt>Decision</dt><dd>Three fixes so the event horizon renders dead black: (1) dither moved below the gamma encode (in linear space ±0.5/255 becomes 15/255 on black); (2) the photon ring gated to escaped rays only (captured rays share minR≈1.5 and were glowing); (3) scene alpha carries a HOLDOUT MATTE (0 inside the horizon) and the composite suppresses bloom by it, feathered 1px.</dd>
     <dt>Why</dt><dd>Yash: &quot;it should be black, man&quot; — on the finale and through the Endurance window.</dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd></dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-023 the market camera is a 3d model png + six overlay spans retired; procedural glb (build_camera.py, 6-iteration matcher loop, iou 0.739 accepted) rendered by marketcamera.js inside the same .market-pusher box. drop-in contract: render frame locked to the model's mm=px coordinate system, so at yaw 0 the canvas is pixel-equivalent to the png — all existing push transforms unchanged, 43.5%/31% pivot still the lens. entry x .425–.560 (profile fade-in, travel+turn, reels spin-up as a factor on cameraspin). approach at .684 untouched.  ">
+  <summary><span class="did">D-023</span> The market camera is a 3D model <span class="ddate">2026-08-19</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>PNG + six overlay spans retired; procedural GLB (build_camera.py, 6-iteration matcher loop, IoU 0.739 accepted) rendered by marketCamera.js inside the same .market-pusher box. Drop-in contract: render frame locked to the model's mm=px coordinate system, so at yaw 0 the canvas is pixel-equivalent to the PNG — all existing push transforms unchanged, 43.5%/31% pivot still the lens. Entry x .425–.560 (profile fade-in, travel+turn, reels spin-up as a factor on cameraSpin). approach at .684 untouched.</dd>
+    <dt>Why</dt><dd></dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd></dd>
     <dt>Source</dt><dd></dd>
