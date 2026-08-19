@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>5f3c92a</code> · updated 2026-08-14 · generated 2026-08-19 16:38 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>98f9380</code> · updated 2026-08-14 · generated 2026-08-19 17:01 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 25 logged</h2>
+  <h2>Decisions — 26 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -353,6 +353,16 @@
   <summary><span class="did">D-025</span> Optical zoom, drive-in entrance, real metal <span class="ddate">2026-08-19</span></summary>
   <dl>
     <dt>Decision</dt><dd>Yash: pixelated push, machine appearing too late, &quot;make it look more real.&quot; One root cause: the canvas lived inside .market-pusher under CSS transforms — the FINAL pusher transform block overrode the earlier block carrying the entry vars (the machine never travelled, it faded in place), and the push was scale(13) stretching a raster. Rebuilt: canvas covers the act, intro.js composes the transform chain into a frame rect, marketCamera.js maps the model frame onto it with setViewOffset — native-res at every scale. Entry: ease-out drive-in from off-screen left .545, nose on screen .550, lands .62 (title gone .546 — never co-visible). Materials: PMREM env (sigma .04), creased normals 40°, seeded procedural grain/brushed maps tuned for the 13× moment, clearcoat lens. Phone dpr cap 1→2 (the old cap re-created the bug on dpr-3 panels). Verified by a 6-skeptic adversarial workflow + all three suites.</dd>
+    <dt>Why</dt><dd></dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd></dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-026 arrive, load, run; and the rings agree (yash 22:22, two of three asks — the model refine waits for his exact reference image.) the feed reel now drops in from above: machine drives in without it, reel descends .622, seats .660 with a 10mm clunk, spin-up .662–.682 — one spinup for both spools keeps the one-driver law; the machine starts when it is loaded. ring alignment: the takeover/iris overlays were pinned at viewport centre while the barrel's visual circle sits off it — under perspective an off-axis circle's apparent centre shifts from its axis point, so project('lens') cannot fix it either. marketcamera projects 8 flange-rim points (rim measured from geometry at load) and both overlays pin to the averaged centre (--lens-cx/cy, fallback 50%).  ">
+  <summary><span class="did">D-026</span> Arrive, load, run; and the rings agree <span class="ddate">2026-08-19</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>(Yash 22:22, two of three asks — the model refine waits for his exact reference image.) The feed reel now DROPS IN from above: machine drives in without it, reel descends .622, seats .660 with a 10mm clunk, spin-up .662–.682 — one spinUp for both spools keeps the one-driver law; the machine starts when it is loaded. Ring alignment: the takeover/iris overlays were pinned at viewport centre while the barrel's VISUAL circle sits off it — under perspective an off-axis circle's apparent centre shifts from its axis point, so project('lens') cannot fix it either. marketCamera projects 8 flange-rim points (rim measured from geometry at load) and both overlays pin to the averaged centre (--lens-cx/cy, fallback 50%).</dd>
     <dt>Why</dt><dd></dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd></dd>
