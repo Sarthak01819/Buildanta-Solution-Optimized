@@ -5477,3 +5477,38 @@ html.is-in-world .world-details__nav { cursor: pointer !important; }
    The audio module is an inert stub (see modules/sound.js); this hides its
    control everywhere so no dead "Tap for sound" button survives (D2). */
 .intro__sound { display:none !important; }
+
+/* ── THE CAMERA'S ZOOM IS OPTICAL NOW (Yash, 19 Aug 21:22) ──────────────
+   His screenshot: the push at scale ~13 was a mush of giant pixels. A
+   transform-scaled layer is rasterised once and stretched — the same trap
+   the lens takeover was built to dodge, still open for the machine's body.
+   The canvas now covers the whole act and intro.js moves the FRUSTUM
+   (setViewOffset in marketCamera.js), so every scale renders at native
+   resolution. These rules must sit AFTER every earlier .market-pusher
+   transform block: the pusher is an empty layout box from here on — its
+   untransformed rect IS the frame contract — and any transform that
+   survives on it would be silently re-applied to nothing. */
+.market-pusher {
+  transform: translateX(-50%);          /* positioning only — centre the box */
+  aspect-ratio: 785 / 1511;             /* the box owned its height via the
+                                           canvas; empty, it must keep it */
+  filter: none;                         /* shadow lives on the canvas now */
+}
+canvas.market-camera3d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* same depth story as before: behind the strip (6) while the reel runs,
+     forward past everything on the APPROACH */
+  z-index: calc(4 + var(--market-camera-front, 0) * 60);
+  pointer-events: none;
+  /* the brief's tripod mask, now in px because the canvas no longer scales
+     with the frame — intro.js publishes 60%/78% of the frame rect's height.
+     Fallbacks keep the mask inert until the first setState. */
+  -webkit-mask-image: linear-gradient(to bottom,
+    #000 var(--cam-mask-y0, 200vh), transparent var(--cam-mask-y1, 300vh));
+  mask-image: linear-gradient(to bottom,
+    #000 var(--cam-mask-y0, 200vh), transparent var(--cam-mask-y1, 300vh));
+  filter: drop-shadow(-14px 12px 26px rgba(0,0,0,.62));
+}

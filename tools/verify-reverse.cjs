@@ -15,7 +15,7 @@ const STOPS = [0.46, 0.52, 0.58, 0.62, 0.66, 0.69, 0.71, 0.73, 0.75, 0.78, 0.82]
   const errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message));
   p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
-  await p.goto('http://127.0.0.1:5290/', { waitUntil: 'load' });
+  await p.goto('http://127.0.0.1:5303/', { waitUntil: 'load' });
   await p.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 30000 });
   await p.evaluate(() => new Promise(r => setTimeout(r, 1600)));
 

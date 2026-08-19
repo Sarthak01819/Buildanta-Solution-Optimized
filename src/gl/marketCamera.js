@@ -2,35 +2,76 @@
  * THE MARKET CAMERA IN 3D — Agents 3 & 4 of the rebuild brief (19 Aug).
  *
  * Replaces the graded PNG + six CSS overlay spans with the procedural GLB
- * (tools/camera-match/build_camera.py). The overlays had to go, not as
- * cleanup but by necessity: fixed percentage anchors cannot follow a
- * rotating object.
+ * (tools/camera-match/build_camera.py).
  *
- * ── THE DROP-IN CONTRACT ──
- * The canvas replaces the <img> INSIDE .market-pusher, same box, same aspect
- * (785:1511). The camera is framed so that at yaw 0 the render is
- * pixel-equivalent to the reference PNG: the model is mm at 1mm = 1px with
- * origin at the lens centre, and the frustum is locked to the PNG frame
- * (model x -341.5..+443.5, y +467..-1044). Consequences, both load-bearing:
- *   - every existing .market-pusher transform (push, capture, recoil) keeps
- *     working unchanged, because the canvas behaves exactly like the PNG did;
- *   - the push pivot `transform-origin: 43.5% 31%` IS the lens centre at
- *     yaw 0 — the handoff contract at x=0.684 holds by construction, and
- *     project('lens') exists to assert it at runtime.
+ * ── THE DROP-IN CONTRACT, SECOND FORM (19 Aug, 21:22) ──
+ * The canvas no longer lives inside .market-pusher being CSS-transformed —
+ * that architecture pixelated the push: a transform-scaled layer is
+ * rasterised ONCE and stretched, so scale(13) blew a ~950px raster across
+ * a 2880px screen (Yash's screenshot). The canvas now covers the whole act
+ * and the FRUSTUM moves instead: intro.js composes the same affine the CSS
+ * chain used to apply (entry travel, lens-centering push, 13x scale about
+ * the 43.5%/31% pivot) into a target FRAME RECT in viewport px, and
+ * setViewOffset maps the 785x1511 model frame onto exactly that rect.
+ * Optical zoom, native resolution at every scale — sharp at 1x and at 13x.
  *
- * Perspective, not ortho: D=5500mm with a matched fov differs from the PNG by
- * <1% at yaw 0 but lets the TRAVEL-AND-TURN read as a machine swinging round.
+ * .market-pusher still exists as an EMPTY LAYOUT BOX: its untransformed
+ * rect (width min(40vw,70vh), centred, aspect 785:1511) IS the frame rect
+ * at rest, so the handoff contract at x=.684 still holds by construction.
+ * The recoil wobble (was CSS rotateY/rotateX under perspective) is now a
+ * model-space rotation about the lens, which is what it always depicted.
+ *
+ * Perspective, not ortho: D=5500mm with a matched fov differs from the PNG
+ * frame by <1% at yaw 0 but lets the TRAVEL-AND-TURN read as a machine
+ * swinging round.
+ *
+ * ── MATERIALS (Yash, 21:22: "make the camera look more real") ──
+ * A RoomEnvironment PMREM gives the metals something to reflect — flat
+ * fill light on untextured PBR is what made it read as a toy. On top:
+ * procedural grain/brushed-metal roughness+bump maps (seeded LCG, no
+ * assets, deterministic), per-part materials, and a clearcoat lens.
  */
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, AmbientLight, DirectionalLight,
   Color, Vector3, SRGBColorSpace, ACESFilmicToneMapping,
+  PMREMGenerator, CanvasTexture, RepeatWrapping, MeshPhysicalMaterial,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 import { wantsAA } from "./msaa.js";
 
 const MODEL = "/assets/market-camera.glb";
 const FRAME = { left: -341.5, right: 443.5, top: 467, bottom: -1044 };
+const FRAME_W = 785, FRAME_H = 1511;
 const DIST = 5500;
+
+/* Deterministic procedural texture: fine metal grain, optionally smeared
+   horizontally into a brushed finish. Grayscale — used as roughnessMap
+   (green channel) and bumpMap at once. Seeded LCG so every visit renders
+   the identical machine. */
+function grainTex(size, amp, brushed) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const img = g.createImageData(size, size);
+  let s = 0x9e3779b9;
+  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 128 + (rnd() - 0.5) * amp;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  if (brushed) {
+    g.globalAlpha = 0.45;
+    for (const dx of [1, 2, 4, 9, 17]) { g.drawImage(c, dx, 0); g.drawImage(c, -dx, 0); }
+    g.globalAlpha = 1;
+  }
+  const t = new CanvasTexture(c);
+  t.wrapS = t.wrapT = RepeatWrapping;
+  return t;
+}
 
 export function mountMarketCamera(host, { reduced = false } = {}) {
   const canvas = document.createElement("canvas");
@@ -46,55 +87,112 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
   renderer.toneMappingExposure = 1.1;
 
   const scene = new Scene();
+  /* The room the metal reflects. Blurred (sigma .35) so reflections read as
+     sheen and panel gradients, not as furniture from another site. */
+  const pmrem = new PMREMGenerator(renderer);
+  /* sigma 0.04 (the three.js reference value): anything higher clips —
+     even 0.08 requests 39 samples against the 20-sample ceiling. The
+     materials' roughness maps do the blurring; the environment itself can
+     stay near-sharp, and the bake gets cheaper too. */
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
   const cx = (FRAME.left + FRAME.right) / 2;    // +51
   const cy = (FRAME.top + FRAME.bottom) / 2;    // -288.5
-  const frameH = FRAME.top - FRAME.bottom;      // 1511
   const camera = new PerspectiveCamera(
-    2 * Math.atan(frameH / 2 / DIST) * 180 / Math.PI, 785 / 1511, 100, 30000);
+    2 * Math.atan(FRAME_H / 2 / DIST) * 180 / Math.PI, FRAME_W / FRAME_H, 100, 30000);
   camera.position.set(cx, cy, DIST);
   camera.lookAt(cx, cy, 0);
 
-  /* The projector's rig in spirit — but DIRECTIONAL, not point: at mm scale
-     (light-to-subject ~1000 units) physically-decayed point lights attenuate
-     to black, which is exactly how the first render came out. Directionals
-     carry no distance term. */
-  scene.add(new AmbientLight(0x9fb4ff, 0.55));
-  const rimA = new DirectionalLight(0xa98bff, 2.6);   // cool, behind-left
+  /* Directional, not point: at mm scale physically-decayed point lights
+     attenuate to black. Levels sit LOWER than the pre-environment rig —
+     the PMREM adds its own fill, and stacking both blew the body out. */
+  scene.add(new AmbientLight(0x9fb4ff, 0.28));
+  const rimA = new DirectionalLight(0xa98bff, 2.2);   // cool, behind-left
   rimA.position.set(-900, 650, 350);
-  const rimB = new DirectionalLight(0xffd8a0, 1.5);   // warm kick, right
+  const rimB = new DirectionalLight(0xffd8a0, 1.25);  // warm kick, right
   rimB.position.set(500, 260, 700);
-  const key = new DirectionalLight(0xcfd6ff, 1.9);    // soft front key
+  const key = new DirectionalLight(0xcfd6ff, 1.45);   // soft front key
   key.position.set(150, -80, 1400);
   scene.add(rimA, rimB, key);
 
-  const rig = new Group();       // yaw happens here, about the lens axis x=0
+  const rig = new Group();       // yaw + recoil happen here, about the lens
   scene.add(rig);
 
   const nodes = {};
   let ready = false;
-  let raf = 0;
-  const state = { yaw: 0, opacity: 1, spin: 0, crank: 0, drift: 0, visible: false };
+  const state = {
+    yaw: 0, opacity: 1, spin: 0, crank: 0, drift: 0, visible: false,
+    recoil: 0, rect: null,
+  };
 
   new GLTFLoader().load(MODEL, (gltf) => {
     const model = gltf.scene;
+    /* The GLB ships FACETED normals (bpy default shading), and a faceted
+       sphere under an environment map reflects the room as solid blocks —
+       Yash's push frame showed the lens dome as a disco ball. Creased
+       normals at 40deg: curved surfaces go smooth, box edges stay sharp. */
+    model.traverse((o) => {
+      if (o.isMesh) o.geometry = toCreasedNormals(o.geometry, (40 * Math.PI) / 180);
+    });
+    /* Base treatment for anything not claimed below (head etc.): painted
+       housing metal. Grain repeats HIGH (8x): at rest it is a whisper, and
+       the 13x push magnifies it into fine sandblasted metal instead of
+       stucco — the texture is chosen for its most-magnified moment. */
+    const grain = grainTex(512, 55, false);
+    grain.repeat.set(8, 8);
+    const brushed = grainTex(512, 96, true);
+    brushed.repeat.set(4, 4);
     model.traverse((o) => {
       if (o.isMesh && o.material && o.material.isMeshStandardMaterial) {
-        o.material.color = new Color(0x303040);      // the brief's treatment
-        o.material.metalness = 0.7;
-        o.material.roughness = 0.42;
-        o.material.envMapIntensity = 0.35;
+        o.material.color = new Color(0x32323f);
+        o.material.metalness = 0.55;
+        o.material.roughness = 0.5;
+        o.material.roughnessMap = grain;
+        o.material.bumpMap = grain;
+        o.material.bumpScale = 0.22;
+        o.material.envMapIntensity = 0.7;
       }
     });
-    /* The lens is the destination of the push — the PNG painted it as deep
-       dark rings and without that identity the fly-in reads as diving into a
-       blank panel. Dark glass: near-black, tight highlights. */
+    /* The moving metal: spools and crank in brushed steel, brighter and
+       more reflective than the housing so the motion catches light. */
+    for (const name of ["reel_a", "reel_b", "crank"]) {
+      const part = model.getObjectByName(name);
+      if (part) part.traverse((o) => {
+        if (o.isMesh && o.material) {
+          o.material = o.material.clone();
+          o.material.color = new Color(0x4a4a58);
+          o.material.metalness = 0.95;
+          o.material.roughness = 0.3;
+          o.material.roughnessMap = brushed;
+          o.material.bumpMap = brushed;
+          o.material.bumpScale = 0.12;
+          o.material.envMapIntensity = 1.0;
+        }
+      });
+    }
+    const tripodObj = model.getObjectByName("tripod");
+    if (tripodObj) tripodObj.traverse((o) => {
+      if (o.isMesh && o.material) {
+        o.material = o.material.clone();
+        o.material.color = new Color(0x26262f);
+        o.material.metalness = 0.8;
+        o.material.roughness = 0.44;
+        o.material.envMapIntensity = 0.55;
+      }
+    });
+    /* The lens is the destination of the push. Clearcoat glass: near-black,
+       one bright environment ring, tight highlights — a lens, not a panel. */
     const lensObj = model.getObjectByName("lens");
     if (lensObj) lensObj.traverse((o) => {
       if (o.isMesh && o.material) {
-        o.material = o.material.clone();
-        o.material.color = new Color(0x16161f);
-        o.material.metalness = 0.85;
-        o.material.roughness = 0.22;
+        /* dark GLASS, not chrome: low metalness so the dome reads as a
+           deep element you could fall into, clearcoat for the one bright
+           environment ring on its crown */
+        const m = new MeshPhysicalMaterial({
+          color: 0x08080e, metalness: 0.45, roughness: 0.08,
+          clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 0.75,
+        });
+        o.material = m;
       }
     });
     for (const n of ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod"])
@@ -104,41 +202,60 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
     render(0);
   }, undefined, (e) => console.warn("[marketCamera]", e?.message || e));
 
+  /* Canvas covers the act; the frame rect does the moving. dpr 2 on fine
+     pointers — the raster is never CSS-magnified any more, so every pixel
+     rendered is a pixel shown. Coarse stays at 1 (phone budget). */
+  let cssW = 1, cssH = 1, originX = 0, originY = 0;
   function resize() {
-    const w = host.clientWidth || 300;
-    const h = Math.round(w * 1511 / 785);
-    const coarse = matchMedia("(pointer: coarse)").matches;
-    const dpr = Math.min(devicePixelRatio || 1, coarse ? 1 : 1.5);
-    renderer.setSize(Math.round(w * dpr), Math.round(h * dpr), false);
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
+    cssW = host.clientWidth || innerWidth;
+    cssH = host.clientHeight || innerHeight;
+    /* dpr 2 on PHONES TOO (skeptic finding, 19 Aug): the old coarse cap
+       of 1 stretched a 390px buffer over a dpr-3 panel and re-created the
+       very pixelation this rebuild removes. 2 is the budget compromise:
+       ~15MB of buffers, half the blur gone, and the act renders only while
+       live. */
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    renderer.setSize(Math.round(cssW * dpr), Math.round(cssH * dpr), false);
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
+    const r = canvas.getBoundingClientRect();
+    originX = r.left; originY = r.top;
   }
   resize();
   addEventListener("resize", resize);
 
   function render(tMs) {
-    if (!ready) return;
+    if (!ready || !state.rect) return;
     const t = tMs / 1000;
     rig.rotation.y = state.yaw
+      + state.recoil * -3 * Math.PI / 180
       + (reduced ? 0 : state.drift * Math.sin(t * 0.5) * 0.035);
+    rig.rotation.x = state.recoil * 1.4 * Math.PI / 180;
     rig.position.y = reduced ? 0 : state.drift * Math.sin(t * 0.7) * 6;
     if (nodes.reel_a) nodes.reel_a.rotation.z = state.spin * Math.PI * 2;
     if (nodes.reel_b) nodes.reel_b.rotation.z = -state.spin * Math.PI * 2 * 1.08;
     if (nodes.crank) nodes.crank.rotation.z = state.crank;
+    /* Map the model frame onto the target rect: render the sub-window of
+       the notional 785x1511 view that the canvas overlaps. All zoom is
+       projection — no raster is ever stretched. */
+    const k = state.rect.w / FRAME_W;
+    camera.setViewOffset(FRAME_W, FRAME_H,
+      (originX - state.rect.x) / k, (originY - state.rect.y) / k,
+      cssW / k, cssH / k);
     canvas.style.opacity = state.opacity.toFixed(3);
     renderer.render(scene, camera);
   }
 
   /* Driven from the ONE site ticker via setState; renders only when the act
-     is live, and idle drift needs continuous frames only during ENTER. */
+     is live. */
   function setState(next, tMs = 0) {
     Object.assign(state, next);
     if (!state.visible) { canvas.style.opacity = "0"; return; }
     render(tMs);
   }
 
-  /** A named node's position in CANVAS FRACTIONS (0..1). The anchors that can
-      follow a rotating object — reel/lens screen positions come from here. */
+  /** A named node's position in CANVAS FRACTIONS (0..1) — the canvas is the
+      whole act now, so these are act/viewport fractions. */
   const v = new Vector3();
   function project(name) {
     const n = nodes[name];
@@ -152,8 +269,8 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
     setState, project, resize, canvas,
     get ready() { return ready; },
     dispose() {
-      cancelAnimationFrame(raf);
       removeEventListener("resize", resize);
+      pmrem.dispose();
       renderer.dispose();
       canvas.remove();
     },

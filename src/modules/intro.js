@@ -88,6 +88,7 @@ export function createIntro({ onProgress } = {}) {
      radius its lens reaches once the machine has finished travelling.
      43.5% / 30.9% / 30.5%-wide come from the artwork itself. */
   let camLensW = 0, camLensH = 0, camLensR = 0;
+  const camFrame = { x: 0, y: 0, w: 0, h: 0 };   // pusher layout rect = the frame at rest
   function measureFilm() {
     if (filmCards.length < 2 || !marketExperience) return;
     /* BOTH offsets have to go to zero. The strip's transform reads
@@ -117,6 +118,7 @@ export function createIntro({ onProgress } = {}) {
     if (cam) {
       const r = cam.getBoundingClientRect();
       camLensW = r.width; camLensH = r.height;
+      camFrame.x = r.left; camFrame.y = r.top; camFrame.w = r.width; camFrame.h = r.height;
       /* radius the lens reaches once the camera has finished travelling */
       camLensR = r.width * 0.305 * 0.5 * 4.2 * 0.72;
     }
@@ -874,37 +876,64 @@ export function createIntro({ onProgress } = {}) {
          is untouched from .545 on. approach/push begin at .684 exactly —
          the handoff contract state is the rest state of this block. */
       if (!marketCam3d && p > 0.40 && marketPusherEl) {
-        marketCam3d = mountMarketCamera(marketPusherEl, { reduced });
+        marketCam3d = mountMarketCamera(marketExperience, { reduced });
       }
       if (marketCam3d) {
-        /* RETIMED (Yash, 19 Aug 20:58): the brief's .425 start parked a
-           half-faded machine ON TOP of the act title — the title owns
-           .425-.498 (copy fades by local .28). The camera now enters as the
-           title ends and the film beat begins (filmIn completes at .510):
-           the machine arrives WITH its film. Contract at .684 unchanged. */
-        /* Measured, not assumed: the big title exits by a WIPE that ends
-           ~.555 (copyOpacity's .28-local window is only the small copy). The
-           camera enters after the wipe — Yash: "start the animation of camera
-           after the ending of We Market section transition." */
-        const camIn = smoothstep((p - 0.555) / 0.030);
-        const turn = smoothstep((p - 0.575) / 0.060);      // yaw done .635
-        const travel = smoothstep((p - 0.575) / 0.072);    // lands .647
+        /* THE ENTRANCE IS A DRIVE-IN, NOT A FADE (Yash, 21:22: "coming in
+           visibility so late"). Post-mortem of the fade version: the CSS vars
+           carrying the entry travel sat in an overridden .market-pusher block,
+           so the machine never moved — it materialised in place, slowly. Now
+           the canvas covers the act and the frame rect itself travels: the
+           machine starts fully OFF-SCREEN left at full opacity and drives in.
+           Timing: the title's copy is gone by ~.547 (copyOpacity's local .28);
+           the machine's nose crosses the screen edge ~.553, so they never
+           share a frame — Yash's earlier rule ("after the ending of the We
+           Market transition") still holds, with no dead air after it. */
+        const camIn = smoothstep((p - 0.543) / 0.010);
+        const turn = smoothstep((p - 0.545) / 0.055);      // yaw done .600
+        /* EASE-OUT, not smoothstep: a smoothstep travel spends its first
+           third barely moving, which kept the machine off-screen until ~.58
+           and re-created the very complaint being fixed. A machine drives in
+           fast and BRAKES: cubic ease-out puts the nose on screen within
+           ~.006 of the start. */
+        const travelRaw = Math.max(0, Math.min(1, (p - 0.545) / 0.075));
+        const travel = 1 - Math.pow(1 - travelRaw, 3);     // lands .620
         const ex = reduced ? 0
-          : -34 * (1 - travel)
-            + 0.7 * Math.sin(Math.max(0, (travel - 0.72)) / 0.28 * Math.PI);
-        const es = reduced ? 1 : 0.41 + 0.59 * travel;
-        const spinUp = smoothstep((p - 0.590) / 0.045);
+          : -72 * (1 - travel)
+            + 0.9 * Math.sin(Math.max(0, (travel - 0.75)) / 0.25 * Math.PI);
+        const es = reduced ? 1 : 0.86 + 0.14 * travel;
+        const spinUp = smoothstep((p - 0.565) / 0.040);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
-        marketExperience.style.setProperty("--market-cam-vis", camVis.toFixed(3));
-        marketExperience.style.setProperty("--market-cam-ex", ex.toFixed(2));
-        marketExperience.style.setProperty("--market-cam-es", es.toFixed(3));
+        /* The old CSS transform chain, composed here in viewport px:
+           translate(dx,dy) then scale about the lens pivot (43.5%, 31%).
+           Entry and push never overlap in time (.625 land, .684 push), so
+           their translations simply add. marketCamera maps the 785x1511
+           frame onto this rect with setViewOffset — optical zoom, so the
+           13x push renders SHARP instead of stretching a raster. */
+        if (!camFrame.w) measureFilm();
+        const pivX = camFrame.x + camFrame.w * 0.435;
+        const pivY = camFrame.y + camFrame.h * 0.31;
+        const sTot = camScale * es;
+        const dX = lensDX * approach + (ex * innerWidth) / 100;
+        const dY = lensDY * approach;
+        const rect = {
+          x: pivX + dX + sTot * (camFrame.x - pivX),
+          y: pivY + dY + sTot * (camFrame.y - pivY),
+          w: camFrame.w * sTot,
+          h: camFrame.h * sTot,
+        };
+        /* the tripod mask travels with the frame — 60% -> 78% of ITS height */
+        marketExperience.style.setProperty("--cam-mask-y0", (rect.y + rect.h * 0.60).toFixed(0) + "px");
+        marketExperience.style.setProperty("--cam-mask-y1", (rect.y + rect.h * 0.78).toFixed(0) + "px");
         marketCam3d.setState({
-          visible: marketOpacity > 0.02 && p > 0.405 && p < 0.79,
+          visible: marketOpacity > 0.02 && p > 0.52 && p < 0.79,
           yaw: reduced ? 0 : (1 - turn) * Math.PI / 2,
-          opacity: camIn,
+          opacity: camVis,
           spin: cameraSpin * (reduced ? 1 : spinUp),
           crank: (cameraCrank * Math.PI) / 180,
           drift: reduced ? 0 : camIn * (1 - travel),
+          recoil: cameraRecoil,
+          rect,
         }, performance.now());
         /* anchors that can follow a rotating object: reel + lens positions in
            canvas fractions, for the plate transport and the push assert */
