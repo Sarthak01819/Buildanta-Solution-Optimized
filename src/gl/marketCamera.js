@@ -120,9 +120,12 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
 
   const nodes = {};
   let ready = false;
+  /* the lens flange's front rim, in the lens node's local space — measured
+     from the geometry at load, used to project the VISUAL lens circle */
+  let rimR = 118, rimZ = 150, reelRestY = 0;
   const state = {
     yaw: 0, opacity: 1, spin: 0, crank: 0, drift: 0, visible: false,
-    recoil: 0, rect: null,
+    recoil: 0, rect: null, reelDrop: 1,
   };
 
   new GLTFLoader().load(MODEL, (gltf) => {
@@ -197,6 +200,20 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
     });
     for (const n of ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod"])
       nodes[n] = model.getObjectByName(n);
+    /* measure the flange rim from the geometry, never assume: widest x and
+       nearest-to-viewer z across the lens meshes, in lens-local space */
+    if (nodes.lens) {
+      let mx = 0, mz = 0;
+      nodes.lens.traverse((o) => {
+        if (o.isMesh) {
+          o.geometry.computeBoundingBox();
+          mx = Math.max(mx, o.geometry.boundingBox.max.x);
+          mz = Math.max(mz, o.geometry.boundingBox.max.z);
+        }
+      });
+      if (mx) { rimR = mx; rimZ = mz; }
+    }
+    if (nodes.reel_a) reelRestY = nodes.reel_a.position.y;
     rig.add(model);
     ready = true;
     render(0);
@@ -232,6 +249,16 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
       + (reduced ? 0 : state.drift * Math.sin(t * 0.5) * 0.035);
     rig.rotation.x = state.recoil * 1.4 * Math.PI / 180;
     rig.position.y = reduced ? 0 : state.drift * Math.sin(t * 0.7) * 6;
+    /* THE FEED REEL ARRIVES FROM ABOVE (Yash, 22:22): the machine drives
+       in without it; the reel drops onto the spindle and the mechanism only
+       then spins up. Ease-out descent with a 10mm clunk at the seat. */
+    if (nodes.reel_a) {
+      const t = Math.max(0, Math.min(1, state.reelDrop));
+      const yOff = reduced ? 0
+        : (1 - (1 - Math.pow(1 - t, 3))) * 900
+          - Math.sin(Math.max(0, (t - 0.72)) / 0.28 * Math.PI) * 10;
+      nodes.reel_a.position.y = reelRestY + yOff;
+    }
     if (nodes.reel_a) nodes.reel_a.rotation.z = state.spin * Math.PI * 2;
     if (nodes.reel_b) nodes.reel_b.rotation.z = -state.spin * Math.PI * 2 * 1.08;
     if (nodes.crank) nodes.crank.rotation.z = state.crank;
@@ -256,6 +283,29 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
 
   /** A named node's position in CANVAS FRACTIONS (0..1) — the canvas is the
       whole act now, so these are act/viewport fractions. */
+  /** The lens's VISUAL circle on screen: 8 points on the flange's front
+      rim, projected and averaged. This is NOT project('lens') — under
+      perspective an off-axis circle's apparent centre shifts from its axis
+      point (measured: 17/30px at p=.730), which is exactly the misalignment
+      Yash flagged between the iris overlay and the barrel. Returns viewport
+      px {x, y, r}. */
+  const rv = new Vector3();
+  function projectLensCircle() {
+    if (!nodes.lens) return null;
+    let sx = 0, sy = 0, minX = 1e9, maxX = -1e9;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      rv.set(Math.cos(a) * rimR, Math.sin(a) * rimR, rimZ);
+      nodes.lens.localToWorld(rv);
+      rv.project(camera);
+      const px = ((rv.x + 1) / 2) * cssW + originX;
+      const py = ((1 - rv.y) / 2) * cssH + originY;
+      sx += px; sy += py;
+      minX = Math.min(minX, px); maxX = Math.max(maxX, px);
+    }
+    return { x: sx / 8, y: sy / 8, r: (maxX - minX) / 2 };
+  }
+
   const v = new Vector3();
   function project(name) {
     const n = nodes[name];
@@ -266,7 +316,7 @@ export function mountMarketCamera(host, { reduced = false } = {}) {
   }
 
   return {
-    setState, project, resize, canvas,
+    setState, project, projectLensCircle, resize, canvas,
     get ready() { return ready; },
     dispose() {
       removeEventListener("resize", resize);

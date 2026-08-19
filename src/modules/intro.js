@@ -902,7 +902,14 @@ export function createIntro({ onProgress } = {}) {
           : -72 * (1 - travel)
             + 0.9 * Math.sin(Math.max(0, (travel - 0.75)) / 0.25 * Math.PI);
         const es = reduced ? 1 : 0.86 + 0.14 * travel;
-        const spinUp = smoothstep((p - 0.565) / 0.040);
+        /* ARRIVE -> LOAD -> RUN (Yash, 22:22): the feed reel drops from
+           above AFTER the machine lands (.62), seats at .660 with a clunk,
+           and only then does the mechanism spin up — done .682, just in
+           time for the .684 contract. One spinUp for both spools keeps the
+           one-driver law: the machine starts when it is loaded, whole. */
+        const reelDrop = reduced ? 1
+          : Math.max(0, Math.min(1, (p - 0.622) / 0.038));
+        const spinUp = smoothstep((p - 0.662) / 0.020);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
         /* The old CSS transform chain, composed here in viewport px:
            translate(dx,dy) then scale about the lens pivot (43.5%, 31%).
@@ -933,8 +940,19 @@ export function createIntro({ onProgress } = {}) {
           crank: (cameraCrank * Math.PI) / 180,
           drift: reduced ? 0 : camIn * (1 - travel),
           recoil: cameraRecoil,
+          reelDrop,
           rect,
         }, performance.now());
+        /* the takeover iris follows the lens's VISUAL circle, not the
+           viewport centre — perspective shifts an off-axis circle's apparent
+           centre, and the two rings visibly disagreed at the push's end */
+        if (marketCam3d.ready && approach > 0) {
+          const lc = marketCam3d.projectLensCircle();
+          if (lc) {
+            marketExperience.style.setProperty("--lens-cx", lc.x.toFixed(1) + "px");
+            marketExperience.style.setProperty("--lens-cy", lc.y.toFixed(1) + "px");
+          }
+        }
         /* anchors that can follow a rotating object: reel + lens positions in
            canvas fractions, for the plate transport and the push assert */
         if (marketCam3d.ready) {

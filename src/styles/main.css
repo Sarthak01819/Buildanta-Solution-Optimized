@@ -5512,3 +5512,16 @@ canvas.market-camera3d {
     #000 var(--cam-mask-y0, 200vh), transparent var(--cam-mask-y1, 300vh));
   filter: drop-shadow(-14px 12px 26px rgba(0,0,0,.62));
 }
+
+/* ── THE RINGS AGREE NOW (Yash, 19 Aug 22:22: "the circles aren't
+   aligned") ─────────────────────────────────────────────────────────────
+   Both overlays sat at the viewport centre while the 3D barrel's visual
+   circle sits off it: under perspective, an off-axis circle's apparent
+   centre shifts from its axis point (measured 17px/30px at p=.730). The
+   centre now comes from intro.js, which projects the flange rim from the
+   model every frame. Fallback 50% keeps the pre-3D behaviour. */
+.market-lens-takeover,
+.market-iris {
+  left: var(--lens-cx, 50%);
+  top: var(--lens-cy, 50%);
+}
