@@ -16,42 +16,61 @@ Run:  blender --background --python build_camera.py -- /path/out/camera.glb
 """
 import bpy, bmesh, math, sys
 
-# ── MEASURED (X/Y from the shipped asset — do not invent) ────────────────────
-LENS_R_FLANGE, LENS_R_MID, LENS_R_BARREL = 118.0, 100.0, 86.0
-LENS_DOME_R          = 64.0
-REEL_X, REEL_Y       = 180.0, 319.5
-REEL_R               = 135.5
-REEL_CUT_R, REEL_CUT_ON = 37.0, 78.0
-HUB_R, HUB_HOLE_R, HUB_HOLE_ON = 36.0, 7.0, 19.0
-BODY_X, BODY_TOP, BODY_BOT = 222.0, 179.0, -177.0
-PLATE_W              = 266.0
-KNOB_X, KNOB_Y, KNOB_R = 262.0, -7.5, 33.4
-CRANK_X, CRANK_Y, CRANK_ARM = 259.0, -170.6, 141.3
-HEAD_TOP, HEAD_BOT   = -233.0, -327.0
-CROWN_TOP, CROWN_BOT, CROWN_R = -339.0, -395.0, 187.0
-FEET_Y               = -1026.0
-BRACE_Y              = -585.0
+# ── MEASURED off art-source/market-cinema-camera-front.png (785x1511, so
+#    model x = px - 341.5, model y = 467 - py). Re-derived 20 Aug by circle
+#    fit + alpha-threshold silhouette scan; several constants that had been
+#    inherited as "measured" were simply wrong. Do not invent — measure.
+LENS_R_FLANGE  = 117.0     # bright chamfer spike at r116-117
+LENS_R_GROOVE  = 106.0     # turned groove r104-108
+LENS_R_STEP    = 96.0      # step r81-88 -> annulus, outer face
+LENS_R_RETAIN  = 71.5      # bright retaining ring r71-73
+LENS_R_BORE    = 66.0      # dark bore r60-70
+LENS_DOME_R    = 60.0      # glass silhouette r=60
+REEL_X, REEL_Y = 180.0, 319.5   # CONTRACT anchors — never move (see note below)
+REEL_R         = 138.0     # circle fit R=139.0
+REEL_WEB_R     = 131.0     # flat web to r131, then the groove
+REEL_CUT_R, REEL_CUT_ON = 35.0, 83.0   # windows r35 on pitch radius 82.8
+HUB_R, HUB_HOLE_R, HUB_HOLE_ON = 35.0, 5.5, 21.0
+BODY_X, BODY_TOP, BODY_BOT = 214.0, 165.0, -152.0
+PANEL_W, PANEL_H = 396.0, 287.0        # outer recessed panel
+PANEL_CX, PANEL_CY = -2.0, 7.5
+PLATE_W, PLATE_H = 260.0, 251.0        # nested raised plate
+PLATE_CY = 5.5
+KNOB_X, KNOB_Y = 221.0, 6.5            # flange face x; dial builds OUTWARD
+KNOB_R = 56.0
+CRANK_X, CRANK_Y = 259.0, -170.6       # CONTRACT anchor
+HEAD_TOP, HEAD_BOT = -202.0, -256.0
+CROWN_TOP, CROWN_BOT = -343.0, -403.0
+FEET_Y   = -958.0
+BRACE_Y  = -605.0
+
+# ⚠️ ON RECORD, deliberately NOT applied: the reference's reel centre fits at
+# y ~ +308.5 by two independent estimators, against our contractual anchor at
+# +319.5. The anchor stays — the reel SPINS about that node, so moving the
+# geometry off it would make the wheel wobble. Silhouette fidelity loses to
+# the animation contract here, on purpose.
 
 # ── CHOSEN (depth: the elevation carries no Z — tune freely) ─────────────────
 BODY_DEPTH           = 300.0
 REEL_THICK           = 26.0
 REEL_SETBACK         = 40.0     # from body front
 LENS_PROTRUDE        = 90.0
-VIEWFINDER_PROTRUDE  = 120.0
-FEET_SPLAY_Z         = 380.0
+VIEWFINDER_PROTRUDE  = 106.0
+FEET_SPLAY_Z         = 300.0
 
-# ── TOPOLOGY (segment counts, the triangle budget lever) ─────────────────────
-# Counts tuned DOWN 20 Aug: with bevels applied at export (the spec's
-# chamfer-everything pass), 96-seg parts exploded to 125k tris. 64 segments
-# is indistinguishable at display size once edges carry bevel highlights.
-SEG_REEL, SEG_CUT, SEG_HOLE = 64, 40, 24
+# ── TOPOLOGY ────────────────────────────────────────────────────────────────
+# ⚠️ Every count must keep its facet angle BELOW the runtime's 18deg crease
+# threshold, or the part renders faceted and loses its specular sweep.
+SEG_REEL, SEG_CUT, SEG_HOLE = 64, 32, 24
 SEG_LENS, SEG_KNOB, SEG_LEG = 64, 32, 32
-# ⚠️ Every count here must keep its facet angle BELOW the runtime's 18deg
-# crease threshold or the part renders faceted and loses the broad specular
-# sweep that carries the highlights: 32 segments = 11.25deg (smooth),
-# 16 = 22.5deg (SHARP — that is what flattened the tripod legs and dropped
-# the render's p95 from 156 to 109 against the reference's 148).
-BODY_BEVEL_SEG       = 2
+# ⚠️ ONE segment, not two. A 2-segment bevel splits a 90deg edge into facets
+# 30deg apart, and ANY crease threshold above that smooths all three into a
+# continuous soft roll — which is what made every panel, ring and window on
+# this machine read as a rounded blob. A 1-segment bevel is a single 45deg
+# chamfer: both its edges stay sharp at any sane threshold, so it renders as
+# the hairline bright line the reference shows on every shoulder. It also
+# halves every bevel's triangles.
+BODY_BEVEL_SEG       = 1
 
 FRONT = -BODY_DEPTH / 2          # blender.y of the body front face
 
@@ -154,7 +173,7 @@ def knurl(name, r, depth, at, axis, seg=SEG_KNOB):
     parts.append(cyl(name + "_cap", r * 0.44, 10, tuple(capat), 16, axis))
     return join(parts, name)
 
-def bevel(o, width=6, segs=BODY_BEVEL_SEG):
+def bevel(o, width=1.6, segs=BODY_BEVEL_SEG):
     m = o.modifiers.new("bev", 'BEVEL'); m.width = width; m.segments = segs
     m.limit_method = 'ANGLE'; m.angle_limit = math.radians(40)
 
@@ -194,73 +213,55 @@ def tag_wear(o):
     o.data.materials.append(MAT_WEAR)
     return o
 
-# ── 1 · body ─────────────────────────────────────────────────────────────────
+# ── 1 · body: a two-level bolted front, a tapered top plate ─────────────────
 body = box("body", BODY_X * 2, BODY_DEPTH, BODY_TOP - BODY_BOT,
-           B(0, (BODY_TOP + BODY_BOT) / 2, 0)); bevel(body, 8)
-# THE FRONT IS A RECESSED PANEL (spec 20 Aug): an 8mm inset cut into the
-# body face, a raised border standing proud around its rim, the lens
-# sub-plate sitting 6mm proud of the recess floor, and four corner screw
-# WELLS — recessed pockets with sunken heads, not proud studs.
-recess = box("recess_cut", PLATE_W + 12, 16, PLATE_W + 12, (0, FRONT, 0))
-cut(body, recess)      # recess floor now at FRONT + 8
-BORD = PLATE_W + 12
-frame_bars = [
-    box("fr_t", BORD + 16, 8, 12, (0, FRONT - 2, BORD/2 + 2)),
-    box("fr_b", BORD + 16, 8, 12, (0, FRONT - 2, -BORD/2 - 2)),
-    box("fr_l", 12, 8, BORD + 16, (-BORD/2 - 2, FRONT - 2, 0)),
-    box("fr_r", 12, 8, BORD + 16, (BORD/2 + 2, FRONT - 2, 0)),
-]
-# lens sub-plate: 6mm proud of the recess floor (face at FRONT + 2)
-plate = box("plate", PLATE_W, 6, PLATE_W, (0, FRONT + 5, 0))
+           B(0, (BODY_TOP + BODY_BOT) / 2, 0)); bevel(body, 4, 1)
+# outer recessed panel (396x287, 8mm deep) with its own four screw wells,
+# then a nested plate standing 10mm proud carrying four more: the reference
+# has EIGHT screws on two levels, not four on one.
+recess = box("recess_cut", PANEL_W, 16, PANEL_H, (PANEL_CX, FRONT, PANEL_CY))
+cut(body, recess)                       # recess floor at FRONT + 8
+plate = box("plate", PLATE_W, 10, PLATE_H, (0, FRONT - 3, PLATE_CY))
 screws = []
-for sx in (-1, 1):
-    for sz in (-1, 1):
-        wx, wz = sx * (PLATE_W/2 - 18), sz * (PLATE_W/2 - 18)
-        well = cyl("well_cut", 9, 12, (wx, FRONT + 2, wz), 16, 'Y')
-        cut(plate, well)
-        screws.append(cyl("screw", 5.5, 5, (wx, FRONT + 4.5, wz), 12, 'Y'))
-body_parts = [body, plate] + screws + frame_bars
+for wx, wz, host, wy in [(-116, 113, "p", FRONT - 6), (116, 113, "p", FRONT - 6),
+                         (-116, -99, "p", FRONT - 6), (116, -99, "p", FRONT - 6),
+                         (-171, 139, "b", FRONT + 2), (171, 139, "b", FRONT + 2),
+                         (-171, -117, "b", FRONT + 2), (171, -117, "b", FRONT + 2)]:
+    target = plate if host == "p" else body
+    cut(target, cyl("well_cut", 6.5, 12, (wx, wy - 3, wz), 16, 'Y'))
+    screws.append(cyl("screw", 5.5, 5, (wx, wy - 1, wz), 12, 'Y'))
+# top plate is TAPERED in three steps (measured 516 -> 452 -> 392 wide)
+bracket = [box("br_a", 516, 70, 14, B(0, 190, 0)),
+           box("br_b", 452, 70, 10, B(0, 178, 0)),
+           box("br_c", 392, 70, 14, B(0, 166, 0))]
+body_parts = [body, plate] + screws + bracket
 
-# ── 2 · lens (revolved stack on the origin, protruding forward) ──────────────
-# DETAIL PASS (Yash's reference, 23:23): the glass is RECESSED into the
-# barrel behind a retaining ring — the old dome bulged 64mm past the barrel
-# and read as a ball bearing, the single loudest "plain 3D" tell. Machined
-# ridge rings on the mid step give the assembly its lathe-turned character.
-BARREL_FRONT = FRONT - LENS_PROTRUDE          # blender.y of the barrel's front face
+# ── 2 · lens: the measured radial profile ───────────────────────────────────
+# flange r117 with a turned groove at r106, a step to r96, a taper to the
+# retaining ring r71.5, then the bore r66 and the glass at r60.
+LP0 = FRONT - 2                        # the new plate face
 lens_parts = [
-    cyl("l_flange", LENS_R_FLANGE, 16, (0, FRONT - 8, 0), SEG_LENS, 'Y'),
-    cyl("l_mid",    LENS_R_MID,    28, (0, FRONT - 16 - 14, 0), SEG_LENS, 'Y'),
-    cyl("l_barrel", LENS_R_BARREL, LENS_PROTRUDE - 44,
-        (0, FRONT - 44 - (LENS_PROTRUDE - 44) / 2, 0), SEG_LENS, 'Y'),
-    # a 4-ring stack at 8mm pitch, not 2 at 22mm: the reference's flange
-    # carries its high-frequency energy as ring GEOMETRY, not as texture
-    ring("l_ridge1", LENS_R_MID, 2.6, (0, FRONT - 18, 0), 48, 24),
-    ring("l_ridge2", LENS_R_MID, 2.6, (0, FRONT - 26, 0), 48, 24),
-    ring("l_ridge3", LENS_R_MID, 2.6, (0, FRONT - 34, 0), 48, 24),
-    ring("l_ridge4", LENS_R_MID, 2.6, (0, FRONT - 42, 0), 48, 24),
-    # the retaining ring: the machined lip that holds the glass
-    ring("l_retain", LENS_R_BARREL - 14, 5, (0, BARREL_FRONT + 2, 0), 48, 24),
-    # inner bore wall behind the retaining ring, so the recess has depth
-    cyl("l_bore", LENS_R_BARREL - 12, 26, (0, BARREL_FRONT + 14, 0), SEG_LENS, 'Y'),
-    # fine concentric TURNING GROOVES on the barrel face (spec 20 Aug) —
-    # three thin rings on the annulus between the element and the barrel rim
-    ring("l_groove1", 68, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
-    ring("l_groove2", 74, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
-    ring("l_groove3", 80, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
-    ring("l_groove4", 86, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
-    ring("l_groove5", 92, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
+    cyl("l_flange", LENS_R_FLANGE, 20, (0, LP0 - 10, 0), SEG_LENS, 'Y'),
+    cyl("l_step",   LENS_R_STEP,   16, (0, LP0 - 28, 0), SEG_LENS, 'Y'),
 ]
+cut(lens_parts[0], ring("l_gr_cut", LENS_R_GROOVE, 3.0, (0, LP0 - 18.5, 0), 48, 24))
 bpy.ops.object.select_all(action='DESELECT')
-# SHALLOW dome (spec 20 Aug): apex exactly 18mm proud of the barrel face —
-# the r64 sphere sits sunk so only its cap emerges. It reads as a lens
-# element with depth, not a ball.
+bpy.ops.mesh.primitive_cone_add(vertices=SEG_LENS, radius1=LENS_R_STEP, radius2=72,
+    depth=34, location=(0, LP0 - 53, 0), rotation=(math.pi / 2, 0, 0))
+taper = bpy.context.object; taper.name = "l_taper"
+taper.data.materials.append(MAT_BASE)
+bpy.ops.object.transform_apply(rotation=True)
+lens_parts += [
+    taper,
+    tag_wear(ring("l_retain", LENS_R_RETAIN, 3.5, (0, LP0 - 70, 0), 48, 24)),
+    cyl("l_bore", LENS_R_BORE, 30, (0, LP0 - 84, 0), SEG_LENS, 'Y'),
+]
+BARREL_FRONT = LP0 - 88
+bpy.ops.object.select_all(action='DESELECT')
 bpy.ops.mesh.primitive_uv_sphere_add(segments=SEG_LENS, ring_count=32,
     radius=LENS_DOME_R, location=(0, BARREL_FRONT + LENS_DOME_R - 18, 0))
 dome = bpy.context.object; dome.name = "l_glass"
 dome.data.materials.append(MAT_BASE)
-# The GLASS is a CHILD of the lens node, not joined into it: the reference's
-# lens surround is BRIGHT machined metal and only the element is dark — two
-# materials need two meshes, and the runtime splits them by name (l_glass).
 lens = join(lens_parts, "lens")
 set_origin(lens, (0, 0, 0))
 bpy.ops.object.select_all(action='DESELECT')
@@ -268,151 +269,167 @@ dome.select_set(True); lens.select_set(True)
 bpy.context.view_layer.objects.active = lens
 bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
-# ── 3 · reels (build A, then mirror-place B) ─────────────────────────────────
+# ── 3 · reels: flat web, hard groove, PROUD rim band ────────────────────────
 def build_reel(name, mx):
-    ry = FRONT + REEL_SETBACK + REEL_THICK / 2      # blender.y of reel centre
-    # the WEB is recessed 3mm from each face (spec 20 Aug): disc core is
-    # thinner than the true 26mm thickness; the rim lips carry the full depth
-    disc = cyl(name + "_disc", REEL_R - 8, REEL_THICK - 6, (mx, ry, REEL_Y), SEG_REEL, 'Y')
-    rim  = ring(name + "_rim", REEL_R - 7, 7.5, (mx, ry, REEL_Y), SEG_REEL)
-    # raised rim lip on BOTH faces
-    lipf = tag_wear(ring(name + "_lipf", REEL_R - 10, 4, (mx, ry - REEL_THICK/2 + 2, REEL_Y), SEG_REEL))
-    lipb = tag_wear(ring(name + "_lipb", REEL_R - 10, 4, (mx, ry + REEL_THICK/2 - 2, REEL_Y), SEG_REEL))
+    ry = FRONT + REEL_SETBACK + REEL_THICK / 2
+    # the web is thinner than the rim, so the rim stands proud on both faces —
+    # the old torus lip sat BELOW the web and read as a dent
+    disc = cyl(name + "_disc", REEL_WEB_R, REEL_THICK - 6, (mx, ry, REEL_Y), SEG_REEL, 'Y')
+    rim = cyl(name + "_rim", REEL_R, REEL_THICK, (mx, ry, REEL_Y), SEG_REEL, 'Y')
+    cut(rim, cyl("rimbore", REEL_WEB_R, REEL_THICK * 3, (mx, ry, REEL_Y), SEG_REEL, 'Y'))
+    tag_wear(rim)
     for k in range(5):
-        a = k * 2 * math.pi / 5 + math.radians(19)   # phase MEASURED off the reference
+        a = k * 2 * math.pi / 5 + math.radians(89.5)   # one window at 12 o'clock
         c = cyl("c", REEL_CUT_R, REEL_THICK * 2,
                 (mx + math.cos(a) * REEL_CUT_ON, ry, REEL_Y + math.sin(a) * REEL_CUT_ON),
                 SEG_CUT, 'Y')
         cut(disc, c)
-    # hub boss standing 6mm proud of each face (26 + 12)
-    hub = cyl(name + "_hub", HUB_R, REEL_THICK + 12, (mx, ry, REEL_Y), SEG_CUT, 'Y')
-    bore = cyl("bore_cut", 5, REEL_THICK * 3, (mx, ry, REEL_Y), 12, 'Y')
-    cut(hub, bore)
+    hub = cyl(name + "_hub", HUB_R, REEL_THICK + 12, (mx, ry, REEL_Y), 48, 'Y')
+    # SEVEN BLIND pockets (six on a ring + one dead centre), front face only —
+    # the reference is opaque behind every one of them
     for k in range(6):
-        a = k * math.pi / 3
-        h = cyl("h", HUB_HOLE_R, REEL_THICK * 3,
-                (mx + math.cos(a) * HUB_HOLE_ON, ry, REEL_Y + math.sin(a) * HUB_HOLE_ON),
-                SEG_HOLE, 'Y')
-        cut(hub, h)
-    capc = cyl(name + "_cap", 13, 10, (mx, ry - REEL_THICK / 2 - 9, REEL_Y), 16, 'Y')
-    reel = join([disc, rim, lipf, lipb, hub, capc], name)
-    set_origin(reel, (mx, REEL_Y, 0))   # origin on the spool axis
+        a = k * math.pi / 3 + math.pi / 6
+        cut(hub, cyl("hp", HUB_HOLE_R, 16,
+                     (mx + math.cos(a) * HUB_HOLE_ON, ry - (REEL_THICK + 12) / 2,
+                      REEL_Y + math.sin(a) * HUB_HOLE_ON), SEG_HOLE, 'Y'))
+    cut(hub, cyl("hp", HUB_HOLE_R, 16, (mx, ry - (REEL_THICK + 12) / 2, REEL_Y), SEG_HOLE, 'Y'))
+    reel = join([disc, rim, hub], name)
+    set_origin(reel, (mx, REEL_Y, 0))
     return reel
 
 reel_a = build_reel("reel_a", -REEL_X)
 reel_b = build_reel("reel_b",  REEL_X)
 
-# ── 4 · magazine + 5 · bracket ───────────────────────────────────────────────
-mag = box("magazine", 70, REEL_THICK + 26, 150, B(0, REEL_Y - 46, 0))
+# ── 4 · magazine between the reels ──────────────────────────────────────────
+mag = box("magazine", 112, REEL_THICK + 26, 122, B(0, 251, 0))
 mag.location.y = FRONT + REEL_SETBACK + REEL_THICK / 2
-bracket = box("bracket", BODY_X * 2 - 40, 60, 34, B(0, BODY_TOP + 12, 0))
+mag_in = box("mag_in", 92, REEL_THICK + 34, 105, B(0, 253, 0))
+mag_in.location.y = FRONT + REEL_SETBACK + REEL_THICK / 2
+cut(mag_in, box("mag_slot", 27, 20, 72, (0, FRONT + REEL_SETBACK - 12, 237)))
+mag_bolts = [cyl("mag_bolt", 6, 8, (sx * 39, FRONT + REEL_SETBACK - 6, 297), 12, 'Y')
+             for sx in (-1, 1)]
 
-# ── 6 · fittings: viewfinder (left), side knobs ──────────────────────────────
-# viewfinder: the small flared eyepiece at upper-left, above the body top —
-# measured off the reference at model (-150..-260, +237)
-# flared conical HORN (spec 20 Aug): a narrow throat then a flaring mouth,
-# 120mm proud, with a rolled lip at the opening
+# ── 5 · viewfinder: a HORIZONTAL horn on the body flank ─────────────────────
+# was at y +237, which put it between the reels reading as a fin; measured
+# axis is y = +112.5, on the body itself
+VF_Y = 112.5
+vf_parts = [
+    cyl("vf_collar", 24, 10, (-221, 0, VF_Y), SEG_KNOB, 'X'),
+    cyl("vf_barrel1", 19.5, 30, (-238, 0, VF_Y), SEG_KNOB, 'X'),
+    cyl("vf_barrel2", 23, 50, (-277, 0, VF_Y), SEG_KNOB, 'X'),
+]
 bpy.ops.object.select_all(action='DESELECT')
-bpy.ops.mesh.primitive_cone_add(vertices=SEG_KNOB, radius1=26, radius2=17,
-    depth=54, location=B(-150 - 27, 237, 0), rotation=(0, math.pi / 2, 0))
-vf_throat = bpy.context.object; vf_throat.name = "vf_throat"
-vf_throat.data.materials.append(MAT_BASE)
+bpy.ops.mesh.primitive_cone_add(vertices=SEG_KNOB, radius1=46, radius2=23, depth=20,
+    location=(-311, 0, VF_Y), rotation=(0, math.pi / 2, 0))
+bell = bpy.context.object; bell.name = "vf_bell"
+bell.data.materials.append(MAT_BASE)
+bpy.ops.object.transform_apply(rotation=True)
+vf_parts.append(bell)
 bpy.ops.object.select_all(action='DESELECT')
-bpy.ops.mesh.primitive_cone_add(vertices=SEG_KNOB, radius1=52, radius2=26,
-    depth=VIEWFINDER_PROTRUDE - 54, location=B(-150 - 54 - (VIEWFINDER_PROTRUDE - 54) / 2, 237, 0),
-    rotation=(0, math.pi / 2, 0))
-vf_flare = bpy.context.object; vf_flare.name = "vf_flare"
-vf_flare.data.materials.append(MAT_BASE)
-bpy.ops.object.select_all(action='DESELECT')
-bpy.ops.mesh.primitive_torus_add(major_radius=50, minor_radius=4,
-    major_segments=32, minor_segments=24,
-    location=B(-150 - VIEWFINDER_PROTRUDE + 2, 237, 0), rotation=(0, math.pi / 2, 0))
+bpy.ops.mesh.primitive_torus_add(major_radius=45, minor_radius=3, major_segments=32,
+    minor_segments=24, location=(-320, 0, VF_Y), rotation=(0, math.pi / 2, 0))
 vf_lip = bpy.context.object; vf_lip.name = "vf_lip"
 vf_lip.data.materials.append(MAT_BASE)
 bpy.ops.object.transform_apply(rotation=True)
-vf = join([vf_throat, vf_flare, vf_lip], "viewfinder")
+vf_parts.append(tag_wear(vf_lip))
+vf = join(vf_parts, "viewfinder")
+
+# ── 6 · side hardware — ASYMMETRIC, as measured ─────────────────────────────
 knobs = []
 for sx in (-1, 1):
-    knobs.append(knurl("knob", KNOB_R, 30, (sx * KNOB_X, 0, KNOB_Y), 'X'))
-    knobs.append(knurl("knob2", KNOB_R * 0.62, 24, (sx * (KNOB_X - 6), 0, KNOB_Y - 148), 'X'))
-    # the small upper stud each side — the reference's flanks are BUSY
-    knobs.append(cyl("stud", 13, 26, (sx * (KNOB_X - 10), 0, KNOB_Y + 118), 16, 'X'))
+    knobs += [
+        cyl("kn_flange", 60.5, 12, (sx * 221, 0, KNOB_Y), 32, 'X'),
+        cyl("kn_drum", KNOB_R, 22, (sx * 238, 0, KNOB_Y), 32, 'X'),
+        cyl("kn_neck", 33.0, 14, (sx * 263, 0, KNOB_Y), 24, 'X'),
+        knurl("kn_ring", 45.0, 18, (sx * 278, 0, KNOB_Y), 'X'),
+    ]
+knobs.append(knurl("knob2", 19.5, 42, (-237, 0, -87.5), 'X'))     # left lower dial
+knobs.append(cyl("stud2", 13, 24, (227, 0, -78), 16, 'X'))        # right lower stud
+knobs.append(cyl("stub_neck", 14, 22, (227, 0, 109), 16, 'X'))    # right upper only
+knobs.append(cyl("stub_cap", 22.5, 24, (250, 0, 109), 24, 'X'))
 
-# side housings: the reference body reads wider than the ±222 core because of
-# motor/gear housings on both flanks (iter-3 band IoU: the largest mass gap)
-housings = []
-for sx in (-1, 1):
-    housings.append(box("housing", 34, 170, 150, B(sx * (BODY_X + 12), 6, 0)))
-# platform between body bottom and head: wide rounded slab
-platform = box("platform", 220, 190, 26, B(0, BODY_BOT - 14, 0)); bevel(platform, 6)
-camera_body = join(body_parts + [mag, bracket, vf] + knobs + housings + [platform], "camera_body")
+# ── 7 · pedestal: three tiers under the body ────────────────────────────────
+ped = [box("ped_a", 310, 200, 18, B(-9, -161, 0)),
+       box("ped_b", 218, 190, 16, B(0, -178, 0)),
+       box("ped_c", 186, 180, 16, B(0, -194, 0))]
+for t in ped: bevel(t, 3, 1)
+
+camera_body = join(body_parts + [mag, mag_in] + mag_bolts + [vf] + knobs + ped, "camera_body")
 set_origin(camera_body, (0, 0, 0))
 
-# ── 7 · crank (L-arm; origin on pivot) ───────────────────────────────────────
-# crank: hub on the pivot (depth axis), arm reaching up-right in the screen
-# plane to the grip post, grip pointing at the viewer — the reference's shape
-# 18mm round stock (spec 20 Aug: 'currently a bent wire — far too thin'),
-# with a PROPER cylindrical grip: 76mm long, 13mm radius, wear-polished.
-c_hub = cyl("c_hub", 22, 34, (CRANK_X, 0, CRANK_Y), SEG_KNOB, 'Y')
-ARM_ANG = math.radians(27)
-ax0, az0 = CRANK_X, CRANK_Y
-ax1 = CRANK_X + math.cos(ARM_ANG) * CRANK_ARM * 0.77
-az1 = CRANK_Y + math.sin(ARM_ANG) * CRANK_ARM * 0.77
-c_arm = rod("c_arm", 9, (ax0, 0, az0), (ax1, 0, az1), SEG_HOLE)
-c_post = rod("c_post", 9, (ax1, 0, az1), (ax1, 0, az1 - 10), SEG_HOLE)
-c_grip = tag_wear(cyl("c_grip", 13, 76, (ax1 + 38, 0, az1), SEG_HOLE, 'X'))
-crank = join([c_hub, c_arm, c_post, c_grip], "crank")
+# ── 8 · crank: right, THEN down (the reference's L) ─────────────────────────
+c_hub = cyl("c_hub", 13.5, 24, (227, 0, -125), 32, 'Y')
+c_arm = rod("c_arm", 7, (238, 0, -125), (318, 0, -125), SEG_HOLE)
+c_drop = rod("c_drop", 6.5, (318, 0, -125), (318, 0, -188), SEG_HOLE)
+c_shaft = rod("c_shaft", 6, (318, 0, -188), (358, 0, -188), SEG_HOLE)
+c_grip = tag_wear(cyl("c_grip", 15, 68, (392, 0, -188), SEG_HOLE, 'X'))
+crank = join([c_hub, c_arm, c_drop, c_shaft, c_grip], "crank")
 set_origin(crank, (CRANK_X, CRANK_Y, 0))
 
-# ── 8 · head ─────────────────────────────────────────────────────────────────
-h_mount = box("h_mount", 216, 180, (BODY_BOT - HEAD_TOP) * -1 + 4,
-              B(0, (BODY_BOT + HEAD_TOP) / 2, 0))
-h_hub = cyl("h_hub", 62, HEAD_TOP - HEAD_BOT, (0, 0, (HEAD_TOP + HEAD_BOT) / 2), 32, 'Z')
-h_boss = cyl("h_boss", 44, 70, (0, 0, (HEAD_TOP + HEAD_BOT) / 2), SEG_KNOB, 'Y')
-# the tilt mechanism the reference shows under the body: a cross axle with
-# knurled locking knobs on BOTH ends, through the pivot boss
-h_axle = cyl("h_axle", 12, 300, (0, 0, HEAD_BOT + 30), SEG_HOLE, 'X')
-h_k1 = knurl("h_k1", 26, 24, (-152, 0, HEAD_BOT + 30), 'X', seg=24)
-h_k2 = knurl("h_k2", 26, 24, (152, 0, HEAD_BOT + 30), 'X', seg=24)
-h_plate = box("h_plate", 236, 190, 12, B(0, HEAD_TOP + 8, 0))
-head = join([h_mount, h_hub, h_boss, h_axle, h_k1, h_k2, h_plate], "head")
+# ── 9 · head: housing, tilt knobs on stalks, a three-disc pivot boss ────────
+h_mount = box("h_mount", 148, 180, HEAD_TOP - HEAD_BOT, B(0, (HEAD_TOP + HEAD_BOT) / 2, 0))
+h_should = box("h_should", 184, 170, 32, B(0, -212, 0))
+h_axle = cyl("h_axle", 12, 180, (0, 0, -235.5), SEG_HOLE, 'X')
+head_parts = [h_mount, h_should, h_axle]
+for sx in (-1, 1):
+    head_parts += [
+        cyl("h_stalk", 11, 46, (sx * 108, 0, -235.5), 16, 'X'),
+        cyl("h_stalk_c", 15, 16, (sx * 132, 0, -235.5), 24, 'X'),
+        knurl("h_knob", 32.0, 38, (sx * 155, 0, -235.5), 'X', seg=32),
+    ]
+head_parts += [
+    cyl("h_boss_o", 58, 40, (0, 0, -285.6), 48, 'Y'),
+    cyl("h_boss_m", 48, 52, (0, 0, -285.6), 48, 'Y'),
+    tag_wear(cyl("h_boss_c", 27.5, 62, (0, 0, -285.6), 32, 'Y')),
+    cyl("h_bolt", 13, 30, (-60, 0, -339), 16, 'Y'),
+    cyl("h_bolt", 13, 30, (60, 0, -339), 16, 'Y'),
+    cyl("h_stem", 63, 20, (0, 0, -337), 32, 'Z'),
+]
+head = join(head_parts, "head")
 set_origin(head, (0, (HEAD_TOP + HEAD_BOT) / 2, 0))
 
-# ── 9 · tripod ───────────────────────────────────────────────────────────────
-crown = cyl("crown", CROWN_R, CROWN_TOP - CROWN_BOT, (0, 0, (CROWN_TOP + CROWN_BOT) / 2), 32, 'Z')
-# legs read TELESCOPIC now (reference): fat upper tube, clamp collar, thinner
-# mid tube, second collar, thin lower tube, then a spike with a ball tip
-legs = [cyl("underplate", 96, 26, (0, 0, CROWN_BOT - 10), 32, 'Z')]
-for az in (210, 330, 90):
+# ── 10 · tripod: two crown discs, two-stage legs, a REAL spreader ───────────
+crown_a = cyl("crown_a", 121, 29, (0, 0, -357.5), 48, 'Z')
+crown_b = cyl("crown_b", 130, 31, (0, 0, -387.5), 48, 'Z')
+legs = [crown_a, crown_b, cyl("underplate", 74, 16, (0, 0, -411), 32, 'Z')]
+AZ = (210, 330, 270)          # the third leg points TOWARD camera, as measured
+hips, feet = {}, {}
+for az in AZ:
     a = math.radians(az)
-    hip  = (math.cos(a) * 120, math.sin(a) * 120 * 0.9, CROWN_BOT)
-    foot = (math.cos(a) * 300,            math.sin(a) * FEET_SPLAY_Z * 0.9,   FEET_Y)
-    p40  = tuple(hip[i] + (foot[i] - hip[i]) * 0.40 for i in range(3))
-    p70  = tuple(hip[i] + (foot[i] - hip[i]) * 0.70 for i in range(3))
-    legs.append(rod("leg_u", 26, hip, p40, SEG_LEG))
-    legs.append(rod("leg_m", 19, p40, p70, SEG_LEG))
-    legs.append(rod("leg_l", 13, p70, foot, SEG_LEG))
-    legs.append(tag_wear(cyl("coll_a", 24, 42, p40, SEG_LEG, 'Z')))
-    legs.append(tag_wear(cyl("coll_b", 17, 36, p70, SEG_LEG, 'Z')))
-    bpy.ops.mesh.primitive_cone_add(vertices=SEG_LEG, radius1=11, radius2=3, depth=40,
-        location=(foot[0], foot[1], FEET_Y + 26), rotation=(math.pi, 0, 0))
-    ft = bpy.context.object; ft.name = "foot"
-    legs.append(tag_wear(ft))          # ⚠️ was materialless: GLTFLoader gave it
-                                       # a default WHITE MeshStandardMaterial
+    hip = (math.cos(a) * 110, math.sin(a) * 110 * 0.9, CROWN_BOT)
+    foot = (math.cos(a) * 285, math.sin(a) * FEET_SPLAY_Z * 0.9, FEET_Y)
+    hips[az], feet[az] = hip, foot
+    p69 = tuple(hip[i] + (foot[i] - hip[i]) * 0.693 for i in range(3))
+    legs.append(rod("leg_u", 25, hip, p69, SEG_LEG))
+    legs.append(rod("leg_l", 19, p69, foot, SEG_LEG))
+    # two stacked clamp bands at the joint
+    legs.append(tag_wear(cyl("coll_a", 27, 34, (p69[0], p69[1], p69[2] + 20), SEG_LEG, 'Z')))
+    legs.append(tag_wear(cyl("coll_b", 29, 42, (p69[0], p69[1], p69[2] - 18), SEG_LEG, 'Z')))
+    # ferrule + rounded bullet foot
+    legs.append(tag_wear(cyl("ferrule", 21, 14, (foot[0], foot[1], foot[2] + 20), SEG_LEG, 'Z')))
+    legs.append(cyl("bullet", 13, 20, (foot[0], foot[1], foot[2] + 6), SEG_LEG, 'Z'))
     bpy.ops.object.select_all(action='DESELECT')
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=16, radius=8,
-        location=(foot[0], foot[1], FEET_Y + 2))
-    bt = bpy.context.object; bt.name = "balltip"; legs.append(tag_wear(bt))
-# spreader brace: three bars from the column to each leg at BRACE_Y
-tbr = (BRACE_Y - CROWN_BOT) / (FEET_Y - CROWN_BOT)
-for az in (210, 330, 90):
-    a = math.radians(az)
-    hip  = (math.cos(a) * (CROWN_R - 45), math.sin(a) * (CROWN_R - 45) * 0.9, CROWN_BOT)
-    foot = (math.cos(a) * 300,            math.sin(a) * FEET_SPLAY_Z * 0.9,   FEET_Y)
-    onleg = tuple(hip[i] + (foot[i] - hip[i]) * tbr for i in range(3))
-    legs.append(rod("brace", 7, (0, 0, BRACE_Y), onleg, 8))
-legs.append(cyl("column", 26, (CROWN_BOT - BRACE_Y) + 60, (0, 0, (CROWN_BOT + BRACE_Y) / 2), SEG_LEG, 'Z'))
-tripod = join([crown] + legs, "tripod")
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=16, radius=13,
+                                         location=(foot[0], foot[1], foot[2] - 4))
+    tip = bpy.context.object; tip.name = "tip"
+    tip.data.materials.append(MAT_BASE)
+    legs.append(tag_wear(tip))
+
+# THE SPREADER: clamp band + lug + arched bar per leg, and a centre clamp.
+# None of this existed before — the model had a fake plain column instead.
+for az in AZ:
+    hip, foot = hips[az], feet[az]
+    t = (BRACE_Y - hip[2]) / (foot[2] - hip[2])
+    onleg = tuple(hip[i] + (foot[i] - hip[i]) * t for i in range(3))
+    legs.append(tag_wear(cyl("sp_band", 30, 50, onleg, SEG_LEG, 'Z')))
+    inward = math.atan2(-onleg[1], -onleg[0])
+    lug = (onleg[0] + math.cos(inward) * 26, onleg[1] + math.sin(inward) * 26, onleg[2])
+    legs.append(box("sp_lug", 22, 22, 26, lug))
+    if az != 270:
+        legs.append(rod("sp_bar", 7, lug, (0, 0, BRACE_Y - 5), 8))
+legs.append(box("sp_hub", 79, 46, 52, (0, feet[270][1] * 0.0, BRACE_Y - 5)))
+legs.append(box("sp_latch", 14, 6, 22, (0, -26, BRACE_Y - 3)))
+tripod = join(legs, "tripod")
 set_origin(tripod, (0, (CROWN_TOP + CROWN_BOT) / 2, 0))
 
 # ── BEVEL EVERYTHING (spec 20 Aug) ───────────────────────────────────────────
@@ -427,10 +444,9 @@ set_origin(tripod, (0, (CROWN_TOP + CROWN_BOT) / 2, 0))
 # star (measured against the reference, which keeps FLAT faces with a thin
 # crisp chamfer line). Chamfer must stay small relative to the face it sits
 # on: big body panels can carry 2.5mm, reel webs no more than 1mm.
-for o, w, seg in [(camera_body, 2.5, 2), (reel_a, 3.0, 3), (reel_b, 3.0, 3),
-                  (lens, 1.4, 2), (dome, 1.0, 2), (crank, 1.4, 2),
-                  (head, 1.6, 2), (tripod, 1.6, 2)]:
-    bevel(o, w, seg)
+for o, w in [(camera_body, 2.0), (reel_a, 1.6), (reel_b, 1.6), (lens, 1.6),
+             (dome, 1.0), (crank, 1.2), (head, 1.6), (tripod, 1.6)]:
+    bevel(o, w, 1)
 
 # ── material ─────────────────────────────────────────────────────────────────
 # Base material per spec (the RUNTIME re-materials everything; these values
@@ -453,7 +469,9 @@ _w.inputs["Roughness"].default_value = 0.30
 print("AUDIT depth ranges (blender y; lens occupies -150..-294):")
 for o in [camera_body, reel_a, reel_b, lens, dome, crank, head, tripod]:
     ys = [ (o.matrix_world @ v.co).y for v in o.data.vertices ]
-    flag = "  <-- IN FRONT OF LENS PLANE" if min(ys) < -244 and o.name not in ("lens", "l_glass") else ""
+    # tripod is exempt: the reference's third leg points TOWARD camera, so it
+    # legitimately crosses the lens plane far below the lens itself
+    flag = "  <-- IN FRONT OF LENS PLANE" if min(ys) < -244 and o.name not in ("lens", "l_glass", "tripod") else ""
     print(f"  {o.name:12} y {min(ys):8.1f} .. {max(ys):8.1f}{flag}")
 
 out = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else "/tmp/camera.glb"
