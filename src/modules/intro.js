@@ -642,10 +642,16 @@ export function createIntro({ onProgress } = {}) {
          (720, 450), off by (-37, -109) for the whole approach. These
          translations sit BEFORE the scale in the transform list, so they act
          in screen pixels and are not multiplied by it. */
-      const lensDX = innerWidth / 2 - (innerWidth / 2 - camLensW * 0.065);
-      const lensDY = innerHeight / 2 - camLensH * 0.309;
-      marketExperience.style.setProperty("--market-camera-dx", `${(lensDX * approach).toFixed(1)}px`);
-      marketExperience.style.setProperty("--market-camera-dy", `${(lensDY * approach).toFixed(1)}px`);
+      /* EXACT, not measured-once (Yash, 12:07: "align the shutter opening
+         with that green circle"). The old constants were empirical offsets
+         from the PNG era and left the lens ~(26,45)px off the viewport
+         centre — but the green reveal circle (--zero-reveal/--hole) lives at
+         EXACTLY 50vw/50vh. The push pivot IS the lens by the drop-in
+         contract, so steering the pivot to the centre lands the aperture on
+         the circle by construction. (Computed here; consumed in the rect
+         composition below. The old --market-camera-dx/dy CSS vars fed the
+         retired PNG-era transform blocks and are dead.) */
+      const lensDX = 0, lensDY = 0;   // superseded — see camDX/camDY below
 
       /* The takeover TRACKS the camera's own lens plate rather than growing on
          its own schedule — same width fraction (30.5%), same scale, same
@@ -657,9 +663,14 @@ export function createIntro({ onProgress } = {}) {
          never switched it off, so the lens sat over the whole rest of the page
          and swallowed WE SCALE entirely — visible at p=0.88, an act and a half
          later. It now fades out under the black that replaces it. */
-      const lensTakeOn = smoothstep((p - 0.724) / 0.006)
-        * (1 - smoothstep((p - 0.744) / 0.012));
-      root.style.setProperty("--lens-take", lensTakeOn.toFixed(3));
+      /* RETIRED (Yash, 12:07). The CSS takeover + wedge iris were built when
+         the lens was a scaled PHOTOGRAPH and could not stay sharp at 13x. The
+         model's own nine-blade aperture is native-resolution at any zoom and
+         now does the opening itself — two irises on screen was exactly the
+         "what is that grey blade thing" confusion. Elements stay in the DOM,
+         permanently at opacity 0. */
+      const lensTakeOn = 0;
+      root.style.setProperty("--lens-take", "0");
       /* ── THE IRIS OPENS AS YOU FALL IN (Yash, 20:54) ──────────────────
          He asked why the lens stops. It never did — the angle advances a
          constant 148deg per step the whole way. What stops is the VISIBLE
@@ -682,7 +693,18 @@ export function createIntro({ onProgress } = {}) {
          further down, where the blade angle is available. */
       /* The aperture opens at the very END now. The blades are what should be
          moving for the descent (his point); the aperture is how it finishes. */
-      const irisOpen = smoothstep((p - 0.742) / 0.008);
+      /* THE SHUTTER OPENS (Yash, 12:07): the nine 3D blades part from
+         .730, fully open by .752 — the pupil grows from 9mm to the whole
+         bore, centred (by the exact-centring above) on the same screen
+         point where the green circle blooms at .744. Through the opening:
+         the throat's dark, then the blackout's black, then the circle. */
+      /* Order matters: the shutter must finish opening BEFORE the blackout
+         rises (.726-.738) or the mechanism opens invisibly behind black —
+         the first cut had it at .730 and the whole reveal played in the
+         dark. Now: push toward the aperture -> blades spiral open .710-.732
+         in full light -> the blackout closes over the OPEN aperture -> the
+         green circle blooms in it at .744, dead on the pupil's point. */
+      const irisOpen = smoothstep((p - 0.710) / 0.022);
       /* It sits BEHIND the strip while the reel plays, so it can never cover a
          service word — but a machine travelling toward you has to pass the
          film, not stay pinned behind it. It comes forward on the APPROACH. */
@@ -930,11 +952,16 @@ export function createIntro({ onProgress } = {}) {
            frame onto this rect with setViewOffset — optical zoom, so the
            13x push renders SHARP instead of stretching a raster. */
         if (!camFrame.w) measureFilm();
-        const pivX = camFrame.x + camFrame.w * 0.435;
-        const pivY = camFrame.y + camFrame.h * 0.31;
+        /* EXACT fractions, not the rounded ones: the lens axis is model
+           (0,0) = px (341.5, 467) of the 785x1511 frame, so 341.5/785 and
+           467/1511. The rounded 0.31 left the aperture 5px above the green
+           circle at the push, because at 13x a 0.1% frame error is real
+           pixels. */
+        const pivX = camFrame.x + camFrame.w * (341.5 / 785);
+        const pivY = camFrame.y + camFrame.h * (467 / 1511);
         const sTot = camScale * es;
-        const dX = lensDX * approach + (ex * innerWidth) / 100;
-        const dY = lensDY * approach;
+        const dX = (innerWidth / 2 - pivX) * approach + (ex * innerWidth) / 100;
+        const dY = (innerHeight / 2 - pivY) * approach;
         const rect = {
           x: pivX + dX + sTot * (camFrame.x - pivX),
           y: pivY + dY + sTot * (camFrame.y - pivY),
@@ -952,6 +979,7 @@ export function createIntro({ onProgress } = {}) {
           crank: (cameraCrank * Math.PI) / 180,
           drift: reduced ? 0 : camIn * (1 - travel),
           recoil: cameraRecoil,
+          irisOpen,
           rect,
         }, performance.now());
         /* THE FILM COMES OFF THE REEL (Yash, 22:58 — correcting 22:22: not

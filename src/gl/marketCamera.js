@@ -265,13 +265,14 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   scene.add(rig);
 
   const nodes = {};
+  let glassMat = null;
   let ready = false;
   /* the lens flange's front rim, in the lens node's local space — measured
      from the geometry at load, used to project the VISUAL lens circle */
   let rimR = 118, rimZ = 150;
   const state = {
     yaw: 0, opacity: 1, spin: 0, crank: 0, drift: 0, visible: false,
-    recoil: 0, rect: null,
+    recoil: 0, rect: null, irisOpen: 0,
   };
 
   new GLTFLoader().load(MODEL, (gltf) => {
@@ -471,6 +472,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
           envMapIntensity: 3.2, transparent: true, opacity: 0.17,
           depthWrite: false,
         });
+        glassMat = m;   // the cover fades as the shutter opens (see render)
         m.envMap = scene.environment;      // same null-envMap trap as above
         m.onBeforeCompile = (sh) => {
           sh.fragmentShader = sh.fragmentShader.replace(
@@ -482,7 +484,8 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
         o.material = m;
       }
     });
-    for (const n of ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod"])
+    for (const n of ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod",
+                     "iris_blades", "iris_tunnel"])
       nodes[n] = model.getObjectByName(n);
     /* set BEFORE anything renders: onBeforeCompile reads userData.grain when
        the program is first built, so assigning after a frame has drawn
@@ -550,6 +553,27 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     if (nodes.reel_a) nodes.reel_a.rotation.z = state.spin * Math.PI * 2;
     if (nodes.reel_b) nodes.reel_b.rotation.z = -state.spin * Math.PI * 2 * 1.08;
     if (nodes.crank) nodes.crank.rotation.z = state.crank;
+    /* THE SHUTTER OPENS (Yash, 12:07): radial scale slides the blades out
+       under the bore lip — the pupil grows as 9mm x s while the plates
+       disappear behind the solid ring stack — and a sweep of rotation makes
+       them SPIRAL open the way a physical aperture does. The blade shader is
+       object-space, so the pinwheel rides the scale for free. The throat
+       scales with them: through the fully-open aperture you see its dark
+       interior, which is the black the reveal circle blooms in. */
+    if (nodes.iris_blades) {
+      const s = 1 + state.irisOpen * 6.4;
+      nodes.iris_blades.scale.set(s, s, 1);
+      nodes.iris_blades.rotation.z = state.irisOpen * 0.9;
+      /* The throat BOWS OUT as the shutter opens. While the pupil is small
+         it supplies the depth read; once the blades part, the pupil must be
+         genuinely EMPTY canvas — transparent pixels — so the page layers
+         beneath (the blackout, and the green reveal circle blooming in it at
+         .744) show THROUGH the aperture. Scaling the throat with the blades
+         would put its dark shell across the whole opening and the circle
+         would bloom behind an opaque wall. */
+      if (nodes.iris_tunnel) nodes.iris_tunnel.visible = state.irisOpen < 0.30;
+      if (glassMat) glassMat.opacity = 0.17 * (1 - state.irisOpen);
+    }
     /* Map the model frame onto the target rect: render the sub-window of
        the notional 785x1511 view that the canvas overlaps. All zoom is
        projection — no raster is ever stretched. */

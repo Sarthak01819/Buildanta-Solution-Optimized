@@ -38,7 +38,7 @@ const mode = process.argv[2] === 'save' ? 'save' : 'check';
   const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
   const errs = [];
   p.on('pageerror', e => errs.push(e.message));
-  await p.goto(process.env.SITE_URL || 'http://127.0.0.1:5290/', { waitUntil: 'load' });
+  await p.goto(process.env.SITE_URL || 'http://127.0.0.1:5303/', { waitUntil: 'load' });
   await p.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 60000 });
   await p.evaluate(() => new Promise(r => setTimeout(r, 2600)));
 
