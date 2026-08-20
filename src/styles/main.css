@@ -5602,7 +5602,13 @@ canvas.market-camera3d {
   opacity: 0 !important;
   pointer-events: none;
 }
-.market-film .market-frame { pointer-events: auto; }  /* keyboard focus + AT */
+/* ⚠️ NO pointer-events:auto on the hidden plates. They sit ABOVE the canvas
+   (z 5-6 vs 4), so making them mouse-targetable turned nine invisible
+   rectangles into ghost hit-areas — clicks on visually empty screen opened
+   sheets, and the canvas raycast (with its correct curved hit-shapes) never
+   received the pointer at all. Keyboard focus and assistive tech do NOT
+   need pointer-events: anchors stay Tab-reachable and AT-readable with
+   pointer-events:none. Mouse goes to the canvas; keyboard goes here. */
 
 /* the apex plate's caption — crisp DOM text over the canvas, swapped as
    the frame changes, exactly like the reference's HTML titles */

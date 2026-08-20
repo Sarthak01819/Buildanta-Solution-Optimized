@@ -1031,7 +1031,11 @@ export function createIntro({ onProgress } = {}) {
            line and tag render as crisp HTML that swaps as the frame changes,
            exactly like the reference — only the artwork is texture. */
         if (ribbonCaption) {
-          const apexIdx = Math.max(0, Math.min(8, Math.round(reduced ? 4 : pos)));
+          /* DETENTED index, same drive as the ribbon — round(raw pos)
+             swapped the caption while the plate was still travelling into
+             the gate, so the words led the picture */
+          const apexIdx = Math.max(0, Math.min(8,
+            Math.round(reduced ? 4 : filmTravel * slots)));
           if (apexIdx !== ribbonCaptionIdx && filmCards[apexIdx]) {
             ribbonCaptionIdx = apexIdx;
             const card = filmCards[apexIdx];
