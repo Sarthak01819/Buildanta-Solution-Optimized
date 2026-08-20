@@ -373,6 +373,7 @@ const RIBBON_FRAG = `
   uniform float uPitch;    // plate pitch as arc fraction
   uniform float uPlateW;   // plate width as arc fraction
   uniform float uGate;     // arc fraction of the reading position
+  uniform float uWidth;    // ribbon width in mm, for the perforation SDF
 
   void main() {
     if (uAlpha < 0.004) discard;
@@ -389,9 +390,20 @@ const RIBBON_FRAG = `
        plates run feed -> take-up, the way film does. */
     float rel = uPos - (vUv.x - uGate) / uPitch;   // film position, in plates
     float filmMM = rel * uPitch * uArcMM;          // ... and in millimetres
-    float cell = fract(filmMM / 46.0);
-    bool band = (vUv.y > 0.055 && vUv.y < 0.135) || (vUv.y > 0.865 && vUv.y < 0.945);
-    bool hole = band && abs(cell - 0.5) < 0.20;
+    /* REAL PERFORATIONS (Yash, 21 Aug 00:00: "the border looks so
+       cartoonish — make it look real"). Two things made it read as a
+       cartoon: fat saturated amber rails down both edges, which the
+       reference does not have at all (its film edge is plain black stock),
+       and hard-cornered rectangles punched at 46mm. Film perforations are
+       ROUNDED rectangles, small against the stock, with generous black
+       between them. Measured as a signed distance in millimetres so the
+       corner radius is real geometry, not a texture. */
+    float cellMM = fract(filmMM / 62.0) * 62.0 - 31.0;      // mm along the film
+    float bandC = (vUv.y < 0.5) ? 0.098 : 0.902;
+    float acrossMM = (vUv.y - bandC) * uWidth;              // mm across the film
+    vec2 q = abs(vec2(cellMM, acrossMM)) - vec2(13.0, 7.4) + vec2(2.4);
+    float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 2.4;
+    bool hole = sd < 0.0;
 
     /* ⚠️ THE PERFORATIONS ARE LIT, NOT CUT (measured 20 Aug, Yash's
        reference). Discarding them punched through to the act's near-black
@@ -400,7 +412,7 @@ const RIBBON_FRAG = `
        the film (the lamp behind the gate), and that black-base/white-hole
        contrast is what makes a strip read as film at a glance. They still
        curve and twist, because they are still this surface. */
-    vec3 col = vec3(0.030, 0.026, 0.052);           // film base
+    vec3 col = vec3(0.021, 0.019, 0.029);           // film base — near-black stock
     float k = floor(rel + 0.5);
     float x = rel - k;                               // -.5..+.5 within a pitch
     float ph = 0.5 * (uPlateW / uPitch);
@@ -422,12 +434,19 @@ const RIBBON_FRAG = `
       vec3 art = texture2D(uAtlas, auv).rgb;
       col = pow(max(art, vec3(0.0)), vec3(0.52)) * 1.06 + vec3(0.02);
     }
-    /* thin warm rails down both edges of the stock — the reference's amber
-       lines. They draw the curve even where a plate is dark. */
-    float edge = smoothstep(0.052, 0.032, vUv.y) + smoothstep(0.948, 0.968, vUv.y);
-    col = mix(col, vec3(0.62, 0.36, 0.14), clamp(edge, 0.0, 1.0) * 0.9);
+    /* ⚠️ NO AMBER RAILS. They were invented to "draw the curve", and they
+       are the single loudest cartoon tell — the reference's stock is black
+       to its edge. All that survives is a whisper of edge sheen, barely
+       above the base, so the strip still separates from a black room. */
+    float edge = smoothstep(0.030, 0.008, vUv.y) + smoothstep(0.970, 0.992, vUv.y);
+    col = mix(col, vec3(0.075, 0.066, 0.088), clamp(edge, 0.0, 1.0));
 
-    if (hole) col = vec3(0.92, 0.93, 0.98);          // the lamp through the gate
+    if (hole) {
+      /* not flat white: the lamp behind the gate falls off across the
+         opening, and the punched edge catches a little less light */
+      float soft = smoothstep(0.0, -2.2, sd);
+      col = mix(vec3(0.63, 0.635, 0.68), vec3(0.90, 0.905, 0.94), soft);
+    }
 
     /* Falloff GENTLED: at x0.14 the wings measured p50 2-3 against a page
        background of 4 — the receding plates were literally darker than
@@ -534,6 +553,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       uPitch: { value: RIBBON.PITCH_MM / arcMM },
       uPlateW: { value: RIBBON.PLATE_MM / arcMM },
       uGate: { value: gate },
+      uWidth: { value: RIBBON.WIDTH },
     },
     transparent: true,
     side: DoubleSide,       // the twist shows the back near the spools
