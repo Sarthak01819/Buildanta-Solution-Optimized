@@ -33,7 +33,7 @@
  */
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, AmbientLight, DirectionalLight,
-  PointLight, Color, Vector3, SRGBColorSpace, ACESFilmicToneMapping,
+  PointLight, HemisphereLight, Color, Vector3, SRGBColorSpace, ACESFilmicToneMapping,
   PMREMGenerator, CanvasTexture, RepeatWrapping, MeshStandardMaterial,
   PCFSoftShadowMap,
 } from "three";
@@ -111,7 +111,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.95;          // spec 20 Aug — 1.1 washed the body out
+  renderer.toneMappingExposure = 1.05;          // 08:17 — .95 crushed detail on Yash's screen
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFSoftShadowMap;
 
@@ -136,10 +136,16 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
      neutral — the act is lit violet and amber and the camera sits INSIDE
      that lighting. Ambient at 0.10 only lifts shadows off pure black; the
      old 0.28 + white-ish key is what rendered the body light and lavender. */
-  scene.add(new AmbientLight(0x9fb8ff, 0.10));
+  /* Raised from the spec's 0.10 (Yash, 08:17: detail was disappearing into
+     the shadow side on his screen — the reference keeps EVERY surface
+     legible). A hemisphere pair does the lifting so shadows stay coloured,
+     never grey: violet sky, warm dark ground. */
+  scene.add(new AmbientLight(0x9fb8ff, 0.22));
+  const hemi = new HemisphereLight(0x9fb8ff, 0x342a48, 0.55);
+  scene.add(hemi);
   const modelCentre = new Vector3(51, -288, 0);
   // KEY: violet, upper-left-front (elev 35deg, azimuth -40deg), shadowed
-  const key = new DirectionalLight(0xa98bff, 2.4);
+  const key = new DirectionalLight(0xa98bff, 2.6);
   key.position.set(-1157, 1263, 1379);
   key.castShadow = true;
   key.shadow.bias = -0.0005;
@@ -151,11 +157,12 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   key.target.position.copy(modelCentre);
   // FILL: warm amber point, lower-right, about half the key. decay 0 —
   // physically-decayed point lights attenuate to black at mm scale.
-  const fill = new PointLight(0xffd8a0, 1.0, 0, 0);
-  fill.position.set(800, -850, 900);
+  const fill = new PointLight(0xffd8a0, 1.7, 0, 0);
+  fill.position.set(650, -550, 1100);            // pulled frontal: the lower-right
+                                                 // body face was going black
   // RIM: pale lavender from behind-above (azimuth 155deg) — the light that
   // separates the silhouette from the black backdrop.
-  const rim = new DirectionalLight(0xc7bfe0, 1.6);
+  const rim = new DirectionalLight(0xc7bfe0, 2.0);
   rim.position.set(659, 900, -1413);
   rim.target.position.copy(modelCentre);
   scene.add(key, key.target, fill, rim, rim.target);
@@ -203,13 +210,17 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       if (!o.material || !o.material.isMeshStandardMaterial) return;
       const wear = /wear/i.test(o.material.name || "");
       o.material = o.material.clone();
-      o.material.color = new Color(wear ? 0x4a4a62 : 0x303040);
+      /* lifted 08:17 (base 303040 -> 3E3E52, env .5 -> .85): the machined
+         detail lives in what the metal REFLECTS — with env at .5 the unlit
+         faces went black on Yash's screen and the reference keeps every
+         surface readable */
+      o.material.color = new Color(wear ? 0x5c5c74 : 0x3e3e52);
       o.material.metalness = wear ? 0.85 : 0.78;
       o.material.roughness = 1.0;                     // the map is authoritative
       o.material.roughnessMap = wear ? roughWear : rough;
       o.material.bumpMap = bump;
       o.material.bumpScale = wear ? 0.08 : 0.18;
-      o.material.envMapIntensity = 0.5;
+      o.material.envMapIntensity = 0.85;
     });
     /* THE ELEMENT (spec §1): dark charcoal glass, NOT a mirror — metalness
        0, base #0A0A12, roughness 0.18 at the apex rising to 0.45 at the
