@@ -332,15 +332,132 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
        rim. The radial ramp is a view-normal mix injected into the standard
        shader: the apex faces the viewer (n.v -> 1 -> 0.18), the rim grazes
        (n.v -> 0 -> 0.45). It must read as DEPTH, not reflection. */
+    /* THE IRIS (Yash, 10:46). Three surfaces, keyed by mesh name:
+       blades — violet toward amber across each plate with a bright leading
+       edge; tunnel — the hole behind the pupil, as dark as the scene allows;
+       glass — the cover, below. */
+    const iris = model.getObjectByName("iris_blades");
+    if (iris) iris.traverse((o) => {
+      if (!o.isMesh) return;
+      /* LOW metalness on purpose. At 0.62 the blades were mirrors: every one
+         of them reflected the same violet sky and the iris rendered as one
+         flat saturated disc, with the pinwheel gradient invisible underneath.
+         Blades are anodised metal — mostly diffuse, with a sheen. */
+      const m = new MeshStandardMaterial({
+        color: 0x6b5a86, metalness: 0.18, roughness: 0.38, envMapIntensity: 0.45,
+      });
+      m.envMap = scene.environment;
+      /* The gradient runs across each blade in OBJECT space, so it does not
+         swim when the machine turns: violet at the rim of the iris falling to
+         warm amber toward the pupil, with the leading edge catching a line.
+         The blades are the one place the act's two lights meet on a single
+         surface, which is what makes them read as an optic. */
+      m.onBeforeCompile = (sh) => {
+        sh.vertexShader = sh.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying vec3 vIrisPos;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\n vIrisPos = position;");
+        sh.fragmentShader = sh.fragmentShader
+          .replace("#include <common>", "#include <common>\nvarying vec3 vIrisPos;")
+          .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+             /* ⚠️ .xy, NOT .xz. Blender is Z-up and the exporter maps
+                (x,y,z) -> (x, z, -y), so the iris plane that was XZ in the
+                build script is XY in the GLB. Using .xz measured across the
+                blade THICKNESS and produced a near-constant gradient — the
+                iris rendered as one flat disc and I nearly blamed the
+                material for it. */
+             /* ⚠️ .xy, NOT .xz. Blender is Z-up and the exporter maps
+                (x,y,z) -> (x, z, -y), so the iris plane that was XZ in the
+                build script is XY in the GLB. Measuring across the blade
+                THICKNESS produced a near-constant gradient and the iris
+                rendered as one flat disc.
+
+                THE BLADES ARE SHADED FROM THEIR OWN ARCS, not from a radial
+                sawtooth: for each pixel we find the TOPMOST blade that
+                actually covers it — blade k covers p when p lies outside
+                that blade's circular bite — and shade from that blade's
+                edge. The boundaries are then the real arcs the geometry
+                cuts, so the iris spirals the way a physical one does
+                instead of splitting into straight pie wedges. The
+                constants mirror the build script exactly (9 blades, bite
+                r43 centred 34mm out, 40deg pitch, 12deg phase). */
+             vec2 q = vIrisPos.xy;
+             float rr = clamp(length(q) / 63.0, 0.0, 1.0);
+             /* The visible plate at any pixel is the TOPMOST blade that
+                covers it — blade k covers p when p lies outside k's bite.
+                (Ownership by angular wedge was tried and is wrong: it
+                flattens the whole iris, because the arc distance then has
+                no relationship to which plate the eye actually sees.)
+                Constants mirror the build script exactly: bite r78 centred
+                69mm out, 40deg pitch, 12deg phase. */
+             /* A real iris overlaps CYCLICALLY — each plate laps the next
+                and the last laps the first — so there is no global top blade,
+                and every global rule fails a different way: a strict z-order
+                lets one plate own everything outside its own bite; an angular
+                wedge flattens the arcs into a radial star; nearest-edge draws
+                EVERY arc across the face and yields a lattice rosette.
+                The cycle resolves LOCALLY: starting from the plate whose
+                sector you stand in and walking backwards, the first plate
+                that covers you is the one you see. That leaves exactly nine
+                arc-bounded faces, each showing a single leading edge. */
+             float phi = atan(q.y, q.x);
+             float k0 = floor(mod((phi - 0.20943951) / 0.69813170, 9.0));
+             float dvis = 0.0;
+             float kvis = 0.0;
+             bool  got = false;
+             for (int i = 0; i < 9; i++) {
+               float k = mod(k0 - float(i) + 9.0, 9.0);
+               float ak = k * 0.69813170 + 0.20943951;
+               vec2  ck = vec2(cos(ak), sin(ak)) * 69.0;
+               float fk = length(q - ck) - 78.0;
+               if (!got && fk > 0.0) { dvis = fk; kvis = k; got = true; }
+             }
+             /* distance past this blade's leading edge: 0 on the edge itself */
+             float t = clamp(dvis / 30.0, 0.0, 1.0);
+             float sweep = mix(1.18, 0.62, t);
+             /* Each plate takes its own share of the key: a 9-step ramp round
+                the stack, so the aperture reads as a pinwheel of metal rather
+                than nine identical wedges. */
+             sweep *= 0.74 + 0.42 * fract(kvis / 9.0 + 0.62);
+             /* Yash's one deviation from the reference: violet inside. The
+                warm core still shows near the pupil, so the two act lights
+                meet on this one surface. */
+             vec3 amber  = vec3(0.66, 0.47, 0.27);
+             vec3 violet = vec3(0.38, 0.31, 0.58);
+             diffuseColor.rgb *= mix(amber, violet, smoothstep(0.04, 0.78, rr)) * 1.5 * sweep;
+             /* the struck leading edge: a fine bright line where one plate
+                laps over the next */
+             /* the struck edge stays a whisper: at full strength every arc
+                drew across the whole face and the iris read as a lattice,
+                because an arc that a real blade would hide was still lit */
+             float lead = 1.0 - smoothstep(0.0, 0.05, t);
+             diffuseColor.rgb += vec3(0.045, 0.041, 0.056) * lead;
+             roughnessFactor = clamp(roughnessFactor - lead * 0.18 - (1.0 - rr) * 0.10, 0.06, 0.9);`);
+      };
+      o.material = m;
+      o.castShadow = false;          // blades shadowing each other is noise
+      o.receiveShadow = false;
+    });
+    const tunnel = model.getObjectByName("lens")?.getObjectByName?.("iris_tunnel");
     const lensObj = model.getObjectByName("lens");
     if (lensObj) lensObj.traverse((o) => {
+      if (o.isMesh && /tunnel/i.test(o.name)) {
+        o.material = new MeshStandardMaterial({
+          color: 0x05040a, metalness: 0.0, roughness: 0.95, envMapIntensity: 0.02,
+        });
+        return;
+      }
       if (o.isMesh && /glass/i.test(o.name)) {
         /* env pulled DOWN and the apex roughened (0.18 -> 0.26): with the
            sharp environment the old values reflected RoomEnvironment's
            lamps as three hard dots — a chrome ball. The reference's element
            is matte with ONE broad soft highlight. */
+        /* The COVER, not a marble: transparent enough that the blades read
+           through it, with the environment's bright band sweeping across it
+           as the specular crescent the reference shows. */
         const m = new MeshStandardMaterial({
-          color: 0x0a0a12, metalness: 0.0, roughness: 1.0, envMapIntensity: 0.10,
+          color: 0x171320, metalness: 0.05, roughness: 0.05,
+          envMapIntensity: 3.2, transparent: true, opacity: 0.17,
+          depthWrite: false,
         });
         m.envMap = scene.environment;      // same null-envMap trap as above
         m.onBeforeCompile = (sh) => {
