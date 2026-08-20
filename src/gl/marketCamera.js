@@ -196,32 +196,58 @@ const GRAIN = { camera_body: 1.00, reel_a: 1.35, reel_b: 1.35,
    Z toward viewer. Parented to the RIG, so the film rides the machine
    through the drive-in and stays threaded through its reels. */
 const RIBBON = {
-  /* THE PATH (Yash, 20 Aug 21:20, in his words): "reel starts from the back
-     & right side of the camera and goes near about the end of the right side
-     of the screen then from there it comes in forward screen."
-     So: off the RIGHT reel heading BACK, swing out to the right edge, then
-     turn and come FORWARD into the viewer's space, crossing the front and
-     receding away to the left. Asymmetric on purpose — the symmetric bow the
-     first spec described read as a bent plane, not as film being paid out. */
+  /* THE PATH — derived from a study of shader.se's own source (20 Aug), not
+     guessed. Their reel is a CatmullRomCurve3, closed=false, curveType
+     'chordal', and the study reproduced our measured screen centreline from
+     it to within 0.5% of slope. Our route follows Yash's brief rather than
+     copying theirs: theirs bulges nearest at MID-span, his wants the nearest
+     pass at the END of the journey — "starts from the back & right side of
+     the camera... near the end of the right side of the screen... then it
+     comes in forward".
+     Generated as a WIDENING SPIRAL about the machine's right side. The
+     radius never drops below ~1210mm (about 4.7x the ribbon width): tighter
+     than that and the band pinches and self-intersects at the turn, which is
+     what the study's own first two attempts did before it rebuilt them. */
   POINTS: [
-    [ 180,  290,  -260],   // tangent off reel_b, heading behind the machine
-    [ 700,  150,  -560],   // back and right
-    [1180,  -60,  -140],   // out at the right edge, starting to come round
-    [1020, -300,   440],   // right side, now travelling FORWARD
-    [ 240, -430,   790],   // FRONT — nearest the viewer: the reading gate
-    [-620, -330,   560],   // across the front, left
-    [-1080, -140,  160],   // receding away, left-back
+    [  106,  1360, -3048],   // FEED — deep behind and high; plates enter here
+    [ 1210,  1080, -2481],   // behind and right
+    [ 1839,   720, -1543],   // swinging out to the right
+    [ 1874,   380,  -537],   // right-edge extreme
+    [ 1664,   110,   234],   // crosses the lens plane, still far right
+    [ 1247,  -110,   779],   // turning forward
+    [  744,  -260,  1103],   // coming forward
+    [  173,  -400,  1228],   // NEAR PASS — the foreground hero plate
+    [ -374,  -520,  1151],   // TAKE-UP — exits low and left
   ],
   WIDTH: 260,             // mm
-  SEGS: 200,              // longer path than the bow — keep the apex smooth
-  TWIST: 18,              // deg, rolled about the long axis
+  SEGS: 260,              // longer path than the bow — keep the near pass smooth
   PITCH_MM: 470,          // plate pitch along the arc
   PLATE_MM: 420,          // plate width along the arc
+  /* Roll about the tangent, 0deg = square to the render camera, keyed on
+     normalised arc length. Measured on shader.se: 0deg at its near pass,
+     28-42deg at its visible ends — the ribbon rolls face-AWAY as it recedes.
+     Ours runs deeper, so the tail goes further edge-on. */
+  TWIST_KEYS: [[0, 68], [0.30, 52], [0.45, 38], [0.60, 25],
+               [0.72, 13], [0.84, 3], [0.90, 0], [1, -10]],
 };
 
+function twistAt(t) {
+  const k = RIBBON.TWIST_KEYS;
+  for (let i = 1; i < k.length; i++) {
+    if (t <= k[i][0]) {
+      const f = (t - k[i - 1][0]) / (k[i][0] - k[i - 1][0]);
+      return (k[i - 1][1] + (k[i][1] - k[i - 1][1]) * f) * Math.PI / 180;
+    }
+  }
+  return k[k.length - 1][1] * Math.PI / 180;
+}
+
 function buildRibbonGeometry() {
+  /* ⚠️ CHORDAL, not uniform. shader.se uses chordal too, and on spacing this
+     uneven the uniform variant overshoots — the band bulges past its own
+     control points and folds at the turn. */
   const curve = new CatmullRomCurve3(
-    RIBBON.POINTS.map(([x, y, z]) => new Vector3(x, y, z)), false, "catmullrom", 0.5);
+    RIBBON.POINTS.map(([x, y, z]) => new Vector3(x, y, z)), false, "chordal");
   const arcMM = curve.getLength();
   /* THE GATE is where a plate parks to be read: the point NEAREST the viewer,
      found by sampling — on an asymmetric path that is no longer the midpoint,
@@ -237,20 +263,26 @@ function buildRibbonGeometry() {
   const pos = new Float32Array((N + 1) * 2 * 3);
   const uv = new Float32Array((N + 1) * 2 * 2);
   const idx = [];
-  const side = new Vector3(), P = new Vector3(), T = new Vector3();
+  const side = new Vector3(), rolled = new Vector3(), P = new Vector3(), T = new Vector3();
   for (let i = 0; i <= N; i++) {
     const t = i / N;
     curve.getPointAt(t, P);            // arc-length parameterised: even plate pitch
     curve.getTangentAt(t, T);
-    /* width axis: vertical-ish, orthogonal to travel, then ROLLED about the
-       tangent — +18deg off reel_a, 0 at the apex, -18deg into reel_b. Real
-       film twists as it comes off a spool; the twist is what reads as
-       serpentine — the path itself is not an S. */
-    side.set(0, 1, 0).addScaledVector(T, -T.y).normalize();
-    side.applyAxisAngle(T, (RIBBON.TWIST * Math.PI / 180) * Math.cos(Math.PI * t));
+    /* ⚠️ PARALLEL TRANSPORT, not world-up. Deriving the width axis from
+       world-up flips it wherever the tangent turns vertical, and this path
+       swings through nearly 200deg — the band would tear at the turn. Each
+       step instead carries the PREVIOUS width axis forward, re-orthogonalised
+       against the new tangent (a rotation-minimising frame), then takes its
+       keyframed roll on top. */
+    if (i === 0) {
+      side.set(0, 1, 0).addScaledVector(T, -T.dot(new Vector3(0, 1, 0))).normalize();
+    } else {
+      side.addScaledVector(T, -side.dot(T)).normalize();
+    }
+    rolled.copy(side).applyAxisAngle(T, twistAt(t));
     const w = RIBBON.WIDTH / 2;
-    pos.set([P.x - side.x * w, P.y - side.y * w, P.z - side.z * w,
-             P.x + side.x * w, P.y + side.y * w, P.z + side.z * w], i * 6);
+    pos.set([P.x - rolled.x * w, P.y - rolled.y * w, P.z - rolled.z * w,
+             P.x + rolled.x * w, P.y + rolled.y * w, P.z + rolled.z * w], i * 6);
     uv.set([t, 0, t, 1], i * 4);
     if (i < N) {
       const a = i * 2;
