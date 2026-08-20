@@ -5590,3 +5590,63 @@ canvas.market-camera3d {
   left: var(--pupil-lf-x, 50%);
   top: var(--pupil-lf-y, 50%);
 }
+
+/* ── THE STRIP IS A 3D RIBBON NOW (ribbon brief, 20 Aug 14:03) ──────────
+   The DOM strip is retired from PAINT but kept in the tree on purpose:
+   its nine <a> plates are the ribbon's accessible fallback (real links,
+   focusable, screen-reader complete) AND the data + click target the
+   canvas raycast bridges to — the service sheet, Escape, backdrop, focus
+   and the Lenis lock all still live in the one existing handler. Do not
+   display:none it: that would remove it from the accessibility tree. */
+.market-film {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+.market-film .market-frame { pointer-events: auto; }  /* keyboard focus + AT */
+
+/* the apex plate's caption — crisp DOM text over the canvas, swapped as
+   the frame changes, exactly like the reference's HTML titles */
+.market-ribbon-caption {
+  position: absolute;
+  z-index: 12;
+  left: var(--cap-x, 50%);
+  top: var(--cap-y, 78%);
+  transform: translate(-50%, 0);
+  display: grid;
+  gap: .35rem;
+  justify-items: center;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  color: #fcfaf7;
+  text-shadow: 0 2px 18px rgba(2, 1, 8, .8);
+}
+.market-ribbon-caption .rc-word {
+  font-size: clamp(2.1rem, 3.4vw, 3.4rem);
+  letter-spacing: .04em;
+  line-height: 1;
+}
+.market-ribbon-caption .rc-line {
+  font-size: clamp(.95rem, 1.15vw, 1.2rem);
+  opacity: .85;
+}
+.market-ribbon-caption .rc-tag {
+  font-style: normal;
+  font-size: .72rem;
+  letter-spacing: .22em;
+  opacity: .6;
+}
+.market-ribbon-caption.is-swap .rc-word,
+.market-ribbon-caption.is-swap .rc-line,
+.market-ribbon-caption.is-swap .rc-tag {
+  animation: rc-in .45s ease both;
+}
+@keyframes rc-in {
+  from { opacity: 0; transform: translateY(.35em); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .market-ribbon-caption.is-swap .rc-word,
+  .market-ribbon-caption.is-swap .rc-line,
+  .market-ribbon-caption.is-swap .rc-tag { animation: none; }
+}

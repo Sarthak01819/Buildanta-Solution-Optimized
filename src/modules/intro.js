@@ -172,6 +172,8 @@ export function createIntro({ onProgress } = {}) {
   const consultHandCanvas = root.querySelector(".consult-zero__hand-canvas");
   const marketPusherEl = root.querySelector(".market-pusher");
   let marketCam3d = null;
+  let ribbonCaption = null, ribbonCaptionIdx = -1;
+  let ribbonPointerOn = false, ribbonHoverAt = 0;
   let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
   /* where the aperture sat when the blackout took it — the reveal circle
      blooms there (see the pupil latch in the market block) */
@@ -922,6 +924,27 @@ export function createIntro({ onProgress } = {}) {
           onReady: () => applyRaw(lastRaw),
         });
         if (window.__buildanta) window.__buildanta.marketCam3d = marketCam3d;  // dev bridge
+        /* the ribbon's caption (DOM, crisp) + the click bridge to the SAME
+           service sheet the DOM strip opens — Escape/backdrop/focus/Lenis
+           all live in the existing handler, untouched */
+        ribbonCaption = document.createElement("div");
+        ribbonCaption.className = "market-ribbon-caption";
+        ribbonCaption.setAttribute("aria-hidden", "true");
+        ribbonCaption.innerHTML =
+          '<strong class="rc-word"></strong><span class="rc-line"></span><em class="rc-tag"></em>';
+        marketExperience.appendChild(ribbonCaption);
+        marketCam3d.canvas.addEventListener("click", (e) => {
+          const k = marketCam3d.plateAt(e.clientX, e.clientY);
+          if (k >= 0) filmCards[k]?.click();
+        });
+        marketCam3d.canvas.addEventListener("pointermove", (e) => {
+          if (!ribbonPointerOn) return;
+          const now = performance.now();
+          if (now - ribbonHoverAt < 80) return;
+          ribbonHoverAt = now;
+          marketCam3d.canvas.style.cursor =
+            marketCam3d.plateAt(e.clientX, e.clientY) >= 0 ? "pointer" : "";
+        }, { passive: true });
       }
       if (marketCam3d) {
         /* THE ENTRANCE IS A DRIVE-IN, NOT A FADE (Yash, 21:22: "coming in
@@ -975,17 +998,70 @@ export function createIntro({ onProgress } = {}) {
         /* the tripod mask travels with the frame — 60% -> 78% of ITS height */
         marketExperience.style.setProperty("--cam-mask-y0", (rect.y + rect.h * 0.60).toFixed(0) + "px");
         marketExperience.style.setProperty("--cam-mask-y1", (rect.y + rect.h * 0.78).toFixed(0) + "px");
+        /* Reel rates split by fill state (ribbon brief): the feed reel slows
+           as it empties, the take-up accelerates as it fills. Closed-form
+           INTEGRALS of the rates over `pos`, not rate x pos — a rate applied
+           directly would make the wheels jump backwards whenever the rate
+           fell. The one-driver law holds: both are functions of pos alone. */
+        const ff = pos / 8;
+        const spinA3d = (pos * (1 - 0.175 * ff) * SPOOL_TURNS_PER_PLATE
+          + handover * HANDOVER_TURNS) * (reduced ? 1 : spinUp);
+        const spinB3d = (pos * (0.65 + 0.175 * ff) * SPOOL_TURNS_PER_PLATE
+          + handover * HANDOVER_TURNS) * (reduced ? 1 : spinUp);
         marketCam3d.setState({
           visible: marketOpacity > 0.02 && p > 0.52 && p < 0.79,
           yaw: reduced ? 0 : (1 - turn) * Math.PI / 2,
           opacity: camVis,
-          spin: cameraSpin * (reduced ? 1 : spinUp),
+          spin: spinA3d,
+          spinB: spinB3d,
           crank: (cameraCrank * Math.PI) / 180,
           drift: reduced ? 0 : camIn * (1 - travel),
           recoil: cameraRecoil,
           irisOpen,
+          /* DETENTED, like the projector's own rhythm: a plate PARKS at
+             the apex and crosses the gap quickly — raw `pos` left the gap
+             between plates sitting at the apex most of the time. filmTravel
+             is the act's existing detent curve. Reduced motion: strip
+             visible and legible, no transport — the middle plate holds. */
+          filmPos: reduced ? 4 : filmTravel * slots,
+          filmAlpha: filmVis,
           rect,
         }, performance.now());
+        /* ── THE DOM CAPTION over the apex plate (ribbon brief): the word,
+           line and tag render as crisp HTML that swaps as the frame changes,
+           exactly like the reference — only the artwork is texture. */
+        if (ribbonCaption) {
+          const apexIdx = Math.max(0, Math.min(8, Math.round(reduced ? 4 : pos)));
+          if (apexIdx !== ribbonCaptionIdx && filmCards[apexIdx]) {
+            ribbonCaptionIdx = apexIdx;
+            const card = filmCards[apexIdx];
+            ribbonCaption.querySelector(".rc-word").textContent =
+              card.querySelector(".plate__word")?.textContent || "";
+            ribbonCaption.querySelector(".rc-line").innerHTML =
+              card.querySelector(".plate__line")?.innerHTML || "";
+            ribbonCaption.querySelector(".rc-tag").textContent =
+              card.querySelector(".plate__tag")?.textContent || "";
+            ribbonCaption.classList.remove("is-swap");
+            void ribbonCaption.offsetWidth;            // restart the fade
+            ribbonCaption.classList.add("is-swap");
+          }
+          /* anchored under the apex plate: model (0, -430, 520) projected */
+          const cap = marketCam3d.projectModelPoint?.(0, -430, 520);
+          if (cap) {
+            ribbonCaption.style.setProperty("--cap-x", cap.x.toFixed(0) + "px");
+            ribbonCaption.style.setProperty("--cap-y", cap.y.toFixed(0) + "px");
+          }
+          ribbonCaption.style.opacity = (filmVis * (1 - approach)).toFixed(3);
+        }
+        /* the canvas takes the pointer ONLY while the reel is interactive —
+           outside that window it must stay transparent to events */
+        const wantPointer = filmVis > 0.35 && approach < 0.05;
+        if (wantPointer !== ribbonPointerOn) {
+          ribbonPointerOn = wantPointer;
+          marketCam3d.canvas.style.pointerEvents = wantPointer ? "auto" : "none";
+          if (!wantPointer) marketCam3d.canvas.style.cursor = "";
+        }
+
         /* THE FILM COMES OFF THE REEL (Yash, 22:58 — correcting 22:22: not
            the camera's reel dropping in, the STRIP arriving from it; the
            reels stay mounted and spinning as before). The band's gate point

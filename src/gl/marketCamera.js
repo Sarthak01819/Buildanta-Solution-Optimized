@@ -36,7 +36,9 @@ import {
   PointLight, HemisphereLight, Color, Vector3, SRGBColorSpace, ACESFilmicToneMapping,
   PMREMGenerator, CanvasTexture, MeshStandardMaterial, MeshBasicMaterial,
   Mesh, SphereGeometry, BackSide, DoubleSide, PCFSoftShadowMap,
+  CatmullRomCurve3, BufferGeometry, BufferAttribute, ShaderMaterial, Raycaster, Vector2,
 } from "three";
+import { SERVICES } from "../modules/services.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 import { wantsAA } from "./msaa.js";
@@ -182,6 +184,147 @@ function attachSurface(material) {
 const GRAIN = { camera_body: 1.00, reel_a: 1.35, reel_b: 1.35,
                 head: 0.45, crank: 0.45, lens: 0.12, tripod: 0.20 };
 
+/* ═══ THE FILM RIBBON (brief, 20 Aug 14:03) ═══════════════════════════════
+   One continuous curved surface carrying all nine plates, threaded between
+   the reels and dipping below the body. Replaces the DOM strip, whose
+   individually-tilted flat cards on a straight sprocket band could never
+   read as film — the sprockets staying straight while the cards tilted was
+   the tell. Reference (shader.se): the RAIL IS STATIC — the curve is built
+   once and never animates; only the content slides along it (uPos).
+
+   Model frame = the camera's: origin at lens centre, mm, X right, Y up,
+   Z toward viewer. Parented to the RIG, so the film rides the machine
+   through the drive-in and stays threaded through its reels. */
+const RIBBON = {
+  POINTS: [
+    [-180,  290,  -40],   // tangent exit from reel_a
+    [-620, -120,  260],   // swings out left, forward and down
+    [   0, -260,  520],   // apex — nearest the viewer, below the body
+    [ 620, -120,  260],   // mirror
+    [ 180,  290,  -40],   // tangent entry into reel_b
+  ],
+  WIDTH: 260,             // mm
+  SEGS: 160,
+  TWIST: 18,              // deg: +18 at reel_a -> 0 at apex -> -18 at reel_b
+  PITCH_MM: 470,          // plate pitch along the arc
+  PLATE_MM: 420,          // plate width along the arc
+};
+
+function buildRibbonGeometry() {
+  const curve = new CatmullRomCurve3(
+    RIBBON.POINTS.map(([x, y, z]) => new Vector3(x, y, z)), false, "catmullrom", 0.5);
+  const arcMM = curve.getLength();
+  const N = RIBBON.SEGS;
+  const pos = new Float32Array((N + 1) * 2 * 3);
+  const uv = new Float32Array((N + 1) * 2 * 2);
+  const idx = [];
+  const side = new Vector3(), P = new Vector3(), T = new Vector3();
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    curve.getPointAt(t, P);            // arc-length parameterised: even plate pitch
+    curve.getTangentAt(t, T);
+    /* width axis: vertical-ish, orthogonal to travel, then ROLLED about the
+       tangent — +18deg off reel_a, 0 at the apex, -18deg into reel_b. Real
+       film twists as it comes off a spool; the twist is what reads as
+       serpentine — the path itself is not an S. */
+    side.set(0, 1, 0).addScaledVector(T, -T.y).normalize();
+    side.applyAxisAngle(T, (RIBBON.TWIST * Math.PI / 180) * Math.cos(Math.PI * t));
+    const w = RIBBON.WIDTH / 2;
+    pos.set([P.x - side.x * w, P.y - side.y * w, P.z - side.z * w,
+             P.x + side.x * w, P.y + side.y * w, P.z + side.z * w], i * 6);
+    uv.set([t, 0, t, 1], i * 4);
+    if (i < N) {
+      const a = i * 2;
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  }
+  const geo = new BufferGeometry();
+  geo.setAttribute("position", new BufferAttribute(pos, 3));
+  geo.setAttribute("uv", new BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  return { geo, arcMM };
+}
+
+/* All nine plates in ONE 3x3 atlas: the shader picks the cell, so a single
+   draw call carries the whole reel and mipping is uniform. ART ONLY — the
+   captions stay DOM (crisp, selectable, readable by assistive tech), the
+   way the reference renders its titles as HTML above the canvas. */
+function buildRibbonAtlas(renderer, onReady) {
+  const CW = 1024, CH = 576;
+  const c = document.createElement("canvas");
+  c.width = CW * 3; c.height = CH * 3;
+  const g = c.getContext("2d");
+  g.fillStyle = "#0a0714"; g.fillRect(0, 0, c.width, c.height);
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  let done = 0;
+  SERVICES.forEach((svc, k) => {
+    const img = new Image();
+    img.onload = () => {
+      const cx = (k % 3) * CW, cy = ((k / 3) | 0) * CH;
+      const sc = Math.max(CW / img.width, CH / img.height);   // cover-fit
+      g.save();
+      g.beginPath(); g.rect(cx, cy, CW, CH); g.clip();
+      g.drawImage(img, cx + (CW - img.width * sc) / 2, cy + (CH - img.height * sc) / 2,
+                  img.width * sc, img.height * sc);
+      g.restore();
+      g.strokeStyle = "rgba(10,8,16,0.9)"; g.lineWidth = 10;
+      g.strokeRect(cx + 5, cy + 5, CW - 10, CH - 10);
+      tex.needsUpdate = true;
+      if (++done === SERVICES.length) onReady?.();
+    };
+    img.onerror = () => { if (++done === SERVICES.length) onReady?.(); };
+    img.src = "/assets/reel/" + svc.art;
+  });
+  return tex;
+}
+
+const RIBBON_VERT = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }`;
+
+const RIBBON_FRAG = `
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uAtlas;
+  uniform float uPos;      // plate index at the apex (0..8)
+  uniform float uAlpha;    // the act's --market-film-opacity envelope
+  uniform float uArcMM;    // total arc length, mm
+  uniform float uPitch;    // plate pitch as arc fraction
+  uniform float uPlateW;   // plate width as arc fraction
+
+  void main() {
+    if (uAlpha < 0.004) discard;
+    /* sprocket perforations are cut into THIS surface, so they curve, twist
+       and foreshorten with the film — never a separate straight band */
+    float mm = vUv.x * uArcMM;
+    float cell = fract(mm / 46.0);
+    bool band = (vUv.y > 0.055 && vUv.y < 0.135) || (vUv.y > 0.865 && vUv.y < 0.945);
+    if (band && abs(cell - 0.5) < 0.20) discard;
+
+    vec3 col = vec3(0.020, 0.015, 0.036);           // film base
+    /* the slide: plate k is centred where (vUv.x-0.5)/uPitch + uPos == k */
+    float rel = (vUv.x - 0.5) / uPitch + uPos;
+    float k = floor(rel + 0.5);
+    float x = rel - k;                               // -.5..+.5 within a pitch
+    float ph = 0.5 * (uPlateW / uPitch);
+    if (k >= 0.0 && k <= 8.0 && abs(x) < ph && vUv.y > 0.17 && vUv.y < 0.83) {
+      float vv = (vUv.y - 0.17) / 0.66;
+      vec2 auv;
+      auv.x = (mod(k, 3.0) + (x / ph * 0.5 + 0.5)) / 3.0;
+      auv.y = 1.0 - (floor(k / 3.0) + (1.0 - vv)) / 3.0;
+      col = texture2D(uAtlas, auv).rgb;
+    }
+    /* the apex is lit and readable; both ends recede and dim into the spools */
+    float d = abs(vUv.x - 0.5) * 2.0;
+    col *= mix(1.18, 0.14, smoothstep(0.05, 0.85, d));
+    gl_FragColor = vec4(col, uAlpha);
+  }`;
+
 export function mountMarketCamera(host, { reduced = false, onReady = null } = {}) {
   const canvas = document.createElement("canvas");
   canvas.className = "market-camera3d";
@@ -264,6 +407,29 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   const rig = new Group();       // yaw + recoil happen here, about the lens
   scene.add(rig);
 
+  /* THE RIBBON — built once; the curve NEVER animates. Child of the rig so
+     the film stays threaded through the machine's reels during the drive-in. */
+  const { geo: ribbonGeo, arcMM } = buildRibbonGeometry();
+  const ribbonMat = new ShaderMaterial({
+    vertexShader: RIBBON_VERT,
+    fragmentShader: RIBBON_FRAG,
+    uniforms: {
+      uAtlas: { value: null },
+      uPos: { value: 0 },
+      uAlpha: { value: 0 },
+      uArcMM: { value: arcMM },
+      uPitch: { value: RIBBON.PITCH_MM / arcMM },
+      uPlateW: { value: RIBBON.PLATE_MM / arcMM },
+    },
+    transparent: true,
+    side: DoubleSide,       // the twist shows the back near the spools
+  });
+  ribbonMat.uniforms.uAtlas.value = buildRibbonAtlas(renderer);
+  const ribbon = new Mesh(ribbonGeo, ribbonMat);
+  ribbon.name = "film_ribbon";
+  ribbon.frustumCulled = false;   // the rect-driven frustum would misjudge it
+  rig.add(ribbon);
+
   const nodes = {};
   let glassMat = null;
   let bladeSh = null;      // compiled blade shader, for the aperture uniform
@@ -274,6 +440,9 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   const state = {
     yaw: 0, opacity: 1, spin: 0, crank: 0, drift: 0, visible: false,
     recoil: 0, rect: null, irisOpen: 0,
+    spinB: null,            // take-up reel: accelerates as it fills
+    filmPos: 0,             // plate index at the apex (0..8)
+    filmAlpha: 0,           // the strip's opacity envelope
   };
 
   new GLTFLoader().load(MODEL, (gltf) => {
@@ -570,7 +739,13 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     rig.rotation.x = state.recoil * 1.4 * Math.PI / 180;
     rig.position.y = reduced ? 0 : state.drift * Math.sin(t * 0.7) * 6;
     if (nodes.reel_a) nodes.reel_a.rotation.z = state.spin * Math.PI * 2;
-    if (nodes.reel_b) nodes.reel_b.rotation.z = -state.spin * Math.PI * 2 * 1.08;
+    /* the take-up reel gets its own integral when supplied (it accelerates
+       as it fills while the feed reel slows as it empties) */
+    if (nodes.reel_b) nodes.reel_b.rotation.z =
+      -(state.spinB ?? state.spin * 1.08) * Math.PI * 2;
+    ribbonMat.uniforms.uPos.value = state.filmPos;
+    ribbonMat.uniforms.uAlpha.value = state.filmAlpha;
+    ribbon.visible = state.filmAlpha > 0.003;
     if (nodes.crank) nodes.crank.rotation.z = state.crank;
     /* THE SHUTTER OPENS (Yash, 12:07): radial scale slides the blades out
        under the bore lip — the pupil grows as 9mm x s while the plates
@@ -685,8 +860,40 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     return { x: (v.x + 1) / 2, y: (1 - v.y) / 2 };
   }
 
+  /* ── RAYCAST: the ribbon is clickable, same contract as the DOM strip ──
+     A hit resolves to a plate index and the caller opens the SAME service
+     sheet the DOM handler opens — Escape, backdrop, focus and the Lenis
+     lock all stay in one place. setFromCamera respects setViewOffset, so
+     NDC against the canvas is correct even while the frame rect moves. */
+  const raycaster = new Raycaster();
+  const ndc = new Vector2();
+  function plateAt(clientX, clientY) {
+    if (!ribbon.visible || state.filmAlpha < 0.35) return -1;
+    ndc.set((clientX - originX) / cssW * 2 - 1, -((clientY - originY) / cssH) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObject(ribbon, false)[0];
+    if (!hit || !hit.uv) return -1;
+    if (hit.uv.y < 0.17 || hit.uv.y > 0.83) return -1;      // sprocket bands
+    const pitch = RIBBON.PITCH_MM / arcMM;
+    const rel = (hit.uv.x - 0.5) / pitch + state.filmPos;
+    const k = Math.round(rel);
+    const ph = 0.5 * (RIBBON.PLATE_MM / RIBBON.PITCH_MM);
+    if (k < 0 || k > 8 || Math.abs(rel - k) > ph) return -1;
+    return k;
+  }
+
+  /** Any model-frame point -> viewport px (for the DOM caption's anchor). */
+  const mp = new Vector3();
+  function projectModelPoint(x, y, z) {
+    mp.set(x, y, z);
+    rig.localToWorld(mp);
+    mp.project(camera);
+    return { x: ((mp.x + 1) / 2) * cssW + originX, y: ((1 - mp.y) / 2) * cssH + originY };
+  }
+
   return {
-    setState, project, projectLensCircle, projectPupil, resize, canvas,
+    setState, project, projectLensCircle, projectPupil, projectModelPoint,
+    plateAt, resize, canvas,
     get ready() { return ready; },
     dispose() {
       removeEventListener("resize", resize);
