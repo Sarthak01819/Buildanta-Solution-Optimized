@@ -1049,12 +1049,12 @@ export function createIntro({ onProgress } = {}) {
             void ribbonCaption.offsetWidth;            // restart the fade
             ribbonCaption.classList.add("is-swap");
           }
-          /* anchored under the apex plate: model (0, -430, 520) projected */
-          const cap = marketCam3d.projectModelPoint?.(0, -430, 520);
-          if (cap) {
-            ribbonCaption.style.setProperty("--cap-x", cap.x.toFixed(0) + "px");
-            ribbonCaption.style.setProperty("--cap-y", cap.y.toFixed(0) + "px");
-          }
+          /* STATIC, like the reference's title — it does not chase the strip,
+             it simply swaps as the frame changes. Tracking the 3D gate put
+             the words over the machine (and, when the gate ran forward and
+             low, off the bottom of the screen entirely). The upper-left
+             quadrant is the one area the strip and the machine both leave
+             clear on this composition. */
           ribbonCaption.style.opacity = (filmVis * (1 - approach)).toFixed(3);
         }
         /* the canvas takes the pointer ONLY while the reel is interactive —

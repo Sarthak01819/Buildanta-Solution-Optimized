@@ -196,16 +196,25 @@ const GRAIN = { camera_body: 1.00, reel_a: 1.35, reel_b: 1.35,
    Z toward viewer. Parented to the RIG, so the film rides the machine
    through the drive-in and stays threaded through its reels. */
 const RIBBON = {
+  /* THE PATH (Yash, 20 Aug 21:20, in his words): "reel starts from the back
+     & right side of the camera and goes near about the end of the right side
+     of the screen then from there it comes in forward screen."
+     So: off the RIGHT reel heading BACK, swing out to the right edge, then
+     turn and come FORWARD into the viewer's space, crossing the front and
+     receding away to the left. Asymmetric on purpose — the symmetric bow the
+     first spec described read as a bent plane, not as film being paid out. */
   POINTS: [
-    [-180,  290,  -40],   // tangent exit from reel_a
-    [-620, -120,  260],   // swings out left, forward and down
-    [   0, -260,  520],   // apex — nearest the viewer, below the body
-    [ 620, -120,  260],   // mirror
-    [ 180,  290,  -40],   // tangent entry into reel_b
+    [ 180,  290,  -260],   // tangent off reel_b, heading behind the machine
+    [ 700,  150,  -560],   // back and right
+    [1180,  -60,  -140],   // out at the right edge, starting to come round
+    [1020, -300,   440],   // right side, now travelling FORWARD
+    [ 240, -430,   790],   // FRONT — nearest the viewer: the reading gate
+    [-620, -330,   560],   // across the front, left
+    [-1080, -140,  160],   // receding away, left-back
   ],
   WIDTH: 260,             // mm
-  SEGS: 160,
-  TWIST: 18,              // deg: +18 at reel_a -> 0 at apex -> -18 at reel_b
+  SEGS: 200,              // longer path than the bow — keep the apex smooth
+  TWIST: 18,              // deg, rolled about the long axis
   PITCH_MM: 470,          // plate pitch along the arc
   PLATE_MM: 420,          // plate width along the arc
 };
@@ -214,6 +223,16 @@ function buildRibbonGeometry() {
   const curve = new CatmullRomCurve3(
     RIBBON.POINTS.map(([x, y, z]) => new Vector3(x, y, z)), false, "catmullrom", 0.5);
   const arcMM = curve.getLength();
+  /* THE GATE is where a plate parks to be read: the point NEAREST the viewer,
+     found by sampling — on an asymmetric path that is no longer the midpoint,
+     and hard-coding 0.5 would park the plate half a curve away from the spot
+     the eye is drawn to. */
+  let gate = 0.5, bestZ = -1e9;
+  const probe = new Vector3();
+  for (let i = 0; i <= 400; i++) {
+    curve.getPointAt(i / 400, probe);
+    if (probe.z > bestZ) { bestZ = probe.z; gate = i / 400; }
+  }
   const N = RIBBON.SEGS;
   const pos = new Float32Array((N + 1) * 2 * 3);
   const uv = new Float32Array((N + 1) * 2 * 2);
@@ -242,7 +261,7 @@ function buildRibbonGeometry() {
   geo.setAttribute("position", new BufferAttribute(pos, 3));
   geo.setAttribute("uv", new BufferAttribute(uv, 2));
   geo.setIndex(idx);
-  return { geo, arcMM };
+  return { geo, arcMM, gate, curve };
 }
 
 /* All nine plates in ONE 3x3 atlas: the shader picks the cell, so a single
@@ -296,6 +315,7 @@ const RIBBON_FRAG = `
   uniform float uArcMM;    // total arc length, mm
   uniform float uPitch;    // plate pitch as arc fraction
   uniform float uPlateW;   // plate width as arc fraction
+  uniform float uGate;     // arc fraction of the reading position
 
   void main() {
     if (uAlpha < 0.004) discard;
@@ -313,7 +333,7 @@ const RIBBON_FRAG = `
        curve and twist, because they are still this surface. */
     vec3 col = vec3(0.030, 0.026, 0.052);           // film base
     /* the slide: plate k is centred where (vUv.x-0.5)/uPitch + uPos == k */
-    float rel = (vUv.x - 0.5) / uPitch + uPos;
+    float rel = (vUv.x - uGate) / uPitch + uPos;
     float k = floor(rel + 0.5);
     float x = rel - k;                               // -.5..+.5 within a pitch
     float ph = 0.5 * (uPlateW / uPitch);
@@ -344,7 +364,7 @@ const RIBBON_FRAG = `
        background of 4 — the receding plates were literally darker than
        empty screen. The reference's whole strip stays readable; its ends
        merely recede. */
-    float d = abs(vUv.x - 0.5) * 2.0;
+    float d = clamp(abs(vUv.x - uGate) / max(uGate, 1.0 - uGate), 0.0, 1.0);
     col *= mix(1.20, 0.58, smoothstep(0.12, 0.95, d));
     gl_FragColor = vec4(col, uAlpha);
   }`;
@@ -433,7 +453,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
 
   /* THE RIBBON — built once; the curve NEVER animates. Child of the rig so
      the film stays threaded through the machine's reels during the drive-in. */
-  const { geo: ribbonGeo, arcMM } = buildRibbonGeometry();
+  const { geo: ribbonGeo, arcMM, gate, curve: ribbonCurve } = buildRibbonGeometry();
   const ribbonMat = new ShaderMaterial({
     vertexShader: RIBBON_VERT,
     fragmentShader: RIBBON_FRAG,
@@ -444,6 +464,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       uArcMM: { value: arcMM },
       uPitch: { value: RIBBON.PITCH_MM / arcMM },
       uPlateW: { value: RIBBON.PLATE_MM / arcMM },
+      uGate: { value: gate },
     },
     transparent: true,
     side: DoubleSide,       // the twist shows the back near the spools
@@ -899,7 +920,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     if (!hit || !hit.uv) return -1;
     if (hit.uv.y < 0.17 || hit.uv.y > 0.83) return -1;      // sprocket bands
     const pitch = RIBBON.PITCH_MM / arcMM;
-    const rel = (hit.uv.x - 0.5) / pitch + state.filmPos;
+    const rel = (hit.uv.x - gate) / pitch + state.filmPos;
     const k = Math.round(rel);
     const ph = 0.5 * (RIBBON.PLATE_MM / RIBBON.PITCH_MM);
     if (k < 0 || k > 8 || Math.abs(rel - k) > ph) return -1;
@@ -915,9 +936,22 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     return { x: ((mp.x + 1) / 2) * cssW + originX, y: ((1 - mp.y) / 2) * cssH + originY };
   }
 
+  /** The reading gate's own screen position — the caption hangs under it. */
+  const gv = new Vector3();
+  function projectGate() {
+    ribbonCurve.getPointAt(gate, gv);
+    /* ABOVE the parked plate, like the reference's title. The gate now sits
+       far forward and low (the strip crosses the FOREGROUND), so hanging the
+       caption below it projected to y=978 on a 960px viewport — off-screen. */
+    gv.y += 330;
+    rig.localToWorld(gv);
+    gv.project(camera);
+    return { x: ((gv.x + 1) / 2) * cssW + originX, y: ((1 - gv.y) / 2) * cssH + originY };
+  }
+
   return {
     setState, project, projectLensCircle, projectPupil, projectModelPoint,
-    plateAt, resize, canvas,
+    projectGate, plateAt, resize, canvas,
     get ready() { return ready; },
     dispose() {
       removeEventListener("resize", resize);

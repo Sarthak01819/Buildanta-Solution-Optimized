@@ -5656,3 +5656,20 @@ canvas.market-camera3d {
   .market-ribbon-caption.is-swap .rc-line,
   .market-ribbon-caption.is-swap .rc-tag { animation: none; }
 }
+
+
+/* ── THE REEL'S TITLE SITS STILL (Yash's reference, 20 Aug 21:20) ───────
+   The strip now crosses the whole foreground, so a caption anchored to the
+   moving gate either landed on the machine or ran off the bottom. The
+   reference keeps its title static in clear space and only swaps the words
+   — same here, in the upper-left quadrant the composition leaves open. */
+.market-ribbon-caption {
+  left: clamp(1.5rem, 7vw, 9rem);
+  top: clamp(4rem, 17vh, 12rem);
+  transform: none;
+  justify-items: start;
+  text-align: left;
+}
+@media (max-width: 720px) {
+  .market-ribbon-caption { left: 1.25rem; top: 9vh; }
+}
