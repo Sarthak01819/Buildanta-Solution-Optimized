@@ -598,7 +598,23 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
          .744) show THROUGH the aperture. Scaling the throat with the blades
          would put its dark shell across the whole opening and the circle
          would bloom behind an opaque wall. */
-      if (nodes.iris_tunnel) nodes.iris_tunnel.visible = state.irisOpen < 0.30;
+      /* ⚠️ FADE, not a boolean. `visible = irisOpen < 0.30` snapped the
+         throat off in a single frame at p=.718, in full light: measured, a
+         black ring around the pupil jumped from luminance 11 to 49 in one
+         0.001 step while the blades stayed at full brightness around it.
+         Ramping its opacity over .22-.34 of the opening dissolves it
+         instead. transparent + depthWrite false so it never punches a hole
+         in what is behind it while fading. */
+      if (nodes.iris_tunnel) {
+        const t = 1 - Math.max(0, Math.min(1, (state.irisOpen - 0.22) / 0.12));
+        nodes.iris_tunnel.visible = t > 0.004;
+        nodes.iris_tunnel.traverse((o) => {
+          if (!o.isMesh || !o.material) return;
+          o.material.transparent = true;
+          o.material.depthWrite = false;
+          o.material.opacity = t;
+        });
+      }
       if (glassMat) glassMat.opacity = 0.17 * (1 - state.irisOpen);
     }
     /* Map the model frame onto the target rect: render the sub-window of
