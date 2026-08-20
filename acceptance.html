@@ -1,0 +1,26 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>camera acceptance</title>
+<style>
+  /* DEV-ONLY harness (not in the production build — vite only bundles
+     index.html). Renders the market camera at the reference's exact frame,
+     785x1511, using the SITE'S OWN materials and lights, so a grade can be
+     judged and pixel-compared without scrolling the whole journey. */
+  html,body{margin:0;background:#000}
+  #host{position:relative;width:785px;height:1511px;overflow:hidden}
+</style></head>
+<body><div id="host"></div>
+<script type="module">
+  import { mountMarketCamera } from "/src/gl/marketCamera.js";
+  const host = document.getElementById("host");
+  const cam = mountMarketCamera(host, { reduced: true });
+  const params = new URLSearchParams(location.search);
+  const yaw = parseFloat(params.get("yaw") || "0");
+  function draw() {
+    cam.setState({
+      visible: true, opacity: 1, yaw, spin: 0, crank: 0, drift: 0, recoil: 0,
+      rect: { x: 0, y: 0, w: 785, h: 1511 },
+    }, 0);
+  }
+  const t = setInterval(() => { if (cam.ready) { draw(); window.__accReady = true; } }, 60);
+  setTimeout(() => clearInterval(t), 15000);
+</script></body></html>
