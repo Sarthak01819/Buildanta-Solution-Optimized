@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>55ed0de</code> · updated 2026-08-14 · generated 2026-08-20 07:19 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>2ffdf5b</code> · updated 2026-08-14 · generated 2026-08-20 07:52 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 35 logged</h2>
+  <h2>Decisions — 36 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -453,6 +453,16 @@
   <summary><span class="did">D-035</span> One shutter, it opens by retracting, aligned by construction <span class="ddate">2026-08-20 (12:40)</span></summary>
   <dl>
     <dt>Decision</dt><dd>Yash: &quot;I want the shutter of the camera lens to get opened on zoom-out, not that purplish blue circle… align the shutter opening with that green circle… and as that green circle gets bigger the green mesh also appears.&quot; Three things were fighting: the model's 3D iris, the <strong>old CSS blade overlay from the photograph era</strong> (built because a scaled PNG could not stay sharp at 13×), and a reveal circle not centred on the lens. The CSS takeover and its wedge iris are now <strong>retired</strong> (elements remain, permanently at opacity 0 — proven dead: forcing display:none changes 0.0000% of pixels).</dd>
+    <dt>Why</dt><dd></dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd></dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-036 the reveal blooms where the shutter opened second skeptic round passed the mechanism (strictly monotonic opening; a real spiral — the nonagon rotates 38.7° while growing; the old css overlay proven dead by removal test, 0 pixels changed) but the central ask still failed: opening and green circle ~46px apart. **cause is not the centring:** the lens node is at model z 0 while the blades sit 232mm in front, and under perspective a point that much nearer the eye projects elsewhere. `marketcamera.projectpupil()` now reports the aperture's real screen point; intro latches it at the handover and the reveal's clip circle and its feather both aim at it. measured: both at (901.6, 439.2) = exactly where projectpupil says the shutter opened.  ">
+  <summary><span class="did">D-036</span> The reveal blooms where the shutter opened <span class="ddate">2026-08-20 (13:20)</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>Second skeptic round passed the mechanism (strictly monotonic opening; a real spiral — the nonagon rotates 38.7° WHILE growing; the old CSS overlay proven dead by removal test, 0 pixels changed) but the central ask still failed: opening and green circle ~46px apart. <strong>Cause is not the centring:</strong> the lens NODE is at model z 0 while the blades sit 232mm in FRONT, and under perspective a point that much nearer the eye projects elsewhere. <code>marketCamera.projectPupil()</code> now reports the aperture's real screen point; intro latches it at the handover and the reveal's clip circle AND its feather both aim at it. Measured: both at (901.6, 439.2) = exactly where projectPupil says the shutter opened.</dd>
     <dt>Why</dt><dd></dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd></dd>
