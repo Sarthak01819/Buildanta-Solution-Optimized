@@ -413,6 +413,8 @@ const RIBBON_FRAG = `
        contrast is what makes a strip read as film at a glance. They still
        curve and twist, because they are still this surface. */
     vec3 col = vec3(0.021, 0.019, 0.029);           // film base — near-black stock
+    float dPre = clamp(abs(vUv.x - uGate) / max(uGate, 1.0 - uGate), 0.0, 1.0);
+    float fallPre = mix(1.20, 0.58, smoothstep(0.12, 0.95, dPre));
     float k = floor(rel + 0.5);
     float x = rel - k;                               // -.5..+.5 within a pitch
     float ph = 0.5 * (uPlateW / uPitch);
@@ -434,12 +436,16 @@ const RIBBON_FRAG = `
       vec3 art = texture2D(uAtlas, auv).rgb;
       col = pow(max(art, vec3(0.0)), vec3(0.52)) * 1.06 + vec3(0.02);
     }
-    /* ⚠️ NO AMBER RAILS. They were invented to "draw the curve", and they
-       are the single loudest cartoon tell — the reference's stock is black
-       to its edge. All that survives is a whisper of edge sheen, barely
-       above the base, so the strip still separates from a black room. */
-    float edge = smoothstep(0.030, 0.008, vUv.y) + smoothstep(0.970, 0.992, vUv.y);
-    col = mix(col, vec3(0.075, 0.066, 0.088), clamp(edge, 0.0, 1.0));
+    /* ⚠️ WARMTH, BUT NOT A PAINTED STRIPE (Yash, 21 Aug 01:45: "the border
+       becomes dark and hard to see — add orange shade like before").
+       The old rails were a SOLID amber band that REPLACED the stock colour
+       over a wide strip — that is what read as cartoon. This is the same
+       warmth delivered as light rather than paint: an ADDITIVE tungsten
+       glow, strongest at the very edge and falling off across the sprocket
+       band, so the stock stays black underneath and the border reads warm
+       instead of being coloured in. */
+    float edge = smoothstep(0.150, 0.0, vUv.y) + smoothstep(0.850, 1.0, vUv.y);
+    col += vec3(0.235, 0.120, 0.038) * clamp(edge, 0.0, 1.0) * clamp(fallPre, 0.55, 1.0);
 
     if (hole) {
       /* not flat white: the lamp behind the gate falls off across the
@@ -483,7 +489,10 @@ const RIBBON_FRAG = `
          of the film does — measured at only 2.3x the room's luminance out
          there, which is the sole thing making a perforation legible where
          nothing bright sits behind it */
-      col += vec3(0.135, 0.138, 0.152) * lip * clamp(fall, 0.74, 1.0) * jitter;
+      /* the punched edge catches the SAME tungsten lamp, so it is amber
+         rather than neutral — this is what makes each perforation read as a
+         warm-rimmed hole in a dark room instead of a grey notch */
+      col += vec3(0.62, 0.34, 0.11) * lip * clamp(fall, 0.74, 1.0) * jitter;
     }
     if (hole) discard;                 // the perforation is an absence
     gl_FragColor = vec4(col, uAlpha);
