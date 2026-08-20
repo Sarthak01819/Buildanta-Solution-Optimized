@@ -299,14 +299,19 @@ const RIBBON_FRAG = `
 
   void main() {
     if (uAlpha < 0.004) discard;
-    /* sprocket perforations are cut into THIS surface, so they curve, twist
-       and foreshorten with the film — never a separate straight band */
     float mm = vUv.x * uArcMM;
     float cell = fract(mm / 46.0);
     bool band = (vUv.y > 0.055 && vUv.y < 0.135) || (vUv.y > 0.865 && vUv.y < 0.945);
-    if (band && abs(cell - 0.5) < 0.20) discard;
+    bool hole = band && abs(cell - 0.5) < 0.20;
 
-    vec3 col = vec3(0.020, 0.015, 0.036);           // film base
+    /* ⚠️ THE PERFORATIONS ARE LIT, NOT CUT (measured 20 Aug, Yash's
+       reference). Discarding them punched through to the act's near-black
+       room, so the sprocket row measured p50 5 against a page background of
+       4 — invisible. In the reference the holes are the BRIGHTEST thing on
+       the film (the lamp behind the gate), and that black-base/white-hole
+       contrast is what makes a strip read as film at a glance. They still
+       curve and twist, because they are still this surface. */
+    vec3 col = vec3(0.030, 0.026, 0.052);           // film base
     /* the slide: plate k is centred where (vUv.x-0.5)/uPitch + uPos == k */
     float rel = (vUv.x - 0.5) / uPitch + uPos;
     float k = floor(rel + 0.5);
@@ -317,11 +322,30 @@ const RIBBON_FRAG = `
       vec2 auv;
       auv.x = (mod(k, 3.0) + (x / ph * 0.5 + 0.5)) / 3.0;
       auv.y = 1.0 - (floor(k / 3.0) + (1.0 - vv)) / 3.0;
-      col = texture2D(uAtlas, auv).rgb;
+      /* ⚠️ A CURVE, NOT A GAIN — the artwork has no midtones to amplify.
+         MEASURED on the source jpgs: median code 6-8 with 67-77% of pixels
+         below 16 (dark fractal art on black), against a reference built
+         from bright screenshots. A linear gain big enough to lift that
+         median blows the few highlights the art does have; a gamma lift
+         raises the midtones and leaves the top alone. This is the honest
+         ceiling for THIS art — the real fix is brighter plates (the
+         replacement brief is already in docs/codex-reel-prompts-v2.md). */
+      vec3 art = texture2D(uAtlas, auv).rgb;
+      col = pow(max(art, vec3(0.0)), vec3(0.52)) * 1.06 + vec3(0.02);
     }
-    /* the apex is lit and readable; both ends recede and dim into the spools */
+    /* thin warm rails down both edges of the stock — the reference's amber
+       lines. They draw the curve even where a plate is dark. */
+    float edge = smoothstep(0.052, 0.032, vUv.y) + smoothstep(0.948, 0.968, vUv.y);
+    col = mix(col, vec3(0.62, 0.36, 0.14), clamp(edge, 0.0, 1.0) * 0.9);
+
+    if (hole) col = vec3(0.92, 0.93, 0.98);          // the lamp through the gate
+
+    /* Falloff GENTLED: at x0.14 the wings measured p50 2-3 against a page
+       background of 4 — the receding plates were literally darker than
+       empty screen. The reference's whole strip stays readable; its ends
+       merely recede. */
     float d = abs(vUv.x - 0.5) * 2.0;
-    col *= mix(1.18, 0.14, smoothstep(0.05, 0.85, d));
+    col *= mix(1.20, 0.58, smoothstep(0.12, 0.95, d));
     gl_FragColor = vec4(col, uAlpha);
   }`;
 
