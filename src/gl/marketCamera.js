@@ -42,7 +42,14 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 import { wantsAA } from "./msaa.js";
 
-const MODEL = "/assets/market-camera.glb";
+/* ⚠️ IMPORTED, not a public/ path (20 Aug 08:30). Cloudflare Pages serves
+   /assets/* with `cache-control: immutable, max-age=31536000`, so a FIXED
+   model filename is cached by the browser for a YEAR and never revalidated:
+   every geometry rebuild shipped invisibly while the (hashed) JS updated
+   around it — Yash saw the original plain box lit by the new rig for a full
+   day. Importing through Vite fingerprints the file, so a changed model is
+   a changed URL. NEVER move this back to public/. */
+import MODEL from "../assets/market-camera.glb?url";
 const FRAME = { left: -341.5, right: 443.5, top: 467, bottom: -1044 };
 const FRAME_W = 785, FRAME_H = 1511;
 const DIST = 5500;
