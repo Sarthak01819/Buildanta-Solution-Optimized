@@ -5673,3 +5673,18 @@ canvas.market-camera3d {
 @media (max-width: 720px) {
   .market-ribbon-caption { left: 1.25rem; top: 9vh; }
 }
+
+/* ── THE HIDDEN PLATES MUST NOT CATCH THE MOUSE (audit, 21 Aug) ─────────
+   `.market-film` is pointer-events:none, but a descendant that sets `auto`
+   overrides an ancestor's `none` — anchors do, so the nine invisible cards
+   were computing to `auto` at z-index 10, ABOVE the canvas. They swallowed
+   every click and opened whichever card the OLD DOM layout happened to put
+   under the cursor, which is why the sheet never matched the plate you
+   clicked. Mouse belongs to the canvas raycast; the anchors stay in the
+   tree, Tab-reachable and screen-reader complete, and a keyboard Enter
+   still fires their click handler — none of which needs pointer-events. */
+.market-film,
+.market-film .market-frame,
+.market-film .market-frame * {
+  pointer-events: none !important;
+}

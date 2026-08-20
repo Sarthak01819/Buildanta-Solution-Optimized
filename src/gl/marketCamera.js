@@ -479,10 +479,14 @@ const RIBBON_FRAG = `
     if (!hole) {
       float idx = floor(filmMM / 62.0);
       float jitter = 0.92 + 0.08 * fract(sin(idx * 12.9898) * 43758.5453);
-      col += vec3(0.115, 0.118, 0.132) * lip * clamp(fall, 0.45, 1.0) * jitter;
+      /* the lip keeps its brightness further into the dim end than the rest
+         of the film does — measured at only 2.3x the room's luminance out
+         there, which is the sole thing making a perforation legible where
+         nothing bright sits behind it */
+      col += vec3(0.135, 0.138, 0.152) * lip * clamp(fall, 0.74, 1.0) * jitter;
     }
-    gl_FragColor = vec4(col, hole ? 0.0 : uAlpha);
-    if (hole) discard;
+    if (hole) discard;                 // the perforation is an absence
+    gl_FragColor = vec4(col, uAlpha);
   }`;
 
 export function mountMarketCamera(host, { reduced = false, onReady = null } = {}) {
