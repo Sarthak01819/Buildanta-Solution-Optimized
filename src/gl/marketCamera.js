@@ -33,8 +33,9 @@
  */
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, AmbientLight, DirectionalLight,
-  Color, Vector3, SRGBColorSpace, ACESFilmicToneMapping,
-  PMREMGenerator, CanvasTexture, RepeatWrapping, MeshPhysicalMaterial,
+  PointLight, Color, Vector3, SRGBColorSpace, ACESFilmicToneMapping,
+  PMREMGenerator, CanvasTexture, RepeatWrapping, MeshStandardMaterial,
+  PCFSoftShadowMap,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
@@ -50,6 +51,32 @@ const DIST = 5500;
    horizontally into a brushed finish. Grayscale — used as roughnessMap
    (green channel) and bumpMap at once. Seeded LCG so every visit renders
    the identical machine. */
+/* Roughness map with an EXPLICIT range (spec: 0.30-0.55, never uniform):
+   texel values are the roughness itself; material.roughness stays 1.0 so
+   the map is authoritative. */
+function roughTex(size, lo, hi, brushed) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  const img = g.createImageData(size, size);
+  let sd = 0x2545f491;
+  const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = Math.round((lo + rnd() * (hi - lo)) * 255);
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  if (brushed) {
+    g.globalAlpha = 0.45;
+    for (const dx of [1, 2, 4, 9, 17]) { g.drawImage(c, dx, 0); g.drawImage(c, -dx, 0); }
+    g.globalAlpha = 1;
+  }
+  const t = new CanvasTexture(c);
+  t.wrapS = t.wrapT = RepeatWrapping;
+  return t;
+}
+
 function grainTex(size, amp, brushed) {
   const c = document.createElement("canvas");
   c.width = c.height = size;
@@ -84,7 +111,9 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 0.95;          // spec 20 Aug — 1.1 washed the body out
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = PCFSoftShadowMap;
 
   const scene = new Scene();
   /* The room the metal reflects. Blurred (sigma .35) so reflections read as
@@ -103,17 +132,33 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   camera.position.set(cx, cy, DIST);
   camera.lookAt(cx, cy, 0);
 
-  /* Directional, not point: at mm scale physically-decayed point lights
-     attenuate to black. Levels sit LOWER than the pre-environment rig —
-     the PMREM adds its own fill, and stacking both blew the body out. */
-  scene.add(new AmbientLight(0x9fb4ff, 0.28));
-  const rimA = new DirectionalLight(0xa98bff, 2.2);   // cool, behind-left
-  rimA.position.set(-900, 650, 350);
-  const rimB = new DirectionalLight(0xffd8a0, 1.25);  // warm kick, right
-  rimB.position.set(500, 260, 700);
-  const key = new DirectionalLight(0xcfd6ff, 1.45);   // soft front key
-  key.position.set(150, -80, 1400);
-  scene.add(rimA, rimB, key);
+  /* THREE-POINT RIG (spec 20 Aug §3). No light is white; no light is
+     neutral — the act is lit violet and amber and the camera sits INSIDE
+     that lighting. Ambient at 0.10 only lifts shadows off pure black; the
+     old 0.28 + white-ish key is what rendered the body light and lavender. */
+  scene.add(new AmbientLight(0x9fb8ff, 0.10));
+  const modelCentre = new Vector3(51, -288, 0);
+  // KEY: violet, upper-left-front (elev 35deg, azimuth -40deg), shadowed
+  const key = new DirectionalLight(0xa98bff, 2.4);
+  key.position.set(-1157, 1263, 1379);
+  key.castShadow = true;
+  key.shadow.bias = -0.0005;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.left = key.shadow.camera.bottom = -1500;
+  key.shadow.camera.right = key.shadow.camera.top = 1500;
+  key.shadow.camera.near = 200;
+  key.shadow.camera.far = 7000;
+  key.target.position.copy(modelCentre);
+  // FILL: warm amber point, lower-right, about half the key. decay 0 —
+  // physically-decayed point lights attenuate to black at mm scale.
+  const fill = new PointLight(0xffd8a0, 1.0, 0, 0);
+  fill.position.set(800, -850, 900);
+  // RIM: pale lavender from behind-above (azimuth 155deg) — the light that
+  // separates the silhouette from the black backdrop.
+  const rim = new DirectionalLight(0xc7bfe0, 1.6);
+  rim.position.set(659, 900, -1413);
+  rim.target.position.copy(modelCentre);
+  scene.add(key, key.target, fill, rim, rim.target);
 
   const rig = new Group();       // yaw + recoil happen here, about the lens
   scene.add(rig);
@@ -137,75 +182,54 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     model.traverse((o) => {
       if (o.isMesh) o.geometry = toCreasedNormals(o.geometry, (40 * Math.PI) / 180);
     });
-    /* Base treatment for anything not claimed below (head etc.): painted
-       housing metal. Grain repeats HIGH (8x): at rest it is a whisper, and
-       the 13x push magnifies it into fine sandblasted metal instead of
-       stucco — the texture is chosen for its most-magnified moment. */
-    const grain = grainTex(512, 55, false);
-    grain.repeat.set(8, 8);
-    const brushed = grainTex(512, 96, true);
-    brushed.repeat.set(4, 4);
+    /* MATERIAL PASS (spec 20 Aug §2). One base treatment for the whole
+       machine: #303040 at metalness .78, roughness VARIED 0.30-0.55 by a
+       procedural map so no face is uniformly one value, envMapIntensity
+       0.5. Primitives on the cam_wear slot (reel rims, knob ridges, crank
+       grip, leg collars — split by the GLB's material slots) get edge wear:
+       lifted toward #4A4A62, slightly tighter roughness. No clearcoat, no
+       emissive — nothing on this object glows. Roughness maps stay high-
+       repeat: chosen for the 13x push, a whisper at rest. */
+    const rough = roughTex(512, 0.30, 0.55, false);
+    rough.repeat.set(8, 8);
+    const roughWear = roughTex(512, 0.24, 0.40, true);
+    roughWear.repeat.set(4, 4);
+    const bump = grainTex(512, 55, false);
+    bump.repeat.set(8, 8);
     model.traverse((o) => {
-      if (o.isMesh && o.material && o.material.isMeshStandardMaterial) {
-        o.material.color = new Color(0x32323f);
-        o.material.metalness = 0.55;
-        o.material.roughness = 0.5;
-        o.material.roughnessMap = grain;
-        o.material.bumpMap = grain;
-        o.material.bumpScale = 0.22;
-        o.material.envMapIntensity = 0.7;
-      }
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      o.receiveShadow = true;
+      if (!o.material || !o.material.isMeshStandardMaterial) return;
+      const wear = /wear/i.test(o.material.name || "");
+      o.material = o.material.clone();
+      o.material.color = new Color(wear ? 0x4a4a62 : 0x303040);
+      o.material.metalness = wear ? 0.85 : 0.78;
+      o.material.roughness = 1.0;                     // the map is authoritative
+      o.material.roughnessMap = wear ? roughWear : rough;
+      o.material.bumpMap = bump;
+      o.material.bumpScale = wear ? 0.08 : 0.18;
+      o.material.envMapIntensity = 0.5;
     });
-    /* The moving metal: spools and crank in brushed steel, brighter and
-       more reflective than the housing so the motion catches light. */
-    for (const name of ["reel_a", "reel_b", "crank"]) {
-      const part = model.getObjectByName(name);
-      if (part) part.traverse((o) => {
-        if (o.isMesh && o.material) {
-          o.material = o.material.clone();
-          o.material.color = new Color(0x4a4a58);
-          o.material.metalness = 0.95;
-          o.material.roughness = 0.3;
-          o.material.roughnessMap = brushed;
-          o.material.bumpMap = brushed;
-          o.material.bumpScale = 0.12;
-          o.material.envMapIntensity = 1.0;
-        }
-      });
-    }
-    const tripodObj = model.getObjectByName("tripod");
-    if (tripodObj) tripodObj.traverse((o) => {
-      if (o.isMesh && o.material) {
-        o.material = o.material.clone();
-        o.material.color = new Color(0x26262f);
-        o.material.metalness = 0.8;
-        o.material.roughness = 0.44;
-        o.material.envMapIntensity = 0.55;
-      }
-    });
-    /* The lens is the destination of the push. Two materials, split by
-       mesh name (the GLB parents the glass as a child "l_glass"): the
-       SURROUND is bright machined metal — in the reference every ring is
-       silver and only the element is dark — and the glass itself is
-       near-black clearcoat with one bright environment ring. */
+    /* THE ELEMENT (spec §1): dark charcoal glass, NOT a mirror — metalness
+       0, base #0A0A12, roughness 0.18 at the apex rising to 0.45 at the
+       rim. The radial ramp is a view-normal mix injected into the standard
+       shader: the apex faces the viewer (n.v -> 1 -> 0.18), the rim grazes
+       (n.v -> 0 -> 0.45). It must read as DEPTH, not reflection. */
     const lensObj = model.getObjectByName("lens");
     if (lensObj) lensObj.traverse((o) => {
-      if (o.isMesh && o.material) {
-        if (/glass/i.test(o.name)) {
-          o.material = new MeshPhysicalMaterial({
-            color: 0x08080e, metalness: 0.45, roughness: 0.08,
-            clearcoat: 1.0, clearcoatRoughness: 0.08, envMapIntensity: 0.75,
-          });
-        } else {
-          o.material = o.material.clone();
-          o.material.color = new Color(0x585866);
-          o.material.metalness = 0.95;
-          o.material.roughness = 0.26;
-          o.material.roughnessMap = brushed;
-          o.material.bumpMap = brushed;
-          o.material.bumpScale = 0.15;
-          o.material.envMapIntensity = 1.05;
-        }
+      if (o.isMesh && /glass/i.test(o.name)) {
+        const m = new MeshStandardMaterial({
+          color: 0x0a0a12, metalness: 0.0, roughness: 1.0, envMapIntensity: 0.5,
+        });
+        m.onBeforeCompile = (sh) => {
+          sh.fragmentShader = sh.fragmentShader.replace(
+            "#include <roughnessmap_fragment>",
+            `#include <roughnessmap_fragment>
+             { float ndv = abs(dot(normalize(vNormal), normalize(vViewPosition)));
+               roughnessFactor = mix(0.45, 0.18, ndv); }`);
+        };
+        o.material = m;
       }
     });
     for (const n of ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod"])

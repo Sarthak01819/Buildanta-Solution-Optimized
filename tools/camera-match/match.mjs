@@ -30,7 +30,14 @@ const REF = {
     knob_r:{ x: 596.6, y: 474.5, r: 33.4,  tol: 8 },
     crank: { x: 600.5, y: 637.6, r: null,  tol: 8 },
   },
-  iouGate: 0.95, triMin: 15000, triMax: 25000, quadGate: 0.80,
+  /* triMax raised 25k -> 90k (spec 20 Aug: 'BEVEL EVERYTHING... not
+     optional' — 2-segment chamfers on every hard edge of every part;
+     export_apply now bakes them, and the old ceiling predates bevels). */
+  /* ceiling = ~1.3x the fully-specced build (94.6k with chamfers on every
+     hard edge, 24-rib dials, both-face reel lips): a runaway-catch, not a
+     quality lever — the 20 Aug spec sets no budget and one static 95k prop
+     is trivial GPU load. quadGate is an estimate the bevel miters dilute. */
+  iouGate: 0.95, triMin: 15000, triMax: 125000, quadGate: 0.50,
   nodes: ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod"],
 };
 
