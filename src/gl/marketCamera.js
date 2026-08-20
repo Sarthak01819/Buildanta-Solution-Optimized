@@ -463,21 +463,26 @@ const RIBBON_FRAG = `
     float gn = fract(sin(dot(vec2(filmMM, acrossMM), vec2(12.9898, 78.233))) * 43758.5453);
     col *= 0.955 + 0.09 * gn;
 
-    /* ⚠️ THE PERFORATIONS ARE PAINTED LAST, AND DELIBERATELY NOT WHITE.
-       They were coloured BEFORE this falloff, which multiplied 0.90 by 1.20
-       and CLIPPED them to pure 255 with under 1 LSB of variation across the
-       whole opening — measured. That is exactly what makes a hole read as a
-       painted white rectangle. They now carry their own value, ceilinged
-       below clip, dimmed with distance like everything else, and varied per
-       perforation so the row is not machine-perfect. */
-    if (hole) {
-      float soft = smoothstep(0.0, -2.4, sd);
+    /* ⚠️ THE PERFORATIONS ARE HOLES, NOT PAINT (Yash, 21 Aug 01:00: "there
+       are no white boxes on the border in the reference — those squares are
+       transparent"). He is right: film perforations are absences. They were
+       lit because, cut against a near-black room, an empty hole simply
+       vanished — but painting them is what made the border read as graphic
+       design. They are DISCARDED now, so whatever lies behind the film shows
+       through: the room, the machine's body, a tripod leg.
+       The one thing that is NOT absent is the punched edge. A cut edge in
+       real stock catches light, and that thin bright lip is what keeps a
+       perforation legible against a dark background instead of disappearing
+       into it — so the film reads as perforated even where nothing bright
+       sits behind it. */
+    float lip = smoothstep(1.7, 0.0, abs(sd));
+    if (!hole) {
       float idx = floor(filmMM / 62.0);
-      float jitter = 0.94 + 0.06 * fract(sin(idx * 12.9898) * 43758.5453);
-      float lamp = mix(0.60, 0.90, soft) * clamp(fall, 0.45, 1.0) * jitter;
-      col = vec3(lamp * 0.97, lamp * 0.98, lamp);
+      float jitter = 0.92 + 0.08 * fract(sin(idx * 12.9898) * 43758.5453);
+      col += vec3(0.115, 0.118, 0.132) * lip * clamp(fall, 0.45, 1.0) * jitter;
     }
-    gl_FragColor = vec4(col, uAlpha);
+    gl_FragColor = vec4(col, hole ? 0.0 : uAlpha);
+    if (hole) discard;
   }`;
 
 export function mountMarketCamera(host, { reduced = false, onReady = null } = {}) {
