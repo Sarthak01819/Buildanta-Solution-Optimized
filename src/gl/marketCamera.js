@@ -484,7 +484,7 @@ const RIBBON_FRAG = `
     float lip = smoothstep(1.7, 0.0, abs(sd));
     if (!hole) {
       float idx = floor(filmMM / 62.0);
-      float jitter = 0.92 + 0.08 * fract(sin(idx * 12.9898) * 43758.5453);
+      float jitter = 0.80 + 0.20 * fract(sin(idx * 12.9898) * 43758.5453);
       /* the lip keeps its brightness further into the dim end than the rest
          of the film does — measured at only 2.3x the room's luminance out
          there, which is the sole thing making a perforation legible where
@@ -492,7 +492,11 @@ const RIBBON_FRAG = `
       /* the punched edge catches the SAME tungsten lamp, so it is amber
          rather than neutral — this is what makes each perforation read as a
          warm-rimmed hole in a dark room instead of a grey notch */
-      col += vec3(0.62, 0.34, 0.11) * lip * clamp(fall, 0.74, 1.0) * jitter;
+      /* ⚠️ the rim must not OUTSHINE the stock beside it — at 0.62 it peaked
+         2.4x the neighbouring glow and read as a drawn orange outline traced
+         round every hole. A real punched edge catches the lamp; it does not
+         exceed the film's own highlight. */
+      col += vec3(0.27, 0.150, 0.049) * lip * clamp(fall, 0.74, 1.0) * jitter;
     }
     if (hole) discard;                 // the perforation is an absence
     gl_FragColor = vec4(col, uAlpha);

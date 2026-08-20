@@ -4674,7 +4674,23 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
   z-index: 8;
   pointer-events: none;
   opacity: var(--market-room, 0);
-  background: linear-gradient(90deg, #04030a 0%, rgba(4,3,10,.85) 6%, transparent 17%, transparent 83%, rgba(4,3,10,.85) 94%, #04030a 100%);
+  /* ⚠️ RESET THE TRANSFORM. An EARLIER .market-experience::after rule sets
+     `transform: scale(calc(.96 + var(--market-camera-depth,0) * .08))`, and
+     this block redefines everything else without touching it — so during
+     the reel beat (camera-depth 0) this curtain painted at scale(.96): a box
+     inset exactly 2% on every side. That 2% is 38px at 1900px wide, which is
+     EXACTLY the "tear" that survived four geometry rebuilds unchanged and
+     cost hours — a hard brightness seam 38px in from each screen edge, in
+     screen space, invariant to the ribbon's shape. It was never the film. */
+  transform: none;
+  /* The side fade also IS the "border is dark and hard to see" complaint:
+     at .85 opacity out to 17% it crushed the film's warm edge to 2.5-4.3x
+     the room (WCAG 1.03-1.08) over the outer sixth of the screen, and made
+     the sprocket edge unfindable across ~100px. Softened and pulled in, so
+     it still vignettes the strip's ends without erasing them. */
+  background: linear-gradient(90deg,
+    rgba(4,3,10,.92) 0%, rgba(4,3,10,.42) 4%, transparent 10%,
+    transparent 90%, rgba(4,3,10,.42) 96%, rgba(4,3,10,.92) 100%);
 }
 
 /* ── service sheet (a reel plate's detail surface) ─────────────────────── */
