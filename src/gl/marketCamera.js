@@ -35,7 +35,7 @@ import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, AmbientLight, DirectionalLight,
   PointLight, HemisphereLight, Color, Vector3, SRGBColorSpace, ACESFilmicToneMapping,
   PMREMGenerator, CanvasTexture, MeshStandardMaterial, MeshBasicMaterial,
-  Mesh, SphereGeometry, BackSide, PCFSoftShadowMap,
+  Mesh, SphereGeometry, BackSide, DoubleSide, PCFSoftShadowMap,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
@@ -387,8 +387,10 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
                 (Ownership by angular wedge was tried and is wrong: it
                 flattens the whole iris, because the arc distance then has
                 no relationship to which plate the eye actually sees.)
-                Constants mirror the build script exactly: bite r78 centred
-                69mm out, 40deg pitch, 12deg phase. */
+                ⚠️ These five constants are DUPLICATED from
+                build_camera.py (IRIS_R 63, ARC_R 78, ARC_D 69, 40deg pitch,
+                12deg phase). Changing one copy alone decouples the lit arcs
+                from the real edges. */
              /* A real iris overlaps CYCLICALLY — each plate laps the next
                 and the last laps the first — so there is no global top blade,
                 and every global rule fails a different way: a strict z-order
@@ -441,9 +443,19 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     const lensObj = model.getObjectByName("lens");
     if (lensObj) lensObj.traverse((o) => {
       if (o.isMesh && /tunnel/i.test(o.name)) {
-        o.material = new MeshStandardMaterial({
-          color: 0x05040a, metalness: 0.0, roughness: 0.95, envMapIntensity: 0.02,
+        /* ⚠️ METALNESS 1 IS THE TRICK, not a typo. At metalness 0 a
+           near-black dielectric still keeps F0 = 0.04, and this scene's
+           environment is an HDR multiplier — 4% of it is a visible violet
+           sheen, so the "hole" measured about as bright as the blades. For a
+           METAL, F0 IS the colour, so one near-black value kills the
+           environment reflection and the key's specular together. */
+        const mt = new MeshStandardMaterial({
+          color: 0x0a0812, metalness: 1.0, roughness: 0.85,
+          envMapIntensity: 0.02, side: DoubleSide,
         });
+        mt.envMap = scene.environment;   // without this, 0.02 is overwritten by 1.0
+        o.material = mt;
+        o.castShadow = false; o.receiveShadow = false;
         return;
       }
       if (o.isMesh && /glass/i.test(o.name)) {

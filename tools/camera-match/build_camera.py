@@ -263,63 +263,76 @@ lens_parts.append(bore)
 BARREL_FRONT = LP0 - 88
 
 # ── THE IRIS (Yash, 10:46: "the lens does not look real") ───────────────────
-# A real aperture, not a ball in a hole. NINE blades, each a thin plate that
-# is a full disc MINUS a circular bite: plate_k = disc(IRIS_R) - cyl(ARC_R at
-# distance ARC_D, angle k*40deg). Stacked at descending z, the topmost blade
-# hides all but its own bite, the next shows through that, and so on — which
-# is exactly how a real iris reads: a pinwheel of arc edges spiralling into
-# the pupil. The pupil is where EVERY blade is absent, so its inradius falls
-# out of the geometry as ARC_D - ARC_R; no separate hole is modelled.
-IRIS_R      = 63.0
-# ⚠️ The bite must CONTAIN the axis. With ARC_R < ARC_D every blade covered
-# the centre and the iris closed completely — a pinwheel with no pupil. The
-# pupil inradius is ARC_R - ARC_D, so the bite reaches 9mm past the axis.
-# Bite centre sits OUTSIDE the iris (69 > 63) so each blade's leading arc
-# sweeps right across the face instead of curling up near the axis — that
-# broad sweep is what makes a real iris read. Pupil is unchanged: it is
-# always ARC_R - ARC_D.
-ARC_R       = 78.0
-ARC_D       = 69.0            # pupil inradius = 78 - 69 = 9mm (14% of iris dia)
-BLADE_T     = 0.9
-BLADE_STEP  = 0.5             # z pitch: enough to beat z-fighting at 13x
-IRIS_FRONT  = BARREL_FRONT + 14
+# A real aperture. NINE blades, each a plate that is a disc minus its own
+# circular bite (r78 centred 69mm out) and minus blade k+4's bite as a
+# trailing trim — so every geometric edge in the assembly lies on one of the
+# nine arcs the runtime shader draws analytically. The pupil is not modelled:
+# it falls out as ARC_R - ARC_D = 9mm, the region no blade reaches.
+# ⚠️ THESE FIVE CONSTANTS ARE DUPLICATED AS LITERALS IN marketCamera.js
+# (`/ 63.0`, `- 78.0`, `* 69.0`, `0.69813170`, `0.20943951`). Changing one
+# copy alone silently decouples the lit arcs from the real edges.
+IRIS_R       = 63.0
+ARC_R        = 78.0
+ARC_D        = 69.0
+BLADE_T      = 0.60
+BLADE_STEP   = 0.85           # ⚠️ MUST exceed BLADE_T or the plates interpenetrate
+                              # and fuse into a slab with no lap step at 13x
+IRIS_Z_FRONT = 236.0          # model z of the frontmost plate's front face
+SEG_IRIS     = 96             # each blade's leading arc is the most-looked-at
+                              # line in the whole machine at the push
 blades = []
 for k in range(9):
-    a = k * 2 * math.pi / 9 + math.radians(12)
-    zy = IRIS_FRONT + k * BLADE_STEP           # blender y = depth
-    plate = cyl("iris_blade", IRIS_R, BLADE_T, (0, zy, 0), SEG_LENS, 'Y')
-    # ⚠️ NO per-blade tilt. join() bakes the FIRST part's transform as the
-    # merged mesh's frame, so tilting blade 0 tilted the space the runtime's
-    # pinwheel shader measures its angle in — the sector convergence drifted
-    # off the pupil. Blades stay coplanar; the stack's z-step gives the
-    # overlap read instead.
-    bite = cyl("bite", ARC_R, BLADE_T * 6,
-               (math.cos(a) * ARC_D, zy, math.sin(a) * ARC_D), 48, 'Y')
-    cut(plate, bite)
-    blades.append(tag_wear(plate) if k % 3 == 0 else plate)
+    a  = k * 2 * math.pi / 9 + math.radians(12)
+    zc = -(IRIS_Z_FRONT - (8 - k) * BLADE_STEP - BLADE_T / 2)   # blender y
+    plate = cyl("iris_blade", IRIS_R, BLADE_T, (0, zc, 0), SEG_IRIS, 'Y')
+    cut(plate, cyl("bite", ARC_R, BLADE_T * 6,
+                   (math.cos(a) * ARC_D, zc, math.sin(a) * ARC_D), SEG_IRIS, 'Y'))
+    # ⚠️ NO trailing trim. Cutting blade k with blade k+4's bite as well was
+    # specced to put every geometric edge on one of the shader's nine arcs —
+    # but as a DIFFERENCE it eats the plate from both sides, and the nine
+    # remaining crescents no longer tile the field: a star-shaped hole opens
+    # onto the throat. The plates stay full discs minus their own bite; the
+    # shader supplies the visible lap.
+    blades.append(plate)      # ⚠️ no wear tag: a second material slot would
+                              # split iris_blades into two glTF primitives
 iris = join(blades, "iris_blades")
 
-# the tunnel behind the pupil — without it the pupil reads as a black DISC
-# rather than a hole with depth
-tunnel = cyl("iris_tunnel", 11.0, 120, (0, IRIS_FRONT + 66, 0), 32, 'Y')
+# ── THE THROAT the pupil looks into ─────────────────────────────────────────
+# ⚠️ The old one did nothing twice over: `lens_parts.append(tunnel)` merged it
+# into `lens`, and glTF names a merged mesh after the join's FIRST part — so
+# no mesh matching /tunnel/i survived and the runtime's tunnel rule matched
+# nothing. It was also a solid rod, whose flat front face is exactly the
+# "black disc" it was meant to prevent. Now: a stepped bore, kept as its own
+# object and PARENTED (never joined), with four forward-facing baffle ledges.
+tunnel = cyl("iris_tunnel", 16.0, 56.0, (0, -204.0, 0), 48, 'Y')
+for _r, _z1 in [(11.0, 221.0), (8.8, 207.0), (6.6, 194.0), (4.4, 182.0)]:
+    cut(tunnel, cyl("tb", _r, 236.0 - _z1, (0, -(236.0 + _z1) / 2, 0), 48, 'Y'))
+set_origin(tunnel, (0, 0, 0))
 
-# the front element: a shallow spherical CAP, not a marble. A large-radius
-# sphere clipped by the bore gives a gently domed glass cover whose apex
-# stands only 6mm proud — the reference's glass is nearly flat and reads by
-# its specular sweep, not by its bulge.
-GLASS_R = 190.0
+# ── THE COVER GLASS ─────────────────────────────────────────────────────────
+# ⚠️ THIS WAS A 380mm BALL. cut() is a DIFFERENCE where the trim wanted an
+# INTERSECT, so the "shallow cap" exported as a whole sphere enclosing the
+# machine — and because it is a child of `lens`, marketCamera.js's geometry
+# scan read rimR = 190 instead of 117 and projectLensCircle() reported a lens
+# circle 1.6x too large, silently breaking the takeover-iris alignment of
+# D-026. An oblate spheroid IS the cap: no giant sphere, nothing to trim.
+GLASS_RIM_R, GLASS_RIM_Z, GLASS_SAG = 64.2, 247.0, 11.0
 bpy.ops.object.select_all(action='DESELECT')
-bpy.ops.mesh.primitive_uv_sphere_add(segments=SEG_LENS, ring_count=48,
-    radius=GLASS_R, location=(0, BARREL_FRONT + 6 + GLASS_R, 0))
+bpy.ops.mesh.primitive_uv_sphere_add(segments=SEG_LENS, ring_count=32,
+    radius=GLASS_RIM_R, location=(0, -GLASS_RIM_Z, 0))
 dome = bpy.context.object; dome.name = "l_glass"
 dome.data.materials.append(MAT_BASE)
-cut(dome, cyl("glass_trim", IRIS_R + 3, GLASS_R * 3,
-              (0, BARREL_FRONT + 6 + GLASS_R + GLASS_R, 0), SEG_LENS, 'Y'))
-lens_parts.append(tunnel)
+dome.scale = (1.0, GLASS_SAG / GLASS_RIM_R, 1.0)
+# ⚠️ location=False, rotation=False. transform_apply defaults BOTH to True, so
+# the short form bakes the part's world position into its mesh — and any lens
+# child whose location is baked in reports that position as its bounding box
+# and outvotes the flange for rimR. Same class of bug as the ball above.
+bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+cut(dome, cyl("cap_cut", 200.0, 200.0, (0, -GLASS_RIM_Z + 100.0, 0), 16, 'Y'))
 lens = join(lens_parts, "lens")
 set_origin(lens, (0, 0, 0))
 bpy.ops.object.select_all(action='DESELECT')
-dome.select_set(True); iris.select_set(True); lens.select_set(True)
+dome.select_set(True); iris.select_set(True); tunnel.select_set(True); lens.select_set(True)
 bpy.context.view_layer.objects.active = lens
 bpy.ops.object.parent_set(type='OBJECT', keep_transform=True)
 
@@ -499,7 +512,7 @@ set_origin(tripod, (0, (CROWN_TOP + CROWN_BOT) / 2, 0))
 # crisp chamfer line). Chamfer must stay small relative to the face it sits
 # on: big body panels can carry 2.5mm, reel webs no more than 1mm.
 for o, w in [(camera_body, 2.0), (reel_a, 1.6), (reel_b, 1.6), (lens, 1.6),
-             (dome, 1.0), (iris, 0.25), (crank, 1.2), (head, 1.6), (tripod, 1.6)]:
+             (dome, 0.4), (crank, 1.2), (head, 1.6), (tripod, 1.6)]:
     bevel(o, w, 1)
 
 # ── material ─────────────────────────────────────────────────────────────────
@@ -521,12 +534,17 @@ _w.inputs["Roughness"].default_value = 0.30
 # ── bounds audit: every part's blender-y (depth) range, so a part sitting in
 # front of the lens (y < -240) is caught at BUILD time, not in the site ──
 print("AUDIT depth ranges (blender y; lens occupies -150..-294):")
-for o in [camera_body, reel_a, reel_b, lens, dome, crank, head, tripod]:
+for o in [camera_body, reel_a, reel_b, lens, dome, iris, tunnel, crank, head, tripod]:
     ys = [ (o.matrix_world @ v.co).y for v in o.data.vertices ]
     # tripod is exempt: the reference's third leg points TOWARD camera, so it
     # legitimately crosses the lens plane far below the lens itself
     flag = "  <-- IN FRONT OF LENS PLANE" if min(ys) < -244 and o.name not in ("lens", "l_glass", "tripod") else ""
     print(f"  {o.name:12} y {min(ys):8.1f} .. {max(ys):8.1f}{flag}")
+    # RADIUS assertion: depth alone never caught the 380mm glass ball, and a
+    # lens child wider than the flange hijacks rimR in projectLensCircle()
+    xs = [(o.matrix_world @ v.co).x for v in o.data.vertices]
+    if o.name in ("l_glass", "iris_blades", "iris_tunnel") and max(map(abs, xs)) > LENS_R_FLANGE:
+        print(f"  !! {o.name} is wider than the flange — it will hijack rimR")
 
 out = sys.argv[sys.argv.index("--") + 1] if "--" in sys.argv else "/tmp/camera.glb"
 bpy.ops.object.select_all(action='SELECT')
