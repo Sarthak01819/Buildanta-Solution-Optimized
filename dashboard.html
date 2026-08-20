@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>05d5d13</code> · updated 2026-08-14 · generated 2026-08-19 18:40 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>cfee095</code> · updated 2026-08-14 · generated 2026-08-20 02:33 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 28 logged</h2>
+  <h2>Decisions — 29 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -383,6 +383,16 @@
   <summary><span class="did">D-028</span> The model matches Yash's reference; the rings truly align <span class="ddate">2026-08-20 (00:20)</span></summary>
   <dl>
     <dt>Decision</dt><dd>Detail pass on build_camera.py against Yash's reference image: SAME anchors/frame/pivot (realism = hardware vocabulary, not proportions — resizing to the reference's proportions would have re-derived the whole handoff contract at midnight). Added: recessed glass (child mesh l_glass → surround gets bright brushed metal, element gets dark clearcoat), ridge/retaining rings, bolted bezel frame, knurled dials, flank studs, tilt axle + end knobs, telescopic tripod (double collars, spike + ball-tip feet), reel hub caps. 23,320 tris; anchors 0.00mm; IoU 0.735 ≈ the accepted 0.739 baseline (envelope preserved).</dd>
+    <dt>Why</dt><dd></dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd></dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-029 machined metal under studio light (yash's full shading spec) executed yash's 07:41 spec end-to-end. geometry: recessed bolted panel with screw wells, shallow element (apex 18mm proud — the ball look is dead), turning grooves, both-face reel lips + recessed web + hub bore, horn viewfinder, 24-rib dials, 18mm crank stock, and bevel everything (2mm/2seg/40°) with export_apply=true — **the old export never carried the body bevel; a modifier alone never leaves blender**. material: base #303040/metal .78/roughness 0.30–.55 mapped, wear slots → #4a4a62 (blender material slots → gltf primitives); element #0a0a12 metal 0 with a 0.18→0.45 view-normal roughness ramp. luminance: exposure .95, violet key 2.4 (pcfsoft shadows), amber fill (decay 0), lavender rim, ambient .10 — no white light. acceptance measured: midtones 29–51 rgb, key face ≤(96,95,126), only bevels/speculars over ceiling.  ">
+  <summary><span class="did">D-029</span> Machined metal under studio light (Yash's full shading spec) <span class="ddate">2026-08-20 (08:20)</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>Executed Yash's 07:41 spec end-to-end. Geometry: recessed bolted panel with screw WELLS, shallow element (apex 18mm proud — the ball look is dead), turning grooves, both-face reel lips + recessed web + hub bore, horn viewfinder, 24-rib dials, 18mm crank stock, and BEVEL EVERYTHING (2mm/2seg/40°) with export_apply=True — <strong>the old export NEVER carried the body bevel; a modifier alone never leaves Blender</strong>. Material: base #303040/metal .78/roughness 0.30–.55 mapped, wear slots → #4A4A62 (Blender material slots → glTF primitives); element #0A0A12 metal 0 with a 0.18→0.45 view-normal roughness ramp. Luminance: exposure .95, violet key 2.4 (PCFSoft shadows), amber fill (decay 0), lavender rim, ambient .10 — no white light. Acceptance measured: midtones 29–51 RGB, key face ≤(96,95,126), only bevels/speculars over ceiling.</dd>
     <dt>Why</dt><dd></dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd></dd>
