@@ -266,6 +266,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
 
   const nodes = {};
   let glassMat = null;
+  let bladeSh = null;      // compiled blade shader, for the aperture uniform
   let ready = false;
   /* the lens flange's front rim, in the lens node's local space — measured
      from the geometry at load, used to project the VISUAL lens circle */
@@ -354,12 +355,30 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
          The blades are the one place the act's two lights meet on a single
          surface, which is what makes them read as an optic. */
       m.onBeforeCompile = (sh) => {
+        sh.uniforms.uOpen = { value: 0 };
+        bladeSh = sh;
         sh.vertexShader = sh.vertexShader
           .replace("#include <common>", "#include <common>\nvarying vec3 vIrisPos;")
           .replace("#include <begin_vertex>", "#include <begin_vertex>\n vIrisPos = position;");
         sh.fragmentShader = sh.fragmentShader
-          .replace("#include <common>", "#include <common>\nvarying vec3 vIrisPos;")
+          .replace("#include <common>", "#include <common>\nvarying vec3 vIrisPos;\nuniform float uOpen;")
           .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+             /* THE APERTURE OPENS HERE. Everything inside the pupil radius
+                is discarded, so the plates are eaten from the inside out
+                exactly as a retracting iris looks — and past full open the
+                blade field is gone entirely, leaving the bore empty for the
+                page beneath to show through. 9mm shut, 70mm past the blade
+                rim (63mm) so the last sliver clears. */
+             {
+               /* NINE-SIDED, not circular: a physical iris opens as a
+                  polygon whose sides are the blades' own edges, and it
+                  turns with them. A round discard read as a machined ring
+                  rather than a mechanism. */
+               float aa = atan(vIrisPos.y, vIrisPos.x) - uOpen * 0.55;
+               float wedge = mod(aa + 3.14159265, 0.69813170) - 0.34906585;
+               float poly = 1.0 / max(cos(wedge), 0.30);
+               if (length(vIrisPos.xy) < mix(9.0, 70.0, uOpen) * poly) discard;
+             }
              /* ⚠️ .xy, NOT .xz. Blender is Z-up and the exporter maps
                 (x,y,z) -> (x, z, -y), so the iris plane that was XZ in the
                 build script is XY in the GLB. Using .xz measured across the
@@ -561,9 +580,17 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
        scales with them: through the fully-open aperture you see its dark
        interior, which is the black the reveal circle blooms in. */
     if (nodes.iris_blades) {
-      const s = 1 + state.irisOpen * 6.4;
-      nodes.iris_blades.scale.set(s, s, 1);
-      nodes.iris_blades.rotation.z = state.irisOpen * 0.9;
+      /* ⚠️ THE HOLE GROWS — THE BLADES DO NOT. Scaling the assembly (the
+         first attempt: s up to 7.4) pushed the plates out past the barrel
+         and over the body until they covered 94% of the viewport: a
+         fullscreen violet pinwheel, i.e. exactly the "purplish blue circle"
+         the client rejected, reproduced larger. A physical iris opens by
+         retracting behind the barrel, so the plates keep their size and
+         position and the shader DISCARDS everything inside the growing
+         pupil. The camera stays a camera; only the opening changes. */
+      nodes.iris_blades.scale.set(1, 1, 1);
+      nodes.iris_blades.rotation.z = state.irisOpen * 0.55;
+      if (bladeSh) bladeSh.uniforms.uOpen.value = state.irisOpen;
       /* The throat BOWS OUT as the shutter opens. While the pupil is small
          it supplies the depth read; once the blades part, the pupil must be
          genuinely EMPTY canvas — transparent pixels — so the page layers
