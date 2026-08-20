@@ -209,21 +209,31 @@ const RIBBON = {
      than that and the band pinches and self-intersects at the turn, which is
      what the study's own first two attempts did before it rebuilt them. */
   POINTS: [
-    [ 1500,   900, -2600],   // FEED — deep behind and right; plates enter here
-    [ 1900,   560, -1500],   // swinging out to the right, still behind
-    [ 1980,   240,  -400],   // right-edge extreme
-    [ 1720,    20,   380],   // crosses the lens plane, coming forward
-    [ 1180,  -180,   820],   // forward, right of centre
-    [  400,  -320,   980],   // near pass — the hero plate
-    /* ── THE LEVEL RUN (Yash, 22:37): "flow from right side of the screen to
-       left side and then END on the left side in HORIZONTAL fashion."
-       ⚠️ Constant Y is NOT enough to look horizontal — under perspective a
-       level line that also changes depth still slopes on screen. These three
-       hold Y AND Z fixed, so the band runs dead level across the left half
-       and simply travels, which is what "horizontal" means on screen. */
-    [ -500,  -345,   940],
-    [-1300,  -345,   940],
-    [-2150,  -345,   940],   // TAKE-UP — exits left, still level
+    /* ⚠️ MONOTONIC IN X — the path must never double back across the frame.
+       The studied spiral swung far behind the machine, and its deep tail
+       projected back INTO frame as a second, dimmer pass: the two sections
+       met near the left edge with a dark sliver between them, which reads
+       as a tear in the film. (Not a hole — a raycast hit the mesh there;
+       that is how it was told apart.) One pass only, entering off-frame
+       right and leaving off-frame left. */
+    [ 3400,   690, -1600],   // collinear guard for the feed tangent
+    [ 2600,   420,  -900],   // FEED — off-frame right, behind the machine
+    [ 1900,   150,  -200],   // coming round and forward
+    [ 1350,   -60,   380],   // crosses the lens plane
+    [  700,  -230,   780],   // forward, right of centre
+    [  100,  -330,   930],   // near pass — the hero plate
+    /* THE LEVEL RUN (Yash, 22:37): "end on the left side in HORIZONTAL
+       fashion." Y AND Z both fixed — under perspective a level line that
+       changes depth still slopes on screen. */
+    [ -800,  -345,   940],
+    [-1900,  -345,   940],
+    [-3200,  -345,   940],
+    /* ⚠️ COLLINEAR GUARD. Catmull-Rom extrapolates its end tangent, and the
+       last segment was hooking back — the hook projected into frame as a
+       separate, brighter sliver of film with a dark break before it, which
+       is the "tear" the audit saw near the left edge. A final point on the
+       same straight line pins the tail flat. */
+    [-4500,  -345,   940],   // TAKE-UP — off the left edge, dead straight
   ],
   WIDTH: 260,             // mm
   SEGS: 260,              // longer path than the bow — keep the near pass smooth
@@ -236,7 +246,13 @@ const RIBBON = {
   /* Rolls face-away in the deep tail, then squares up and STAYS square for
      the whole level run — a band that keeps twisting cannot read as
      horizontal no matter how level its path is. */
-  TWIST_KEYS: [[0, 66], [0.26, 48], [0.42, 30], [0.56, 12],
+  /* ⚠️ KEEP THE ROLL SHALLOW. At 66deg the band, combined with the path's
+     own turn, passed through GRAZING at two stations — the strip collapsed
+     to a sub-pixel sliver there and read as a tear across the film (the
+     mesh was still present: a raycast hit it, which is how it was told
+     apart from a hole). 34deg is enough to sell film coming off a spool
+     without ever presenting the band edge-on. */
+  TWIST_KEYS: [[0, 34], [0.26, 26], [0.42, 16], [0.56, 6],
                [0.66, 0], [1, 0]],
 };
 
@@ -961,7 +977,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     if (!hit || !hit.uv) return -1;
     if (hit.uv.y < 0.17 || hit.uv.y > 0.83) return -1;      // sprocket bands
     const pitch = RIBBON.PITCH_MM / arcMM;
-    const rel = (hit.uv.x - gate) / pitch + state.filmPos;
+    const rel = state.filmPos - (hit.uv.x - gate) / pitch;   // same flip as the shader
     const k = Math.round(rel);
     const ph = 0.5 * (RIBBON.PLATE_MM / RIBBON.PITCH_MM);
     if (k < 0 || k > 8 || Math.abs(rel - k) > ph) return -1;
