@@ -209,15 +209,21 @@ const RIBBON = {
      than that and the band pinches and self-intersects at the turn, which is
      what the study's own first two attempts did before it rebuilt them. */
   POINTS: [
-    [  106,  1360, -3048],   // FEED — deep behind and high; plates enter here
-    [ 1210,  1080, -2481],   // behind and right
-    [ 1839,   720, -1543],   // swinging out to the right
-    [ 1874,   380,  -537],   // right-edge extreme
-    [ 1664,   110,   234],   // crosses the lens plane, still far right
-    [ 1247,  -110,   779],   // turning forward
-    [  744,  -260,  1103],   // coming forward
-    [  173,  -400,  1228],   // NEAR PASS — the foreground hero plate
-    [ -374,  -520,  1151],   // TAKE-UP — exits low and left
+    [ 1500,   900, -2600],   // FEED — deep behind and right; plates enter here
+    [ 1900,   560, -1500],   // swinging out to the right, still behind
+    [ 1980,   240,  -400],   // right-edge extreme
+    [ 1720,    20,   380],   // crosses the lens plane, coming forward
+    [ 1180,  -180,   820],   // forward, right of centre
+    [  400,  -320,   980],   // near pass — the hero plate
+    /* ── THE LEVEL RUN (Yash, 22:37): "flow from right side of the screen to
+       left side and then END on the left side in HORIZONTAL fashion."
+       ⚠️ Constant Y is NOT enough to look horizontal — under perspective a
+       level line that also changes depth still slopes on screen. These three
+       hold Y AND Z fixed, so the band runs dead level across the left half
+       and simply travels, which is what "horizontal" means on screen. */
+    [ -500,  -345,   940],
+    [-1300,  -345,   940],
+    [-2150,  -345,   940],   // TAKE-UP — exits left, still level
   ],
   WIDTH: 260,             // mm
   SEGS: 260,              // longer path than the bow — keep the near pass smooth
@@ -227,8 +233,11 @@ const RIBBON = {
      normalised arc length. Measured on shader.se: 0deg at its near pass,
      28-42deg at its visible ends — the ribbon rolls face-AWAY as it recedes.
      Ours runs deeper, so the tail goes further edge-on. */
-  TWIST_KEYS: [[0, 68], [0.30, 52], [0.45, 38], [0.60, 25],
-               [0.72, 13], [0.84, 3], [0.90, 0], [1, -10]],
+  /* Rolls face-away in the deep tail, then squares up and STAYS square for
+     the whole level run — a band that keeps twisting cannot read as
+     horizontal no matter how level its path is. */
+  TWIST_KEYS: [[0, 66], [0.26, 48], [0.42, 30], [0.56, 12],
+               [0.66, 0], [1, 0]],
 };
 
 function twistAt(t) {
