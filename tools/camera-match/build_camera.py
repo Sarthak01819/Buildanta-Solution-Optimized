@@ -304,9 +304,17 @@ iris = join(blades, "iris_blades")
 # nothing. It was also a solid rod, whose flat front face is exactly the
 # "black disc" it was meant to prevent. Now: a stepped bore, kept as its own
 # object and PARENTED (never joined), with four forward-facing baffle ledges.
-tunnel = cyl("iris_tunnel", 16.0, 56.0, (0, -204.0, 0), 48, 'Y')
-for _r, _z1 in [(11.0, 221.0), (8.8, 207.0), (6.6, 194.0), (4.4, 182.0)]:
-    cut(tunnel, cyl("tb", _r, 236.0 - _z1, (0, -(236.0 + _z1) / 2, 0), 48, 'Y'))
+# ⚠️ The throat must sit ENTIRELY BEHIND the blade stack. The stack spans
+# model z 228.6..236.0 (IRIS_Z_FRONT back through 8 steps), and the first
+# build put the throat's front face at 232 — inside the stack — so its front
+# annulus and outer wall punched through the blades and the pupil read as a
+# black LUMP with a lip instead of an opening (Yash: "what is that black part
+# inside the lens?"). Front face now 228, half a millimetre clear.
+TUNNEL_FRONT = 228.0
+tunnel = cyl("iris_tunnel", 16.0, 56.0, (0, -(TUNNEL_FRONT - 28.0), 0), 48, 'Y')
+for _r, _z1 in [(11.0, 214.0), (8.8, 202.0), (6.6, 190.0), (4.4, 178.0)]:
+    cut(tunnel, cyl("tb", _r, TUNNEL_FRONT - _z1 + 1.0,
+                    (0, -((TUNNEL_FRONT + 1.0) + _z1) / 2, 0), 48, 'Y'))
 set_origin(tunnel, (0, 0, 0))
 
 # ── THE COVER GLASS ─────────────────────────────────────────────────────────
