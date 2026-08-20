@@ -453,7 +453,30 @@ const RIBBON_FRAG = `
        empty screen. The reference's whole strip stays readable; its ends
        merely recede. */
     float d = clamp(abs(vUv.x - uGate) / max(uGate, 1.0 - uGate), 0.0, 1.0);
-    col *= mix(1.20, 0.58, smoothstep(0.12, 0.95, d));
+    float fall = mix(1.20, 0.58, smoothstep(0.12, 0.95, d));
+    col *= fall;
+
+    /* GRAIN. The stock measured flat to +/-3 of 255 along the whole rail —
+       real film is never that clean, and a dead-flat plate reads as a
+       graphic rather than a photograph. Keyed to film millimetres so it
+       travels WITH the film instead of crawling across the screen. */
+    float gn = fract(sin(dot(vec2(filmMM, acrossMM), vec2(12.9898, 78.233))) * 43758.5453);
+    col *= 0.955 + 0.09 * gn;
+
+    /* ⚠️ THE PERFORATIONS ARE PAINTED LAST, AND DELIBERATELY NOT WHITE.
+       They were coloured BEFORE this falloff, which multiplied 0.90 by 1.20
+       and CLIPPED them to pure 255 with under 1 LSB of variation across the
+       whole opening — measured. That is exactly what makes a hole read as a
+       painted white rectangle. They now carry their own value, ceilinged
+       below clip, dimmed with distance like everything else, and varied per
+       perforation so the row is not machine-perfect. */
+    if (hole) {
+      float soft = smoothstep(0.0, -2.4, sd);
+      float idx = floor(filmMM / 62.0);
+      float jitter = 0.94 + 0.06 * fract(sin(idx * 12.9898) * 43758.5453);
+      float lamp = mix(0.60, 0.90, soft) * clamp(fall, 0.45, 1.0) * jitter;
+      col = vec3(lamp * 0.97, lamp * 0.98, lamp);
+    }
     gl_FragColor = vec4(col, uAlpha);
   }`;
 
