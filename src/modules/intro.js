@@ -168,6 +168,7 @@ export function createIntro({ onProgress } = {}) {
   const lensTakeEl = root.querySelector(".market-lens-takeover");
   const irisEl = root.querySelector(".market-iris");
   const consultZero = root.querySelector(".consult-zero");
+  const lightFrame = root.querySelector(".consult-zero__light-frame");
   const consultHandCanvas = root.querySelector(".consult-zero__hand-canvas");
   const marketPusherEl = root.querySelector(".market-pusher");
   let marketCam3d = null;
@@ -1049,6 +1050,19 @@ export function createIntro({ onProgress } = {}) {
             consultZero?.style.setProperty("--pupil-y", py);
             document.documentElement.style.setProperty("--pupil-x", px);
             document.documentElement.style.setProperty("--pupil-y", py);
+            /* ⚠️ THE BLOOM THE VIEWER ACTUALLY SEES is .consult-zero__light-
+               frame — a SIBLING of .consult-zero, not a descendant — so
+               anchoring the clip circle never moved it, and it kept painting
+               at 50% 50%. Its box is inset -12%, i.e. LARGER than the
+               viewport and offset from it, so viewport px mean nothing
+               inside it: its own rect converts them. Measured once at the
+               latch, not per frame (getBoundingClientRect in the scroll
+               handler is layout thrash). */
+            if (lightFrame) {
+              const lf = lightFrame.getBoundingClientRect();
+              lightFrame.style.setProperty("--pupil-lf-x", (pupilLatch.x - lf.left).toFixed(1) + "px");
+              lightFrame.style.setProperty("--pupil-lf-y", (pupilLatch.y - lf.top).toFixed(1) + "px");
+            }
           }
           if (lc) {
             /* on ROOT, not marketExperience: the takeover/iris are NOT its

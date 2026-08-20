@@ -5567,3 +5567,26 @@ canvas.market-camera3d {
   left: var(--pupil-x, 50%);
   top: var(--pupil-y, 50%);
 }
+
+/* ── AND THE BLOOM ITSELF (Yash, 12:07) ────────────────────────────────
+   .consult-zero__light-frame paints the bright green disc the viewer reads
+   as "the green circle". It is a SIBLING of .consult-zero, so the clip
+   anchoring could never move it, and it stayed hard-coded at 50% 50% —
+   45px from where the shutter opened. intro.js measures its box once at
+   the latch and publishes aperture coordinates in ITS space. */
+.consult-zero__light-frame {
+  background:
+    radial-gradient(circle at var(--pupil-lf-x, 50%) var(--pupil-lf-y, 50%),
+      rgba(255,255,246,.99) 0 10%,
+      rgba(226,255,230,.96) 24%,
+      rgba(161,255,197,.76) 43%,
+      rgba(80,220,145,.34) 64%,
+      rgba(218,255,228,.22) 78%,
+      transparent 92%),
+    linear-gradient(120deg,rgba(244,255,242,.5),rgba(169,255,207,.2) 48%,rgba(236,255,240,.46));
+  transform-origin: var(--pupil-lf-x, 50%) var(--pupil-lf-y, 50%);
+}
+.consult-zero__light-frame::after {
+  left: var(--pupil-lf-x, 50%);
+  top: var(--pupil-lf-y, 50%);
+}
