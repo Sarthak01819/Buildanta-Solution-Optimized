@@ -317,7 +317,14 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
          the reference's 11). Highlights come from the DIRECTIONAL key/rim
          instead: they leave the shadow side alone, which is what widens the
          range rather than shifting it. */
-      o.material.envMapIntensity = 2.3;
+      /* ⚠️ envMap MUST be assigned explicitly. In three r180 a
+         MeshStandardMaterial whose envMap is null has its envMapIntensity
+         uniform overwritten every frame by scene.environmentIntensity
+         (default 1.0) — so this knob did nothing at any value, which is why
+         12 and 3 rendered identically during the bisect. 1.15 reproduces
+         what the scene default was silently doing, plus a little. */
+      o.material.envMap = scene.environment;
+      o.material.envMapIntensity = 1.15;
       attachSurface(o.material);
     });
     /* THE ELEMENT (spec §1): dark charcoal glass, NOT a mirror — metalness
@@ -335,6 +342,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
         const m = new MeshStandardMaterial({
           color: 0x0a0a12, metalness: 0.0, roughness: 1.0, envMapIntensity: 0.10,
         });
+        m.envMap = scene.environment;      // same null-envMap trap as above
         m.onBeforeCompile = (sh) => {
           sh.fragmentShader = sh.fragmentShader.replace(
             "#include <roughnessmap_fragment>",
