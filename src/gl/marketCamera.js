@@ -645,6 +645,21 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     return { x: sx / 8, y: sy / 8, r: (maxX - minX) / 2 };
   }
 
+  /** Where the APERTURE actually lands on screen, in viewport px.
+      ⚠️ NOT the same as project('lens'): the lens NODE's origin is at model
+      z 0, but the blades sit 232mm in FRONT of it, and under perspective a
+      point 232mm nearer the eye projects to a different screen position —
+      measured ~46px apart at the push. Centring the node put the node in
+      the middle and left the visible opening high and left of the green
+      circle, which is precisely what the client asked to be aligned. */
+  const pv = new Vector3();
+  function projectPupil() {
+    pv.set(0, 0, 232);
+    rig.localToWorld(pv);
+    pv.project(camera);
+    return { x: ((pv.x + 1) / 2) * cssW + originX, y: ((1 - pv.y) / 2) * cssH + originY };
+  }
+
   const v = new Vector3();
   function project(name) {
     const n = nodes[name];
@@ -655,7 +670,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   }
 
   return {
-    setState, project, projectLensCircle, resize, canvas,
+    setState, project, projectLensCircle, projectPupil, resize, canvas,
     get ready() { return ready; },
     dispose() {
       removeEventListener("resize", resize);

@@ -172,6 +172,9 @@ export function createIntro({ onProgress } = {}) {
   const marketPusherEl = root.querySelector(".market-pusher");
   let marketCam3d = null;
   let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
+  /* where the aperture sat when the blackout took it — the reveal circle
+     blooms there (see the pupil latch in the market block) */
+  const pupilLatch = { x: 0, y: 0, has: false };
   const consultHand = !reduced && consultHandCanvas
     ? createConsultHand(consultHandCanvas)
     : null;
@@ -1008,6 +1011,45 @@ export function createIntro({ onProgress } = {}) {
            centre, and the two rings visibly disagreed at the push's end */
         if (marketCam3d.ready && approach > 0) {
           const lc = marketCam3d.projectLensCircle();
+          /* THE GREEN CIRCLE BLOOMS WHERE THE SHUTTER OPENED (Yash, 12:07:
+             "align the shutter opening with that green circle"). Publishing
+             the aperture's real screen point and letting the reveal use it
+             is exact, and cheaper than steering the whole camera to make a
+             perspective offset vanish. Falls back to 50% before the model
+             loads. */
+          /* LATCHED at the handover, not tracked. The aperture keeps moving
+             while the camera pushes (942,434 -> 902,439 across .724-.732),
+             and after .752 the machine is gone entirely, so a live value
+             would drag the reveal around and then read garbage. The circle
+             blooms where the shutter WAS when the black took over. */
+          if (p < 0.734) {
+            const pupil = marketCam3d.projectPupil?.();
+            if (pupil) {
+              pupilLatch.x = pupil.x; pupilLatch.y = pupil.y; pupilLatch.has = true;
+            }
+          }
+          if (pupilLatch.has) {
+            /* ⚠️ on documentElement, NOT on #intro. .consult-zero is not a
+               descendant of #intro, so vars set there never reach it and
+               both the clip circle and its feather silently fell back to
+               50% — the same scope trap as the lens-centre vars (D-032).
+               Measured: clipPath read "circle(269px at 50% 50%)" while the
+               shutter had opened 28px away. */
+            /* ⚠️ ON THE CONSUMER ITSELF. Measured: with the vars on
+               documentElement, getComputedStyle('.consult-zero') reported
+               --pupil-x as (none) — that subtree does not inherit them — so
+               the clip circle silently kept its 50% fallback while the
+               shutter opened 28px away. Third time this scope trap has cost
+               a debugging round (D-032, D-034): setting a custom property
+               proves nothing about who can SEE it. Set it where it is read.
+               The feather is a child of consultZero, so it inherits. */
+            const px = pupilLatch.x.toFixed(1) + "px";
+            const py = pupilLatch.y.toFixed(1) + "px";
+            consultZero?.style.setProperty("--pupil-x", px);
+            consultZero?.style.setProperty("--pupil-y", py);
+            document.documentElement.style.setProperty("--pupil-x", px);
+            document.documentElement.style.setProperty("--pupil-y", py);
+          }
           if (lc) {
             /* on ROOT, not marketExperience: the takeover/iris are NOT its
                descendants (skeptic-measured 19 Aug 23:55 — the vars never

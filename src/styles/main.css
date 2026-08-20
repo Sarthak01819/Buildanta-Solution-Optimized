@@ -5552,3 +5552,18 @@ canvas.market-camera3d {
 @media (prefers-reduced-motion: reduce) {
   .market-film { transform: translate(-50%,-50%); }
 }
+
+/* ── THE REVEAL BLOOMS AT THE APERTURE (Yash, 12:07) ────────────────────
+   The circle used to open at the viewport centre while the shutter opened
+   ~46px away from it — the blades sit 232mm in front of the lens node, and
+   under perspective that is a different screen point. intro.js publishes
+   the aperture's measured position; these two rules aim the reveal at it.
+   The fallback keeps the old centre behaviour before the model loads. */
+.consult-zero {
+  clip-path: circle(calc(var(--zero-reveal, 0) * 78vmax)
+                    at var(--pupil-x, 50%) var(--pupil-y, 50%));
+}
+.consult-zero__portal-feather {
+  left: var(--pupil-x, 50%);
+  top: var(--pupil-y, 50%);
+}
