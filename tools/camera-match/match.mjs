@@ -37,7 +37,7 @@ const REF = {
      hard edge, 24-rib dials, both-face reel lips): a runaway-catch, not a
      quality lever — the 20 Aug spec sets no budget and one static 95k prop
      is trivial GPU load. quadGate is an estimate the bevel miters dilute. */
-  iouGate: 0.95, triMin: 15000, triMax: 125000, quadGate: 0.50,
+  iouGate: 0.95, triMin: 15000, triMax: 165000, quadGate: 0.50,   // 20 Aug: denser ring stack + 3-seg reel chamfers
   nodes: ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod"],
 };
 

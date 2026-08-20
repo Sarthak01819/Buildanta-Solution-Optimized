@@ -34,11 +34,10 @@
 import {
   Scene, PerspectiveCamera, WebGLRenderer, Group, AmbientLight, DirectionalLight,
   PointLight, HemisphereLight, Color, Vector3, SRGBColorSpace, ACESFilmicToneMapping,
-  PMREMGenerator, CanvasTexture, RepeatWrapping, MeshStandardMaterial,
-  PCFSoftShadowMap,
+  PMREMGenerator, CanvasTexture, MeshStandardMaterial, MeshBasicMaterial,
+  Mesh, SphereGeometry, BackSide, PCFSoftShadowMap,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 import { wantsAA } from "./msaa.js";
 
@@ -58,54 +57,130 @@ const DIST = 5500;
    horizontally into a brushed finish. Grayscale — used as roughnessMap
    (green channel) and bumpMap at once. Seeded LCG so every visit renders
    the identical machine. */
-/* Roughness map with an EXPLICIT range (spec: 0.30-0.55, never uniform):
-   texel values are the roughness itself; material.roughness stays 1.0 so
-   the map is authoritative. */
-function roughTex(size, lo, hi, brushed) {
+/* THE ENVIRONMENT IS THE ACT'S OWN SKY, not a photo studio.
+   RoomEnvironment ships emissive light PANELS; on a near-mirror dome they
+   reflect as hard-edged bright squares — measured L229/L179 on our render
+   where the reference's element never exceeds L57 and has no hotspot at
+   all. A violet-sky / amber-ground gradient gives metal something to
+   reflect, in the act's palette, with no rectangles in it. */
+function gradEnv() {
   const c = document.createElement("canvas");
-  c.width = c.height = size;
+  c.width = 256; c.height = 128;
   const g = c.getContext("2d");
-  const img = g.createImageData(size, size);
-  let sd = 0x2545f491;
-  const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = Math.round((lo + rnd() * (hi - lo)) * 255);
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-    img.data[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  if (brushed) {
-    g.globalAlpha = 0.45;
-    for (const dx of [1, 2, 4, 9, 17]) { g.drawImage(c, dx, 0); g.drawImage(c, -dx, 0); }
-    g.globalAlpha = 1;
-  }
+  const lg = g.createLinearGradient(0, 0, 0, 128);
+  lg.addColorStop(0.00, "#9b99a6");   // violet-cool sky
+  lg.addColorStop(0.42, "#4a4658");
+  lg.addColorStop(0.58, "#403a48");
+  lg.addColorStop(1.00, "#9a8163");   // amber ground bounce
+  g.fillStyle = lg;
+  g.fillRect(0, 0, 256, 128);
   const t = new CanvasTexture(c);
-  t.wrapS = t.wrapT = RepeatWrapping;
+  t.colorSpace = SRGBColorSpace;
   return t;
 }
 
-function grainTex(size, amp, brushed) {
-  const c = document.createElement("canvas");
-  c.width = c.height = size;
-  const g = c.getContext("2d");
-  const img = g.createImageData(size, size);
-  let s = 0x9e3779b9;
-  const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = 128 + (rnd() - 0.5) * amp;
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-    img.data[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  if (brushed) {
-    g.globalAlpha = 0.45;
-    for (const dx of [1, 2, 4, 9, 17]) { g.drawImage(c, dx, 0); g.drawImage(c, -dx, 0); }
-    g.globalAlpha = 1;
-  }
-  const t = new CanvasTexture(c);
-  t.wrapS = t.wrapT = RepeatWrapping;
-  return t;
+/* ⚠️ Delivered as a SCENE, not via fromEquirectangular. Measured 20 Aug:
+   pmrem.fromEquirectangular() on a CanvasTexture produced a dead (black)
+   environment — envMapIntensity 12 rendered identically to 3, which is how
+   it was caught. fromScene() is the path that actually works (it is what
+   RoomEnvironment uses), so the gradient is painted on the inside of a
+   sphere and baked from there. */
+function gradEnvScene() {
+  const sc = new Scene();
+  const sky = new Mesh(
+    /* ⚠️ radius must sit inside fromScene's cube camera, whose far plane
+       DEFAULTS TO 100 — a 500-unit sky rendered as pure black, which is why
+       envMapIntensity 12 and an HDR multiplier both changed nothing. The
+       scene here is in mm, but the environment scene is its own space. */
+    new SphereGeometry(40, 32, 16),
+    /* colour is an HDR MULTIPLIER, not a tint: a plain LDR gradient (max
+       1.0) carries a fraction of RoomEnvironment's energy, whose emissive
+       panels sit far above 1 — that is why swapping environments crushed
+       the render even at envMapIntensity 12. */
+    new MeshBasicMaterial({ map: gradEnv(), side: BackSide, color: new Color(9, 9, 9) })
+  );
+  sc.add(sky);
+  return sc;
 }
+
+/* ── MICRO-DETAIL LIVES IN THE SHADER, NOT IN A TEXTURE ──────────────────
+   Measured (20 Aug): the GLB's UV texel density spans 86x WITHIN one mesh
+   and 11.5x across parts, and at rest the body packed 27.6 texels into
+   each screen pixel — so the mip chain delivered 0.26% of the authored
+   grain amplitude. Every canvas map we shipped was, in practice, invisible;
+   that is why the machine kept reading as untextured CG no matter what the
+   maps said.
+   Object-space value noise fixes both problems at once: identical texel
+   scale on every part regardless of UVs, and each octave fades itself out
+   as soon as its wavelength approaches one pixel (fwidth), so it neither
+   aliases at rest nor smears at 13x. Wavelengths/weights come from the
+   reference's own measured spectrum (1.8 / 5.5 / 16 mm at 0.71 : 1.00 :
+   0.68), and the 6:1 vertical stretch matches its striation anisotropy —
+   ours ran horizontally, inverted 90 degrees. */
+const GRAIN_COMMON = `
+  varying vec3 vObjPos; uniform float uGrain;
+  float h31(vec3 p){ p = fract(p*0.3183099 + vec3(0.11,0.27,0.43)); p *= 17.0;
+    return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+  float vnoise(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f);
+    return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x), mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x), f.y),
+               mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x), mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x), f.y), f.z); }
+  float oct(vec3 p, float lam, float fw){
+    float a = 1.0 - smoothstep(0.40, 1.00, fw/lam);
+    return a <= 0.0 ? 0.0 : (vnoise(p/lam) - 0.5) * a; }`;
+
+/* ⚠️ ANCHOR IS LOAD-BEARING: this must run after <roughnessmap_fragment>
+   (roughnessFactor must exist) and before <lights_physical_fragment>
+   (which copies diffuseColor away). <normal_fragment_maps> is the only
+   include in three's meshphysical fragment that satisfies both — injecting
+   at the obvious-looking <lights_fragment_begin> silently does nothing. */
+const GRAIN_BODY = `
+  float fw = max(length(fwidth(vObjPos)), 1e-4);         // mm per pixel
+  vec3  pB = vec3(vObjPos.x, vObjPos.y/3.0, vObjPos.z);  // vertical striation
+  /* Weighted toward the FINE octaves. The reference's spectrum was measured
+     on a 1px/mm plate; taken literally its coarse bands (5.5 and 16mm) turn
+     into zebra striping at our 1.74px/mm — cast metal, not weathered wood.
+     The fine bands carry the "machined" read; the coarse ones only need to
+     break up uniformity. */
+  float g = oct(pB, 0.45, fw)*0.55
+          + oct(pB, 1.80, fw)*0.50
+          + oct(pB, 5.50, fw)*0.30
+          + oct(vObjPos, 16.0, fw)*0.14;
+  g *= uGrain * 1.05;
+  roughnessFactor = clamp(roughnessFactor + g*0.20, 0.10, 0.90);
+  diffuseColor.rgb *= (1.0 + g*0.12);
+  /* Signed curvature per MILLIMETRE (so it is zoom-invariant): cavities go
+     dark, chamfers get a polished lip. This is the reference's actual
+     structure — its reel web sits at a third of its rim's luminance, a
+     ratio no exposure change can produce. */
+  float cv = ( dot(dFdx(normal), normalize(dFdx(-vViewPosition)))
+             + dot(dFdy(normal), normalize(dFdy(-vViewPosition))) ) / fw;
+  float cav  = smoothstep(0.0, -0.35, cv);
+  float edge = smoothstep(0.0,  0.35, cv);
+  diffuseColor.rgb *= mix(1.0, 0.34, cav);
+  diffuseColor.rgb += vec3(0.052, 0.049, 0.066) * edge;
+  roughnessFactor = clamp(roughnessFactor - edge*0.20 + cav*0.16, 0.08, 0.95);`;
+
+/* Same SOURCE for every part, grain amount carried by a uniform: three keys
+   its program cache on the source string, so one compile serves the whole
+   machine. Baking the constant in would recompile per part and bring back
+   the shader-compile stall. */
+function attachSurface(material) {
+  material.onBeforeCompile = (sh) => {
+    sh.uniforms.uGrain = { value: material.userData.grain ?? 1.0 };
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vObjPos;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\n vObjPos = position;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>" + GRAIN_COMMON)
+      .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>" + GRAIN_BODY);
+  };
+}
+
+/* The reference is emphatically NOT uniformly grainy — measured high-pass
+   energy runs 21.4 on a reel web, 14.8 on a body panel, 2.61 on a leg tube
+   and 1.09 on the lens barrel: cast/blasted panels against turned stock. */
+const GRAIN = { camera_body: 1.00, reel_a: 1.35, reel_b: 1.35,
+                head: 0.45, crank: 0.45, lens: 0.12, tripod: 0.20 };
 
 export function mountMarketCamera(host, { reduced = false, onReady = null } = {}) {
   const canvas = document.createElement("canvas");
@@ -118,7 +193,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;          // 08:17 — .95 crushed detail on Yash's screen
+  renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFSoftShadowMap;
 
@@ -126,11 +201,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   /* The room the metal reflects. Blurred (sigma .35) so reflections read as
      sheen and panel gradients, not as furniture from another site. */
   const pmrem = new PMREMGenerator(renderer);
-  /* sigma 0.04 (the three.js reference value): anything higher clips —
-     even 0.08 requests 39 samples against the 20-sample ceiling. The
-     materials' roughness maps do the blurring; the environment itself can
-     stay near-sharp, and the bake gets cheaper too. */
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environment = pmrem.fromScene(gradEnvScene(), 0.02).texture;
 
   const cx = (FRAME.left + FRAME.right) / 2;    // +51
   const cy = (FRAME.top + FRAME.bottom) / 2;    // -288.5
@@ -143,33 +214,49 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
      neutral — the act is lit violet and amber and the camera sits INSIDE
      that lighting. Ambient at 0.10 only lifts shadows off pure black; the
      old 0.28 + white-ish key is what rendered the body light and lavender. */
-  /* Raised from the spec's 0.10 (Yash, 08:17: detail was disappearing into
-     the shadow side on his screen — the reference keeps EVERY surface
-     legible). A hemisphere pair does the lifting so shadows stay coloured,
-     never grey: violet sky, warm dark ground. */
-  scene.add(new AmbientLight(0x9fb8ff, 0.22));
-  const hemi = new HemisphereLight(0x9fb8ff, 0x342a48, 0.55);
+  /* MEASURED against the reference (20 Aug 08:45). Luminance histograms of
+     art-source/market-cinema-camera-front.png vs our render:
+         reference  p05 11 · median 56 · p99 208 · range 137 · blue-bias 3
+         ours       p05 40 · median 75 · p99 171 · range 111 · blue-bias 23
+     Our shadows never got dark and our highlights never got bright — a
+     compressed, uniformly violet range, which IS the "CG look". Yash's
+     "no detail hidden" is won by EDGE CONTRAST (the reference's chamfer
+     highlights), not by lifting everything: the 08:17 lift made it worse.
+     Fill light drops back hard so cavities can go dark again. */
+  scene.add(new AmbientLight(0x9fb8ff, 0.04));
+  const hemi = new HemisphereLight(0x9fb8ff, 0x2a2436, 0.10);
   scene.add(hemi);
   const modelCentre = new Vector3(51, -288, 0);
   // KEY: violet, upper-left-front (elev 35deg, azimuth -40deg), shadowed
-  const key = new DirectionalLight(0xa98bff, 2.6);
+  const key = new DirectionalLight(0xa98bff, 8.4);   // crisp speculars on the chamfers
   key.position.set(-1157, 1263, 1379);
   key.castShadow = true;
-  key.shadow.bias = -0.0005;
+  /* Measured: a 3000mm frustum over 2048 texels is 1.46mm/texel and
+     bias -0.0005 across a 6800mm near/far span pushes depth 3.4mm — every
+     cavity that matters here is 5-40mm, so nothing resolved. Tightened to
+     the machine's actual bounds; normalBias replaces most of the constant
+     bias so thin parts stop self-shadowing. */
+  key.shadow.bias = -0.00015;
+  key.shadow.normalBias = 1.2;
   key.shadow.mapSize.set(2048, 2048);
-  key.shadow.camera.left = key.shadow.camera.bottom = -1500;
-  key.shadow.camera.right = key.shadow.camera.top = 1500;
-  key.shadow.camera.near = 200;
-  key.shadow.camera.far = 7000;
+  /* ⚠️ The frustum must COVER the machine or the parts outside it sample
+     off the shadow map and render as fully shadowed — an 820mm half-extent
+     could not contain a machine that is 1511mm tall (model y +467..-1044),
+     which crushed the whole render to near-black. Half-extent 1150mm with
+     near/far bracketing the light's ~2200mm standoff. */
+  key.shadow.camera.left = key.shadow.camera.bottom = -1150;
+  key.shadow.camera.right = key.shadow.camera.top = 1150;
+  key.shadow.camera.near = 900;
+  key.shadow.camera.far = 3800;
   key.target.position.copy(modelCentre);
   // FILL: warm amber point, lower-right, about half the key. decay 0 —
   // physically-decayed point lights attenuate to black at mm scale.
-  const fill = new PointLight(0xffd8a0, 1.7, 0, 0);
-  fill.position.set(650, -550, 1100);            // pulled frontal: the lower-right
-                                                 // body face was going black
+  const fill = new PointLight(0xffd8a0, 2.4, 0, 0);
+  fill.position.set(650, -550, 1100);            // frontal: it reads the lower-right
+                                                 // face without flattening it
   // RIM: pale lavender from behind-above (azimuth 155deg) — the light that
   // separates the silhouette from the black backdrop.
-  const rim = new DirectionalLight(0xc7bfe0, 2.0);
+  const rim = new DirectionalLight(0xc7bfe0, 4.4);
   rim.position.set(659, 900, -1413);
   rim.target.position.copy(modelCentre);
   scene.add(key, key.target, fill, rim, rim.target);
@@ -189,12 +276,19 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
 
   new GLTFLoader().load(MODEL, (gltf) => {
     const model = gltf.scene;
-    /* The GLB ships FACETED normals (bpy default shading), and a faceted
-       sphere under an environment map reflects the room as solid blocks —
-       Yash's push frame showed the lens dome as a disco ball. Creased
-       normals at 40deg: curved surfaces go smooth, box edges stay sharp. */
+    /* ⚠️ THE CREASE ANGLE IS THE CHAMFER'S LIFE OR DEATH (20 Aug 08:55).
+       The GLB ships faceted normals, so this pass decides what gets smoothed.
+       At 40deg it also welded every 2-segment chamfer (facets ~22deg apart)
+       into its neighbouring flat face — which inflated each reel web into a
+       cushion and turned the hub into a faceted star. The reference keeps
+       FLAT faces meeting at a thin crisp chamfer line.
+       18deg separates the two populations cleanly:
+         64-segment cylinders  5.6deg/facet  -> still smooth
+         2-segment chamfers   ~22deg/facet   -> stay sharp
+         box corners           90deg         -> sharp
+       Never raise this above ~20 without re-checking the reels. */
     model.traverse((o) => {
-      if (o.isMesh) o.geometry = toCreasedNormals(o.geometry, (40 * Math.PI) / 180);
+      if (o.isMesh) o.geometry = toCreasedNormals(o.geometry, (18 * Math.PI) / 180);
     });
     /* MATERIAL PASS (spec 20 Aug §2). One base treatment for the whole
        machine: #303040 at metalness .78, roughness VARIED 0.30-0.55 by a
@@ -204,12 +298,6 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
        lifted toward #4A4A62, slightly tighter roughness. No clearcoat, no
        emissive — nothing on this object glows. Roughness maps stay high-
        repeat: chosen for the 13x push, a whisper at rest. */
-    const rough = roughTex(512, 0.30, 0.55, false);
-    rough.repeat.set(8, 8);
-    const roughWear = roughTex(512, 0.24, 0.40, true);
-    roughWear.repeat.set(4, 4);
-    const bump = grainTex(512, 55, false);
-    bump.repeat.set(8, 8);
     model.traverse((o) => {
       if (!o.isMesh) return;
       o.castShadow = true;
@@ -217,17 +305,20 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       if (!o.material || !o.material.isMeshStandardMaterial) return;
       const wear = /wear/i.test(o.material.name || "");
       o.material = o.material.clone();
-      /* lifted 08:17 (base 303040 -> 3E3E52, env .5 -> .85): the machined
-         detail lives in what the metal REFLECTS — with env at .5 the unlit
-         faces went black on Yash's screen and the reference keeps every
-         surface readable */
-      o.material.color = new Color(wear ? 0x5c5c74 : 0x3e3e52);
+      /* Base pulled DARKER and less blue (3E3E52 -> 2B2B33, bias 20 -> 8):
+         the reference's body sits at median 56 and its blue bias is 3. The
+         legibility comes back through env reflections + chamfer speculars,
+         not through a light base. */
+      o.material.color = new Color(wear ? 0x5c5c64 : 0x3b3b40);
       o.material.metalness = wear ? 0.85 : 0.78;
-      o.material.roughness = 1.0;                     // the map is authoritative
-      o.material.roughnessMap = wear ? roughWear : rough;
-      o.material.bumpMap = bump;
-      o.material.bumpScale = wear ? 0.08 : 0.18;
-      o.material.envMapIntensity = 0.85;
+      o.material.roughness = wear ? 0.24 : 0.34;      // the shader varies it
+      /* env is OMNIDIRECTIONAL — it lights shadow sides as much as lit
+         ones, so pushing it for highlights also lifted the darks (p05 30 vs
+         the reference's 11). Highlights come from the DIRECTIONAL key/rim
+         instead: they leave the shadow side alone, which is what widens the
+         range rather than shifting it. */
+      o.material.envMapIntensity = 2.3;
+      attachSurface(o.material);
     });
     /* THE ELEMENT (spec §1): dark charcoal glass, NOT a mirror — metalness
        0, base #0A0A12, roughness 0.18 at the apex rising to 0.45 at the
@@ -237,21 +328,35 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     const lensObj = model.getObjectByName("lens");
     if (lensObj) lensObj.traverse((o) => {
       if (o.isMesh && /glass/i.test(o.name)) {
+        /* env pulled DOWN and the apex roughened (0.18 -> 0.26): with the
+           sharp environment the old values reflected RoomEnvironment's
+           lamps as three hard dots — a chrome ball. The reference's element
+           is matte with ONE broad soft highlight. */
         const m = new MeshStandardMaterial({
-          color: 0x0a0a12, metalness: 0.0, roughness: 1.0, envMapIntensity: 0.5,
+          color: 0x0a0a12, metalness: 0.0, roughness: 1.0, envMapIntensity: 0.10,
         });
         m.onBeforeCompile = (sh) => {
           sh.fragmentShader = sh.fragmentShader.replace(
             "#include <roughnessmap_fragment>",
             `#include <roughnessmap_fragment>
              { float ndv = abs(dot(normalize(vNormal), normalize(vViewPosition)));
-               roughnessFactor = mix(0.45, 0.18, ndv); }`);
+               roughnessFactor = mix(0.62, 0.30, ndv); }`);
         };
         o.material = m;
       }
     });
     for (const n of ["camera_body", "reel_a", "reel_b", "lens", "crank", "head", "tripod"])
       nodes[n] = model.getObjectByName(n);
+    /* set BEFORE anything renders: onBeforeCompile reads userData.grain when
+       the program is first built, so assigning after a frame has drawn
+       would be ignored */
+    for (const [n, k] of Object.entries(GRAIN)) {
+      nodes[n]?.traverse((o) => {
+        if (!o.isMesh || !o.material) return;
+        const wear = /wear/i.test(o.material.name || "");
+        o.material.userData.grain = k * (wear ? 0.5 : 1.0);
+      });
+    }
     /* measure the flange rim from the geometry, never assume: widest x and
        nearest-to-viewer z across the lens meshes, in lens-local space */
     if (nodes.lens) {

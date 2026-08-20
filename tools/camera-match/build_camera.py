@@ -44,8 +44,13 @@ FEET_SPLAY_Z         = 380.0
 # Counts tuned DOWN 20 Aug: with bevels applied at export (the spec's
 # chamfer-everything pass), 96-seg parts exploded to 125k tris. 64 segments
 # is indistinguishable at display size once edges carry bevel highlights.
-SEG_REEL, SEG_CUT, SEG_HOLE = 64, 24, 12
-SEG_LENS, SEG_KNOB, SEG_LEG = 64, 24, 16
+SEG_REEL, SEG_CUT, SEG_HOLE = 64, 40, 24
+SEG_LENS, SEG_KNOB, SEG_LEG = 64, 32, 32
+# ⚠️ Every count here must keep its facet angle BELOW the runtime's 18deg
+# crease threshold or the part renders faceted and loses the broad specular
+# sweep that carries the highlights: 32 segments = 11.25deg (smooth),
+# 16 = 22.5deg (SHARP — that is what flattened the tripod legs and dropped
+# the render's p95 from 156 to 109 against the reference's 148).
 BODY_BEVEL_SEG       = 2
 
 FRONT = -BODY_DEPTH / 2          # blender.y of the body front face
@@ -90,7 +95,7 @@ def rod(name, r, p0, p1, seg):
     bpy.ops.object.transform_apply(rotation=True)
     return o
 
-def ring(name, R, tube, at, seg_major, seg_minor=10):   # minor >= 10: 36deg facets duck the 40deg bevel limit
+def ring(name, R, tube, at, seg_major, seg_minor=24):   # 15deg facets: smooth under the 18deg crease
     bpy.ops.object.select_all(action='DESELECT')
     bpy.ops.mesh.primitive_torus_add(major_radius=R, minor_radius=tube,
         major_segments=seg_major, minor_segments=seg_minor, location=at,
@@ -227,17 +232,23 @@ lens_parts = [
     cyl("l_mid",    LENS_R_MID,    28, (0, FRONT - 16 - 14, 0), SEG_LENS, 'Y'),
     cyl("l_barrel", LENS_R_BARREL, LENS_PROTRUDE - 44,
         (0, FRONT - 44 - (LENS_PROTRUDE - 44) / 2, 0), SEG_LENS, 'Y'),
-    ring("l_ridge1", LENS_R_MID, 3.5, (0, FRONT - 18, 0), 48, 10),
-    ring("l_ridge2", LENS_R_MID, 3.5, (0, FRONT - 40, 0), 48, 10),
+    # a 4-ring stack at 8mm pitch, not 2 at 22mm: the reference's flange
+    # carries its high-frequency energy as ring GEOMETRY, not as texture
+    ring("l_ridge1", LENS_R_MID, 2.6, (0, FRONT - 18, 0), 48, 24),
+    ring("l_ridge2", LENS_R_MID, 2.6, (0, FRONT - 26, 0), 48, 24),
+    ring("l_ridge3", LENS_R_MID, 2.6, (0, FRONT - 34, 0), 48, 24),
+    ring("l_ridge4", LENS_R_MID, 2.6, (0, FRONT - 42, 0), 48, 24),
     # the retaining ring: the machined lip that holds the glass
-    ring("l_retain", LENS_R_BARREL - 14, 5, (0, BARREL_FRONT + 2, 0), 48, 10),
+    ring("l_retain", LENS_R_BARREL - 14, 5, (0, BARREL_FRONT + 2, 0), 48, 24),
     # inner bore wall behind the retaining ring, so the recess has depth
     cyl("l_bore", LENS_R_BARREL - 12, 26, (0, BARREL_FRONT + 14, 0), SEG_LENS, 'Y'),
     # fine concentric TURNING GROOVES on the barrel face (spec 20 Aug) —
     # three thin rings on the annulus between the element and the barrel rim
-    ring("l_groove1", 68, 1.4, (0, BARREL_FRONT - 1, 0), 48, 10),
-    ring("l_groove2", 74, 1.4, (0, BARREL_FRONT - 1, 0), 48, 10),
-    ring("l_groove3", 80, 1.4, (0, BARREL_FRONT - 1, 0), 48, 10),
+    ring("l_groove1", 68, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
+    ring("l_groove2", 74, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
+    ring("l_groove3", 80, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
+    ring("l_groove4", 86, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
+    ring("l_groove5", 92, 1.4, (0, BARREL_FRONT - 1, 0), 48, 24),
 ]
 bpy.ops.object.select_all(action='DESELECT')
 # SHALLOW dome (spec 20 Aug): apex exactly 18mm proud of the barrel face —
@@ -314,7 +325,7 @@ vf_flare = bpy.context.object; vf_flare.name = "vf_flare"
 vf_flare.data.materials.append(MAT_BASE)
 bpy.ops.object.select_all(action='DESELECT')
 bpy.ops.mesh.primitive_torus_add(major_radius=50, minor_radius=4,
-    major_segments=32, minor_segments=10,
+    major_segments=32, minor_segments=24,
     location=B(-150 - VIEWFINDER_PROTRUDE + 2, 237, 0), rotation=(0, math.pi / 2, 0))
 vf_lip = bpy.context.object; vf_lip.name = "vf_lip"
 vf_lip.data.materials.append(MAT_BASE)
@@ -385,11 +396,13 @@ for az in (210, 330, 90):
     legs.append(tag_wear(cyl("coll_b", 17, 36, p70, SEG_LEG, 'Z')))
     bpy.ops.mesh.primitive_cone_add(vertices=SEG_LEG, radius1=11, radius2=3, depth=40,
         location=(foot[0], foot[1], FEET_Y + 26), rotation=(math.pi, 0, 0))
-    ft = bpy.context.object; ft.name = "foot"; legs.append(ft)
+    ft = bpy.context.object; ft.name = "foot"
+    legs.append(tag_wear(ft))          # ⚠️ was materialless: GLTFLoader gave it
+                                       # a default WHITE MeshStandardMaterial
     bpy.ops.object.select_all(action='DESELECT')
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=8,
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=16, radius=8,
         location=(foot[0], foot[1], FEET_Y + 2))
-    bt = bpy.context.object; bt.name = "balltip"; legs.append(bt)
+    bt = bpy.context.object; bt.name = "balltip"; legs.append(tag_wear(bt))
 # spreader brace: three bars from the column to each leg at BRACE_Y
 tbr = (BRACE_Y - CROWN_BOT) / (FEET_Y - CROWN_BOT)
 for az in (210, 330, 90):
@@ -408,8 +421,16 @@ set_origin(tripod, (0, (CROWN_TOP + CROWN_BOT) / 2, 0))
 # catching every hard edge across each merged mesh, boolean cuts included
 # (that is what chamfers the reel windows and the screw wells). Applied at
 # export by export_apply=True; a modifier alone never leaves Blender.
-for o in [camera_body, reel_a, reel_b, lens, dome, crank, head, tripod]:
-    bevel(o, 2, 2)
+# ⚠️ WIDTH IS PER PART, NOT GLOBAL. A single 2mm chamfer ate the reels: the
+# webs between windows are only ~18mm wide, so 2mm x 2 edges x 2 segments
+# rounded them into inflated cushions and turned the hub into a faceted
+# star (measured against the reference, which keeps FLAT faces with a thin
+# crisp chamfer line). Chamfer must stay small relative to the face it sits
+# on: big body panels can carry 2.5mm, reel webs no more than 1mm.
+for o, w, seg in [(camera_body, 2.5, 2), (reel_a, 3.0, 3), (reel_b, 3.0, 3),
+                  (lens, 1.4, 2), (dome, 1.0, 2), (crank, 1.4, 2),
+                  (head, 1.6, 2), (tripod, 1.6, 2)]:
+    bevel(o, w, seg)
 
 # ── material ─────────────────────────────────────────────────────────────────
 # Base material per spec (the RUNTIME re-materials everything; these values
