@@ -376,8 +376,20 @@ const RIBBON_FRAG = `
 
   void main() {
     if (uAlpha < 0.004) discard;
-    float mm = vUv.x * uArcMM;
-    float cell = fract(mm / 46.0);
+    /* ⚠️ FILM COORDINATES, NOT RAIL COORDINATES (Yash, 23:45: "the black and
+       white border is stuck in one place — I want it to flow with the reel
+       content"). The perforations were fract(vUv.x * uArcMM / 46) — a
+       function of position ON THE RAIL, and the rail is deliberately static,
+       so the holes stayed nailed to the screen while the pictures slid past
+       them. Everything printed on the stock — plates AND perforations — must
+       ride the SAME film position, so rel is computed first here and the
+       holes are cut in millimetres ALONG THE FILM.
+       THE SLIDE IS RIGHT-TO-LEFT: uv.x 0 is the feed (deep, right), 1 is the
+       take-up (left). Adding uPos walked a plate BACK toward the feed; negated,
+       plates run feed -> take-up, the way film does. */
+    float rel = uPos - (vUv.x - uGate) / uPitch;   // film position, in plates
+    float filmMM = rel * uPitch * uArcMM;          // ... and in millimetres
+    float cell = fract(filmMM / 46.0);
     bool band = (vUv.y > 0.055 && vUv.y < 0.135) || (vUv.y > 0.865 && vUv.y < 0.945);
     bool hole = band && abs(cell - 0.5) < 0.20;
 
@@ -389,15 +401,15 @@ const RIBBON_FRAG = `
        contrast is what makes a strip read as film at a glance. They still
        curve and twist, because they are still this surface. */
     vec3 col = vec3(0.030, 0.026, 0.052);           // film base
-    /* the slide: plate k is centred where (vUv.x-0.5)/uPitch + uPos == k */
-    float rel = (vUv.x - uGate) / uPitch + uPos;
     float k = floor(rel + 0.5);
     float x = rel - k;                               // -.5..+.5 within a pitch
     float ph = 0.5 * (uPlateW / uPitch);
     if (k >= 0.0 && k <= 8.0 && abs(x) < ph && vUv.y > 0.17 && vUv.y < 0.83) {
       float vv = (vUv.y - 0.17) / 0.66;
       vec2 auv;
-      auv.x = (mod(k, 3.0) + (x / ph * 0.5 + 0.5)) / 3.0;
+      /* the plate's own u flips with the travel direction, or every frame
+         renders mirrored */
+      auv.x = (mod(k, 3.0) + (0.5 - x / ph * 0.5)) / 3.0;
       auv.y = 1.0 - (floor(k / 3.0) + (1.0 - vv)) / 3.0;
       /* ⚠️ A CURVE, NOT A GAIN — the artwork has no midtones to amplify.
          MEASURED on the source jpgs: median code 6-8 with 67-77% of pixels
