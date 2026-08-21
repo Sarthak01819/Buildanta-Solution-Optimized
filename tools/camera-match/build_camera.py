@@ -442,12 +442,19 @@ set_origin(camera_body, (0, 0, 0))
 # The hub sits ON the contract anchor (CRANK_X, CRANK_Y) so the node's
 # translation — which the matcher gates — is unchanged, and so the arm orbits
 # the axle rather than some point beside it.
-c_hub = cyl("c_hub", 15, 52, (CRANK_X, 0, CRANK_Y), 32, 'X')
-c_boss = cyl("c_boss", 21, 12, (CRANK_X - 20, 0, CRANK_Y), 24, 'X')
+# ⚠️ THE AXLE MUST ENTER THE BODY. It used to span x 233..285 while the
+# shell's right face is at BODY_X = 214 — a 19mm air gap, which at the push
+# reads as a handle floating beside the camera rather than driven by it
+# (Yash, 08:49: "the handle is a bit detached — attach it to the camera").
+# It now starts INSIDE the shell and runs out to the arm plane, with a
+# bearing collar sitting proud of the face where a real axle passes through.
+c_hub = cyl("c_hub", 15, 82, (CRANK_X - 22, 0, CRANK_Y), 32, 'X')
+c_boss = cyl("c_boss", 23, 16, (BODY_X + 6, 0, CRANK_Y), 28, 'X')
+c_plate = cyl("c_plate", 30, 7, (BODY_X + 1, 0, CRANK_Y), 28, 'X')
 c_arm = rod("c_arm", 8, (CRANK_X + 18, 0, CRANK_Y), (CRANK_X + 18, -132, CRANK_Y), SEG_HOLE)
 c_web = rod("c_web", 5.5, (CRANK_X + 18, -34, CRANK_Y), (CRANK_X + 18, -120, CRANK_Y), SEG_HOLE)
 c_grip = tag_wear(cyl("c_grip", 13, 72, (CRANK_X + 54, -132, CRANK_Y), SEG_HOLE, 'X'))
-crank = join([c_hub, c_boss, c_arm, c_web, c_grip], "crank")
+crank = join([c_hub, c_boss, c_plate, c_arm, c_web, c_grip], "crank")
 set_origin(crank, (CRANK_X, CRANK_Y, 0))
 
 # ── 9 · head: housing, tilt knobs on stalks, a three-disc pivot boss ────────
