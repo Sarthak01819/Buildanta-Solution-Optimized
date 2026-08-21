@@ -599,7 +599,15 @@ export function createIntro({ onProgress } = {}) {
          from the feed reel as the machine drives in (Yash, 22:58). Same
          window as the entry translate below — fade and descent are one
          motion. */
-      const filmIn = smoothstep((p - 0.553) / 0.032);
+      /* ── THE SEQUENCE (Yash, 21 Aug 11:45) ────────────────────────────
+         "first only camera will appear ... then on scroll the camera will
+         move to the centre ... when the camera reaches the centre THEN the
+         reel will come from the back of the camera to the front on parallax
+         ... then on scroll the reel will flow."
+         So the film waits for the machine to land (travel completes .620)
+         and arrives on its own beat instead of fading in mid-drive. */
+      const filmEmerge = smoothstep((p - 0.622) / 0.040);   // .622 -> .662
+      const filmIn = smoothstep((p - 0.624) / 0.030);
       /* filmOut used to end the strip at local .90 (p=.696) — before the
          camera had travelled at all, so the reel died and then a machine
          zoomed at an empty screen. The strip now lives through the whole
@@ -613,7 +621,10 @@ export function createIntro({ onProgress } = {}) {
          (.586) — it used to start at local .27, which would now spend half
          the plates while the band is still invisible/airborne. Same end
          (.85 local = p .684), denser detent rhythm. */
-      const filmRaw = smoothstep((local - 0.44) / 0.41);   // reel owns .44–.85
+      /* the transport starts only once the film has ARRIVED — it used to
+         begin at local .44 (p .586), while the machine was still driving in
+         and before the reel existed on screen */
+      const filmRaw = smoothstep((p - 0.660) / 0.050);       // .660 -> .710
       const slots = Math.max(filmCards.length - 1, 1);
       const pos = filmRaw * slots;
       const idx = Math.floor(pos);
@@ -970,7 +981,9 @@ export function createIntro({ onProgress } = {}) {
           : -72 * (1 - travel)
             + 0.9 * Math.sin(Math.max(0, (travel - 0.75)) / 0.25 * Math.PI);
         const es = reduced ? 1 : 0.86 + 0.14 * travel;
-        const spinUp = smoothstep((p - 0.565) / 0.040);
+        /* the spools turn when there is film to move: threading first,
+           transport second (was .565, before the reel had arrived) */
+        const spinUp = smoothstep((p - 0.658) / 0.030);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
         /* The old CSS transform chain, composed here in viewport px:
            translate(dx,dy) then scale about the lens pivot (43.5%, 31%).
@@ -1029,6 +1042,7 @@ export function createIntro({ onProgress } = {}) {
              between plates sitting at the apex most of the time. filmTravel
              is the act's existing detent curve. Reduced motion: strip
              visible and legible, no transport — the middle plate holds. */
+          filmEmerge: reduced ? 1 : filmEmerge,
           filmPos: reduced ? 4 : filmTravel * slots,
           filmAlpha: filmVis,
           rect,

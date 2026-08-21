@@ -614,7 +614,13 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   const ribbon = new Mesh(ribbonGeo, ribbonMat);
   ribbon.name = "film_ribbon";
   ribbon.frustumCulled = false;   // the rect-driven frustum would misjudge it
-  rig.add(ribbon);
+  /* ⚠️ Its own group. "The reel comes from the back of the camera to the
+     front" (Yash, 21 Aug) is a DEPTH move of the whole ribbon — never a
+     change to the curve. The rail stays built-once and untouched, which is
+     the rule this whole thing is designed around: animate this group. */
+  const ribbonGroup = new Group();
+  ribbonGroup.add(ribbon);
+  rig.add(ribbonGroup);
 
   const nodes = {};
   let glassMat = null;
@@ -627,6 +633,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     yaw: 0, opacity: 1, spin: 0, crank: 0, drift: 0, visible: false,
     recoil: 0, rect: null, irisOpen: 0,
     spinB: null,            // take-up reel: accelerates as it fills
+    filmEmerge: 1,          // 0 = deep behind the machine, 1 = authored place
     filmPos: 0,             // plate index at the apex (0..8)
     filmAlpha: 0,           // the strip's opacity envelope
   };
@@ -929,6 +936,12 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
        as it fills while the feed reel slows as it empties) */
     if (nodes.reel_b) nodes.reel_b.rotation.z =
       -(state.spinB ?? state.spin * 1.08) * Math.PI * 2;
+    /* THE PARALLAX. The frame is perspective, so a pure depth travel IS the
+       parallax: the wings sweep outward and the near pass swells as the film
+       comes at you, all from one number. A little lift and lateral drift
+       stop it reading as a straight dolly. */
+    const em = state.filmEmerge;
+    ribbonGroup.position.set((1 - em) * 120, (1 - em) * -80, (1 - em) * -1150);
     ribbonMat.uniforms.uPos.value = state.filmPos;
     ribbonMat.uniforms.uAlpha.value = state.filmAlpha;
     ribbon.visible = state.filmAlpha > 0.003;
