@@ -932,7 +932,11 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     ribbonMat.uniforms.uPos.value = state.filmPos;
     ribbonMat.uniforms.uAlpha.value = state.filmAlpha;
     ribbon.visible = state.filmAlpha > 0.003;
-    if (nodes.crank) nodes.crank.rotation.z = state.crank;
+    /* NEGATIVE = clockwise on screen: the camera looks down -Z, so a
+       positive rotation about Z reads anticlockwise. Geared up from the
+       spool so the handle looks driven rather than dragged, but off the
+       SAME driver, so it can never drift out of step with the film. */
+    if (nodes.crank) nodes.crank.rotation.z = -state.crank * Math.PI * 2 * 1.6;
     /* THE SHUTTER OPENS (Yash, 12:07): radial scale slides the blades out
        under the bore lip — the pupil grows as 9mm x s while the plates
        disappear behind the solid ring stack — and a sweep of rotation makes

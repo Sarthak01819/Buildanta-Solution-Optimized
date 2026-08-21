@@ -1014,7 +1014,13 @@ export function createIntro({ onProgress } = {}) {
           opacity: camVis,
           spin: spinA3d,
           spinB: spinB3d,
-          crank: (cameraCrank * Math.PI) / 180,
+          /* ⚠️ TURNS, not a wobble (Yash, 08:29: "the handle is moving up and
+             down — I want it to rotate clockwise with the scroll").
+             cameraCrank is sin(spin)*18deg — an OSCILLATION between -18 and
+             +18, which is a bob, not a rotation. The handle is what drives
+             the film, so it takes the film's own driver and turns
+             continuously. Passed in TURNS, like the reels. */
+          crank: spinA3d,
           drift: reduced ? 0 : camIn * (1 - travel),
           recoil: cameraRecoil,
           irisOpen,
