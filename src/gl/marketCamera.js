@@ -721,13 +721,19 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
      with the near strip instead of receding. 0.42 lands near 0.33: still
      clearly above our near-black set (which is why 0.10 failed), without
      reading as a second equal strip. */
-  backMat.uniforms.uDim.value = 0.42;
+  backMat.uniforms.uDim.value = 0.27;
   backMat.uniforms.uWrap.value = 1;
   backMat.uniforms.uFlip.value = 1;
   const ribbonBack = new Mesh(ribbonGeo, backMat);
   ribbonBack.name = "film_ribbon_back";
   ribbonBack.frustumCulled = false;
-  ribbonBack.scale.set(0.62, 0.62, 0.62);    // mirror lives in the shader
+  /* ⚠️ NOT SCALED. Shrinking the copy compressed its x extent, so the same
+     curve covered less screen width and picked up a different projected
+     slope: measured, the two runs splayed 4.3deg apart across the right
+     half and the gap between them grew 19px -> 77px. A loop's far side is
+     the SAME film at greater depth — let perspective do the shrinking, and
+     the slopes stay in family. */
+  ribbonBack.scale.set(1, 1, 1);             // mirror lives in the shader
   /* ⚠️ Placed INSIDE the render frame. The frame spans model y +467..-1044,
      and the mirror (scale.y -0.62) already lifts the level run from -345 to
      +214 — so the first offset of +980 put the far run at y 1194, well above
@@ -741,7 +747,10 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
      the near run's scale and 0.375 of its travel speed, where the reference
      implies 0.62 for both — a loop's far side should read as the same film,
      just further away. */
-  ribbonBack.position.set(0, 150, -620);
+  /* z: the near run sits at model z 940, the render camera at 5500, so its
+     throw is 4560mm. For the far run to read at ~0.62 of that size its throw
+     must be 4560/0.62 = 7355mm, i.e. world z -1855 => a -2795 offset. */
+  ribbonBack.position.set(0, 980, -2795);
   ribbonBack.renderOrder = -1;               // behind the near run
 
   const ribbon = new Mesh(ribbonGeo, ribbonMat);
