@@ -274,15 +274,23 @@ function buildRibbonGeometry() {
   const curve = new CatmullRomCurve3(
     RIBBON.POINTS.map(([x, y, z]) => new Vector3(x, y, z)), false, "chordal");
   const arcMM = curve.getLength();
-  /* THE GATE is where a plate parks to be read: the point NEAREST the viewer,
-     found by sampling — on an asymmetric path that is no longer the midpoint,
-     and hard-coding 0.5 would park the plate half a curve away from the spot
-     the eye is drawn to. */
-  let gate = 0.5, bestZ = -1e9;
+  /* THE GATE is where a plate parks to be read — and it must be the spot IN
+     FRONT OF THE CAMERA, i.e. where the film crosses the lens axis (model
+     x = 0), not merely the point nearest the viewer.
+     ⚠️ Nearest-the-viewer was the previous rule and it broke the moment the
+     path gained a LEVEL tail: that run holds a constant depth, so the
+     max-z search returned an arbitrary point far along it, parking the
+     captioned plate away down the left instead of under the machine. Yash
+     saw the caption read ADS while a different plate sat in front of the
+     lens. Only points in front of the lens plane are eligible, so the deep
+     feed tail cannot win. */
+  let gate = 0.5, bestDX = 1e9;
   const probe = new Vector3();
-  for (let i = 0; i <= 400; i++) {
-    curve.getPointAt(i / 400, probe);
-    if (probe.z > bestZ) { bestZ = probe.z; gate = i / 400; }
+  for (let i = 0; i <= 600; i++) {
+    curve.getPointAt(i / 600, probe);
+    if (probe.z <= 0) continue;                 // behind the lens plane
+    const dx = Math.abs(probe.x);
+    if (dx < bestDX) { bestDX = dx; gate = i / 600; }
   }
   const N = RIBBON.SEGS;
   const pos = new Float32Array((N + 1) * 2 * 3);
