@@ -613,7 +613,9 @@ export function createIntro({ onProgress } = {}) {
          p=.584 (lens x .407 against his .404) — so the film sets off while
          the camera is still travelling, and the two arrivals overlap by
          design rather than queueing. */
-      const filmEmerge = smoothstep((p - 0.584) / 0.062);   // .584 -> .646
+      /* the entry now has three moves to make (in from the left, across to
+         the right, then the loop forward), so it gets a longer beat */
+      const filmEmerge = Math.max(0, Math.min(1, (p - 0.584) / 0.074));   // .584 -> .658
       /* ⚠️ The FADE must start with the MOTION, not after it. Measured: with
          filmIn opening at .586 the ribbon painted ZERO pixels at the exact
          frame Yash pointed to and was not perceptible until ~.590 — 99px of
@@ -640,7 +642,7 @@ export function createIntro({ onProgress } = {}) {
       /* the transport picks up while the arrival is still settling — at
          .640 the wave was long dead (5% of peak by .620) and the depth
          travel 98% done by .622, so the act sat still for two hundredths */
-      const filmRaw = smoothstep((p - 0.628) / 0.078);       // .628 -> .706
+      const filmRaw = smoothstep((p - 0.646) / 0.062);       // .646 -> .708
       const slots = Math.max(filmCards.length - 1, 1);
       const pos = filmRaw * slots;
       const idx = Math.floor(pos);
@@ -1016,7 +1018,7 @@ export function createIntro({ onProgress } = {}) {
         const es = reduced ? 1 : 0.86 + 0.14 * travel;
         /* the spools turn when there is film to move: threading first,
            transport second (was .565, before the reel had arrived) */
-        const spinUp = smoothstep((p - 0.626) / 0.030);
+        const spinUp = smoothstep((p - 0.644) / 0.030);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
         /* The old CSS transform chain, composed here in viewport px:
            translate(dx,dy) then scale about the lens pivot (43.5%, 31%).

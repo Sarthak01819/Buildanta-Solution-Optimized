@@ -387,26 +387,11 @@ const RIBBON_VERT = `
        the curve is never rebuilt, it is only pushed while in flight.
        Two frequencies so it undulates like film rather than a sine sheet,
        and the phase runs with uEmerge so the wave travels down the strip. */
-    float fall = 1.0 - uEmerge;
-    /* ⚠️ FREQUENCY IS PER VISIBLE ARC, NOT PER ARC. Only ~23% of this path
-       is ever on screen, so vUv.x * 30.0 (30 RADIANS, i.e. 4.8 cycles)
-       over the whole strip — put barely 1.1 cycles in frame and still read
-       as one bend. Raising 15 -> 30 did not fix that; it could not. To show
-       ~3 crests you need ~3 cycles inside that 23%, which is ~13 cycles
-       over the arc = 82 radians. (420 segments keeps ~32 samples/cycle.) */
-    float ripple = sin(vUv.x * 82.0 - uEmerge * 11.0) * 1.0
-                 + sin(vUv.x * 131.0 - uEmerge * 6.0) * 0.38;
-    /* ⚠️ HOLD, THEN DIE. A monotone falloff spent the loud half of the
-       ripple while the film was still BEHIND the machine — measured, 44% of
-       the amplitude was gone by the time it came into view, so the part the
-       viewer actually sees was the quiet tail. Amplitude now stays near full
-       until the film is out front, then falls to exactly zero. */
-    float amp = 205.0 * (1.0 - smoothstep(0.34, 1.0, uEmerge));
-    pos.y += ripple * amp;
-    pos.z += ripple * amp * 0.42;
-    /* the band also flutters across its own width — the far edge lags the
-       near one, which is what makes a ribbon read as cloth-thin */
-    pos.y += (vUv.y - 0.5) * ripple * fall * 90.0;
+    /* ⚠️ THE ARRIVAL RIPPLE IS GONE (Yash, 21 Aug 14:36) — replaced by the
+       three-phase entry path below, which is a MOVE of the whole reel, not a
+       deformation of it. The reference's own subtle travelling arc stays
+       (27mm, in the flow terms below); what is removed is the 205mm wave
+       that used to run down the strip as it arrived. */
     /* ── THE REFERENCE'S OWN FLOW TERMS (Yash's zip, 21 Aug) ────────────
        Ported from its filmStripShaders.ts, converted from its "base units"
        (BASE_VIEW_W 10 across the viewport) into our millimetres. Their doc
@@ -1074,7 +1059,31 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
        stop it reading as a straight dolly. */
     const em = state.filmEmerge;
     ribbonMat.uniforms.uEmerge.value = em;
-    ribbonGroup.position.set((1 - em) * 120, (1 - em) * -80, (1 - em) * -1150);
+    /* ── THE ENTRY, IN THREE MOVES (Yash, 21 Aug 14:36) ──────────────────
+       "Reel enters the screen from the same side the camera comes -> goes to
+       the other end of the screen -> comes in front of the camera like a
+       loop."  The camera drives in from the LEFT, so the reel does too, then
+       sweeps right, then swings forward into its authored place. Keyframes
+       in model mm, interpolated with eased segments; the reel MOVES, the
+       curve is never deformed. */
+    const K0 = [-3200, 240, -1500];   // off-screen left, deep behind
+    const K1 = [ 3000, 170, -1250];   // carried across to the far side
+    const K2 = [    0,   0,     0];   // swung forward, in front, at rest
+    let gx, gy, gz;
+    if (em < 0.52) {
+      /* the crossing: ease-in-out so it sets off and arrives, not a drift */
+      const t = em / 0.52, e = t * t * (3 - 2 * t);
+      gx = K0[0] + (K1[0] - K0[0]) * e;
+      gy = K0[1] + (K1[1] - K0[1]) * e;
+      gz = K0[2] + (K1[2] - K0[2]) * e;
+    } else {
+      /* the loop home: decelerating, so it settles rather than snaps */
+      const t = (em - 0.52) / 0.48, e = 1 - Math.pow(1 - t, 2.2);
+      gx = K1[0] + (K2[0] - K1[0]) * e;
+      gy = K1[1] + (K2[1] - K1[1]) * e;
+      gz = K1[2] + (K2[2] - K1[2]) * e;
+    }
+    ribbonGroup.position.set(gx, gy, gz);
     backMat.uniforms.uPos.value = -state.filmPos;      // the far run comes back
     backMat.uniforms.uAlpha.value = state.filmAlpha;
     backMat.uniforms.uEmerge.value = em;
