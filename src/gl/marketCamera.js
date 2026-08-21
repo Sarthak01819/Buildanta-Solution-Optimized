@@ -495,7 +495,7 @@ const RIBBON_FRAG = `
          2.4x the neighbouring glow and read as a drawn orange outline traced
          round every hole. A real punched edge catches the lamp; it does not
          exceed the film's own highlight. */
-      col += vec3(0.27, 0.150, 0.049) * lip * clamp(fall, 0.74, 1.0) * jitter;
+      col += vec3(0.222, 0.123, 0.040) * lip * clamp(fall, 0.74, 1.0) * jitter;
     }
     if (hole) discard;                 // the perforation is an absence
     gl_FragColor = vec4(col, uAlpha);
