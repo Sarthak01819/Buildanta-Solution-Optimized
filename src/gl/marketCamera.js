@@ -450,7 +450,7 @@ const RIBBON_FRAG = `
     /* ⚠️ The painted-perforation fill that used to live here is DELETED, not
        just bypassed. It kept running every frame and was thrown away by the
        discard below — dead ALU, but worse: it was the exact white-box fill
-       the client rejected, sitting one removed `discard` away from coming
+       the client rejected, sitting one removed discard away from coming
        back. A perforation is an absence; there is nothing to colour. */
 
     /* Falloff GENTLED: at x0.14 the wings measured p50 2-3 against a page
