@@ -444,6 +444,8 @@ const RIBBON_FRAG = `
   uniform float uPlateW;   // plate width as arc fraction
   uniform float uGate;     // arc fraction of the reading position
   uniform float uDim;      // 1 = the near run, <1 = the loop's far run
+  uniform float uWrap;     // 1 = recycle plates modulo 9 (the closed loop)
+  uniform float uFlip;     // 1 = artwork upside down (the loop's far side)
   uniform float uWidth;    // ribbon width in mm, for the perforation SDF
 
   void main() {
@@ -487,6 +489,17 @@ const RIBBON_FRAG = `
     float dPre = clamp(abs(vUv.x - uGate) / max(uGate, 1.0 - uGate), 0.0, 1.0);
     float fallPre = mix(1.20, 0.58, smoothstep(0.12, 0.95, dPre));
     float k = floor(rel + 0.5);
+    /* ⚠️ THE LOOP MUST ACTUALLY CLOSE. The near run draws a fixed window of
+       nine plates at absolute film positions, which is right for a reel that
+       starts and ends — but driving the FAR run with a negated position slid
+       its plates straight off the stock: measured 6 frames on screen at
+       p.628, 3 by .660, ZERO from ~.685, so the back of the loop finished
+       the beat as blank black leader. The reference recycles a pool instead
+       (sB = k + P*round((-active - k)/P)); modulo does the same job here.
+       It also fixes the far run never carrying a frame LEFT of the gate:
+       every unwrapped k sat downstream of it, so ~80% of the width was bare
+       stock even at the fullest moment. */
+    if (uWrap > 0.5) k = mod(k, 9.0);
     float x = rel - k;                               // -.5..+.5 within a pitch
     float ph = 0.5 * (uPlateW / uPitch);
     if (k >= 0.0 && k <= 8.0 && abs(x) < ph && vUv.y > 0.17 && vUv.y < 0.83) {
@@ -495,7 +508,15 @@ const RIBBON_FRAG = `
       /* the plate's own u flips with the travel direction, or every frame
          renders mirrored */
       auv.x = (mod(k, 3.0) + (0.5 - x / ph * 0.5)) / 3.0;
-      auv.y = 1.0 - (floor(k / 3.0) + (1.0 - vv)) / 3.0;
+      /* ⚠️ THE MIRROR IS IN THE ART, NOT THE MESH. The reference mirrors its
+         back run with scale.y = -BACK_SCALE, but that group sits INSIDE a
+         tilted parent, so the tilt is applied after the flip and both runs
+         stay parallel. Our tilt is baked into the path geometry, so the same
+         negative scale inverted the slope and the two runs crossed in an X
+         instead of running as one loop. Flipping the artwork gives the
+         upside-down far side with the tilt intact. */
+      float vflip = (uFlip > 0.5) ? vv : (1.0 - vv);
+      auv.y = 1.0 - (floor(k / 3.0) + vflip) / 3.0;
       /* ⚠️ A CURVE, NOT A GAIN — the artwork has no midtones to amplify.
          MEASURED on the source jpgs: median code 6-8 with 67-77% of pixels
          below 16 (dark fractal art on black), against a reference built
@@ -676,6 +697,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       uPitchMM: { value: RIBBON.PITCH_MM },
       uDim: { value: 1 },
       uFlip: { value: 0 },
+      uWrap: { value: 0 },
     },
     transparent: true,
     side: DoubleSide,       // the twist shows the back near the spools
@@ -694,18 +716,29 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   for (const k of Object.keys(backMat.uniforms)) {
     backMat.uniforms[k] = { value: ribbonMat.uniforms[k].value };
   }
-  backMat.uniforms.uDim.value = 0.22;      // 0.10 vanished on our dark set
+  /* ⚠️ Match the reference's LEGIBILITY, not its multiplier. Its BACK_DIM of
+     0.10 works because its far run sits against a bright sky (L~105) — a
+     ~55-code separation. Our set is near-black (L~4), so 0.22 put the far
+     frames 0.6 code values above empty screen: an orange hoop with nothing
+     in it. 0.58 puts them clearly above the floor while still reading as
+     the dim far side of the loop. */
+  backMat.uniforms.uDim.value = 0.58;
+  backMat.uniforms.uWrap.value = 1;
+  backMat.uniforms.uFlip.value = 1;
   const ribbonBack = new Mesh(ribbonGeo, backMat);
   ribbonBack.name = "film_ribbon_back";
   ribbonBack.frustumCulled = false;
-  ribbonBack.scale.set(0.62, -0.62, 0.62);   // negative Y = vertically mirrored
+  ribbonBack.scale.set(0.62, 0.62, 0.62);    // mirror lives in the shader
   /* ⚠️ Placed INSIDE the render frame. The frame spans model y +467..-1044,
      and the mirror (scale.y -0.62) already lifts the level run from -345 to
      +214 — so the first offset of +980 put the far run at y 1194, well above
      the top of frame, and it rendered nowhere. +120 lands it around +334:
      above the body, among the reels, and far enough back that the machine
      occludes it, which is exactly how a loop of film behind a camera reads. */
-  ribbonBack.position.set(0, 120, -900);
+  /* the reference has the two runs nearly TOUCHING (a 10px gap against a
+     280px band); ours sat 1.47 band-heights apart and read as two unrelated
+     strips rather than one loop of film */
+  ribbonBack.position.set(0, 150, -900);
   ribbonBack.renderOrder = -1;               // behind the near run
 
   const ribbon = new Mesh(ribbonGeo, ribbonMat);
