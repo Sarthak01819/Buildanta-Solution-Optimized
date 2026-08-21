@@ -447,12 +447,11 @@ const RIBBON_FRAG = `
     float edge = smoothstep(0.150, 0.0, vUv.y) + smoothstep(0.850, 1.0, vUv.y);
     col += vec3(0.235, 0.120, 0.038) * clamp(edge, 0.0, 1.0) * clamp(fallPre, 0.55, 1.0);
 
-    if (hole) {
-      /* not flat white: the lamp behind the gate falls off across the
-         opening, and the punched edge catches a little less light */
-      float soft = smoothstep(0.0, -2.2, sd);
-      col = mix(vec3(0.63, 0.635, 0.68), vec3(0.90, 0.905, 0.94), soft);
-    }
+    /* ⚠️ The painted-perforation fill that used to live here is DELETED, not
+       just bypassed. It kept running every frame and was thrown away by the
+       discard below — dead ALU, but worse: it was the exact white-box fill
+       the client rejected, sitting one removed `discard` away from coming
+       back. A perforation is an absence; there is nothing to colour. */
 
     /* Falloff GENTLED: at x0.14 the wings measured p50 2-3 against a page
        background of 4 — the receding plates were literally darker than
