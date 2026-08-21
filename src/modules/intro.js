@@ -173,6 +173,7 @@ export function createIntro({ onProgress } = {}) {
   const marketPusherEl = root.querySelector(".market-pusher");
   let marketCam3d = null;
   let ribbonCaption = null, ribbonCaptionIdx = -1;
+  let filmVel = 0, filmVelLast = 0, filmVelAt = performance.now();
   let ribbonPointerOn = false, ribbonHoverAt = 0;
   let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
   /* where the aperture sat when the blackout took it — the reveal circle
@@ -646,6 +647,20 @@ export function createIntro({ onProgress } = {}) {
       const frac = pos - idx;
       const detent = frac < 0.34 ? 0 : frac > 0.72 ? 1 : smoothstep((frac - 0.34) / 0.38);
       const filmTravel = (idx + detent) / slots;
+      /* TRANSPORT SPEED in plates/second — the reference drives its arc
+         amplitude, its per-plate curvature and its shear from exactly this,
+         and its own doc is emphatic that speed changes curvature, scale and
+         blur but NEVER rotation. Measured from the driver rather than from
+         scroll, so a detent pause reads as a genuine stop. */
+      {
+        const nowMs = performance.now();
+        const dt = Math.min(0.1, Math.max(0.001, (nowMs - filmVelAt) / 1000));
+        const posNow = filmTravel * slots;
+        const raw = (posNow - filmVelLast) / dt;
+        filmVel += (raw - filmVel) * 0.25;          // smoothed, or it jitters
+        filmVelLast = posNow;
+        filmVelAt = nowMs;
+      }
       const humanIn = smoothstep((filmTravel - 0.72) / 0.12);
       const humanPush = smoothstep((filmTravel - 0.72) / 0.28);
       /* Longer capture runway: reel insertion ke baad camera ek frame mein
@@ -1061,6 +1076,7 @@ export function createIntro({ onProgress } = {}) {
              is the act's existing detent curve. Reduced motion: strip
              visible and legible, no transport — the middle plate holds. */
           filmEmerge: reduced ? 1 : filmEmerge,
+          filmVel: reduced ? 0 : filmVel,
           filmPos: reduced ? 4 : filmTravel * slots,
           filmAlpha: filmVis,
           rect,

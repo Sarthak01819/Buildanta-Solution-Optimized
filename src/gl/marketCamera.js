@@ -371,6 +371,10 @@ function buildRibbonAtlas(renderer, onReady) {
 const RIBBON_VERT = `
   varying vec2 vUv;
   uniform float uEmerge;   // 0 = deep behind the machine, 1 = settled
+  uniform float uVel;      // transport speed, plates/second (signed)
+  uniform float uTime;
+  uniform float uArcLen;   // total arc, mm
+  uniform float uPitchMM;  // plate pitch, mm
   void main() {
     vUv = uv;
     vec3 pos = position;
@@ -403,6 +407,29 @@ const RIBBON_VERT = `
     /* the band also flutters across its own width — the far edge lags the
        near one, which is what makes a ribbon read as cloth-thin */
     pos.y += (vUv.y - 0.5) * ripple * fall * 90.0;
+    /* ── THE REFERENCE'S OWN FLOW TERMS (Yash's zip, 21 Aug) ────────────
+       Ported from its filmStripShaders.ts, converted from its "base units"
+       (BASE_VIEW_W 10 across the viewport) into our millimetres. Their doc
+       is explicit that speed changes CURVATURE, SCALE and BLUR — never
+       rotation — so every term below is amplitude, not angle. */
+    float v  = clamp(uVel, -4.0, 4.0);          // their VEL_CLAMP
+    float av = abs(v);
+    float xs = vUv.x * uArcLen;                  // strip-space mm
+
+    /* (a) a slow travelling arc, amplified by speed. WAVE_AMP 0.35 base
+       units and WAVE_K 0.14/base unit become 27mm and 0.00178/mm here. */
+    pos.y += 27.0 * (1.0 + av * 0.32) * sin(xs * 0.00178 + uTime * 0.05);
+
+    /* (b) cylindrical bend per plate, amplified by speed — this is the
+       "frames curve WITH the band" read, and why fast travel looks rounder */
+    float local = fract(xs / uPitchMM) - 0.5;
+    pos.z -= 0.012 * (1.0 + av * 0.55) * local * local * uPitchMM * 0.9;
+
+    /* (c) velocity SHEAR: the strip leans into its direction of travel,
+       italic-like, decaying to nothing at rest. Their field report calls
+       this out as one of the signatures of the motion. */
+    pos.x += pos.y * v * 0.05;
+
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }`;
 
@@ -416,6 +443,7 @@ const RIBBON_FRAG = `
   uniform float uPitch;    // plate pitch as arc fraction
   uniform float uPlateW;   // plate width as arc fraction
   uniform float uGate;     // arc fraction of the reading position
+  uniform float uDim;      // 1 = the near run, <1 = the loop's far run
   uniform float uWidth;    // ribbon width in mm, for the perforation SDF
 
   void main() {
@@ -541,7 +569,7 @@ const RIBBON_FRAG = `
       col += vec3(0.222, 0.123, 0.040) * lip * clamp(fall, 0.74, 1.0) * jitter;
     }
     if (hole) discard;                 // the perforation is an absence
-    gl_FragColor = vec4(col, uAlpha);
+    gl_FragColor = vec4(col * uDim, uAlpha * (uDim < 1.0 ? 0.85 : 1.0));
   }`;
 
 export function mountMarketCamera(host, { reduced = false, onReady = null } = {}) {
@@ -642,11 +670,44 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       uGate: { value: gate },
       uWidth: { value: RIBBON.WIDTH },
       uEmerge: { value: 1 },
+      uVel: { value: 0 },
+      uTime: { value: 0 },
+      uArcLen: { value: arcMM },
+      uPitchMM: { value: RIBBON.PITCH_MM },
+      uDim: { value: 1 },
+      uFlip: { value: 0 },
     },
     transparent: true,
     side: DoubleSide,       // the twist shows the back near the spools
   });
   ribbonMat.uniforms.uAtlas.value = buildRibbonAtlas(renderer);
+  /* ── THE CLOSED LOOP (Yash's reference, 21 Aug) ────────────────────────
+     Its field report: "a dim, vertically MIRRORED ghost row of frames is
+     visible above the strip = the far run of a closed 3D film loop."  That
+     is the single thing that makes the reference read as a REEL rather than
+     a strip — you are seeing the far side of a loop of film that runs on
+     past the frame and comes back. Same geometry, mirrored, dimmed, smaller,
+     set back, and travelling the OPPOSITE way. Their constants: BACK_SCALE
+     0.62, BACK_DIM 0.10, placed up and behind. */
+  const backMat = ribbonMat.clone();
+  backMat.uniforms = { ...ribbonMat.uniforms };
+  for (const k of Object.keys(backMat.uniforms)) {
+    backMat.uniforms[k] = { value: ribbonMat.uniforms[k].value };
+  }
+  backMat.uniforms.uDim.value = 0.22;      // 0.10 vanished on our dark set
+  const ribbonBack = new Mesh(ribbonGeo, backMat);
+  ribbonBack.name = "film_ribbon_back";
+  ribbonBack.frustumCulled = false;
+  ribbonBack.scale.set(0.62, -0.62, 0.62);   // negative Y = vertically mirrored
+  /* ⚠️ Placed INSIDE the render frame. The frame spans model y +467..-1044,
+     and the mirror (scale.y -0.62) already lifts the level run from -345 to
+     +214 — so the first offset of +980 put the far run at y 1194, well above
+     the top of frame, and it rendered nowhere. +120 lands it around +334:
+     above the body, among the reels, and far enough back that the machine
+     occludes it, which is exactly how a loop of film behind a camera reads. */
+  ribbonBack.position.set(0, 120, -900);
+  ribbonBack.renderOrder = -1;               // behind the near run
+
   const ribbon = new Mesh(ribbonGeo, ribbonMat);
   ribbon.name = "film_ribbon";
   ribbon.frustumCulled = false;   // the rect-driven frustum would misjudge it
@@ -655,6 +716,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
      change to the curve. The rail stays built-once and untouched, which is
      the rule this whole thing is designed around: animate this group. */
   const ribbonGroup = new Group();
+  ribbonGroup.add(ribbonBack);
   ribbonGroup.add(ribbon);
   rig.add(ribbonGroup);
 
@@ -670,6 +732,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     recoil: 0, rect: null, irisOpen: 0,
     spinB: null,            // take-up reel: accelerates as it fills
     filmEmerge: 1,          // 0 = deep behind the machine, 1 = authored place
+    filmVel: 0,             // transport speed, plates/second (signed)
     filmPos: 0,             // plate index at the apex (0..8)
     filmAlpha: 0,           // the strip's opacity envelope
   };
@@ -979,6 +1042,14 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     const em = state.filmEmerge;
     ribbonMat.uniforms.uEmerge.value = em;
     ribbonGroup.position.set((1 - em) * 120, (1 - em) * -80, (1 - em) * -1150);
+    backMat.uniforms.uPos.value = -state.filmPos;      // the far run comes back
+    backMat.uniforms.uAlpha.value = state.filmAlpha;
+    backMat.uniforms.uEmerge.value = em;
+    backMat.uniforms.uVel.value = -(state.filmVel || 0);
+    backMat.uniforms.uTime.value = tMs / 1000;
+    ribbonBack.visible = state.filmAlpha > 0.003;
+    ribbonMat.uniforms.uVel.value = state.filmVel || 0;
+    ribbonMat.uniforms.uTime.value = tMs / 1000;
     ribbonMat.uniforms.uPos.value = state.filmPos;
     ribbonMat.uniforms.uAlpha.value = state.filmAlpha;
     ribbon.visible = state.filmAlpha > 0.003;
