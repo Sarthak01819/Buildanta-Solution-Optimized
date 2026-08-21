@@ -619,7 +619,7 @@ export function createIntro({ onProgress } = {}) {
          scroll after the beat he named. It now opens on the same frame and
          crosses perceptibility within ~2 thousandths, so the reel is there
          when he says it is. */
-      const filmIn = smoothstep((p - 0.5835) / 0.016);
+      const filmIn = smoothstep((p - 0.5835) / 0.010);   // reach VISIBLE, not just non-zero
       /* filmOut used to end the strip at local .90 (p=.696) — before the
          camera had travelled at all, so the reel died and then a machine
          zoomed at an empty screen. The strip now lives through the whole
@@ -842,8 +842,11 @@ export function createIntro({ onProgress } = {}) {
       /* The strip survives the whole APPROACH and clears during the hold —
          it used to fade before the camera had even started moving, so the
          reel died and then a machine zoomed at an empty screen. */
-      const filmVis = filmIn * filmOut * marketOpacity
-        * (1 - smoothstep((p - 0.714) / 0.012));
+      /* ⚠️ filmOut IS ALREADY (1 - smoothstep((p-.714)/.012)) — multiplying
+         by the same expression again squared the envelope, so the authored
+         .714-.726 fade was never the fade that ran. Harmless only because
+         the 13x machine covers the strip through that window. */
+      const filmVis = filmIn * filmOut * marketOpacity;
       marketExperience.style.setProperty("--market-film-opacity",
         (filmVis > 0.004 ? filmVis : (marketOpacity > 0.02 ? 0.004 : 0)).toFixed(3));
       marketExperience.style.setProperty("--market-film-x", `${filmX.toFixed(2)}vw`);
@@ -1090,7 +1093,10 @@ export function createIntro({ onProgress } = {}) {
              low, off the bottom of the screen entirely). The upper-left
              quadrant is the one area the strip and the machine both leave
              clear on this composition. */
-          ribbonCaption.style.opacity = (filmVis * (1 - approach)).toFixed(3);
+          /* it was still legible at p=.708, half behind the machine, long
+             after the strip it labels had gone under the zoom */
+          ribbonCaption.style.opacity =
+            (filmVis * (1 - approach) * (1 - smoothstep((p - 0.688) / 0.014))).toFixed(3);
         }
         /* the canvas takes the pointer ONLY while the reel is interactive —
            outside that window it must stay transparent to events */

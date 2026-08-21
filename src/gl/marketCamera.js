@@ -384,15 +384,20 @@ const RIBBON_VERT = `
        Two frequencies so it undulates like film rather than a sine sheet,
        and the phase runs with uEmerge so the wave travels down the strip. */
     float fall = 1.0 - uEmerge;
-    /* HIGHER frequency so more than one crest is on screen at a time.
-       Measured at 15/27: the wave's screen wavelength was about a whole
-       viewport, so a single frame showed one crest and read as a bend
-       rather than a ripple. */
-    float ripple = sin(vUv.x * 30.0 - uEmerge * 9.0) * 1.0
-                 + sin(vUv.x * 50.0 - uEmerge * 5.0) * 0.42;
-    /* falloff gentled from ^2: the ripple had spent itself by p=.620, well
-       before the beat it is timed to, so the arrival died in silence */
-    float amp = pow(fall, 1.45) * 205.0;
+    /* ⚠️ FREQUENCY IS PER VISIBLE ARC, NOT PER ARC. Only ~23% of this path
+       is ever on screen, so vUv.x * 30.0 (30 RADIANS, i.e. 4.8 cycles)
+       over the whole strip — put barely 1.1 cycles in frame and still read
+       as one bend. Raising 15 -> 30 did not fix that; it could not. To show
+       ~3 crests you need ~3 cycles inside that 23%, which is ~13 cycles
+       over the arc = 82 radians. (420 segments keeps ~32 samples/cycle.) */
+    float ripple = sin(vUv.x * 82.0 - uEmerge * 11.0) * 1.0
+                 + sin(vUv.x * 131.0 - uEmerge * 6.0) * 0.38;
+    /* ⚠️ HOLD, THEN DIE. A monotone falloff spent the loud half of the
+       ripple while the film was still BEHIND the machine — measured, 44% of
+       the amplitude was gone by the time it came into view, so the part the
+       viewer actually sees was the quiet tail. Amplitude now stays near full
+       until the film is out front, then falls to exactly zero. */
+    float amp = 205.0 * (1.0 - smoothstep(0.34, 1.0, uEmerge));
     pos.y += ripple * amp;
     pos.z += ripple * amp * 0.42;
     /* the band also flutters across its own width — the far edge lags the
