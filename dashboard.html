@@ -51,7 +51,7 @@
 <body>
 <header>
   <h1>Buildanta Solutions site (family)</h1>
-  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>5f699d1</code> · updated 2026-08-14 · generated 2026-08-20 09:25 UTC</div>
+  <div class="meta">Living map · truth file: <code>ARCHITECTURE.md</code> @ <code>058fcca</code> · updated 2026-08-14 · generated 2026-08-21 06:31 UTC</div>
 </header>
 
 <section>
@@ -107,7 +107,7 @@
 </section>
 
 <section>
-  <h2>Decisions — 38 logged</h2>
+  <h2>Decisions — 39 logged</h2>
   <input id="filter" type="search" placeholder="Filter decisions… (why, alternative, keyword)">
   <details class="decision" data-text="d-001 the approved design is frozen (vault ux4) once yash approves a design it is frozen; rebuilds/migrations are not licence to redraw it; ambiguous scope resolves toward preserving. a &quot;leveled-up&quot; rebuild silently redrew approved ui once; that class of loss is now banned by rule. trust each session's judgment — rejected, that's how it happened.">
   <summary><span class="did">D-001</span> The approved design is frozen (vault UX4) <span class="ddate">2026-08-10</span></summary>
@@ -483,6 +483,16 @@
   <summary><span class="did">D-038</span> The filmstrip is a curved 3D ribbon <span class="ddate">2026-08-20 (14:40)</span></summary>
   <dl>
     <dt>Decision</dt><dd>(Ribbon brief.) The DOM strip's defect was structural — tilted flat cards on a straight sprocket band cannot read as film. Now ONE continuous curved surface in the camera's own scene: Catmull-Rom through the brief's five points, 160 arc-length segments, 260mm wide, rolled +18°→0→−18° (the twist is what reads as serpentine), parented to the RIG so the film rides the machine and stays threaded through its reels. <strong>The rail is static</strong> (the reference's real lesson): built once, never animates; only content slides via a uniform mapping the act's existing DETENTED drive (filmTravel — raw <code>pos</code> parked the GAP at the apex). Sprockets are shader discards in the surface. Nine plates in one 3×3 atlas, one draw call. Captions stay DOM (crisp/selectable/AT-readable), anchored via projectModelPoint. Clicks raycast to an index and bridge to the SAME hidden DOM plate's handler — sheet, Escape, backdrop, focus, Lenis lock untouched (verified: apex click opened CONTENT, focus on close, Escape closed). DOM strip opacity-0 but in the tree (a11y fallback; never display:none). Reels split per brief via closed-form INTEGRALS of the fill-state rates (a raw rate would spin wheels backwards when it fell); both remain functions of pos — one-driver law holds. Reduced motion: plate 4 parked, no transport.</dd>
+    <dt>Why</dt><dd></dd>
+    <dt>Alternatives considered</dt><dd></dd>
+    <dt>Decided by</dt><dd></dd>
+    <dt>Source</dt><dd></dd>
+  </dl>
+</details>
+<details class="decision" data-text="d-039 camera first, then the reel arrives from behind it yash's sequence — &quot;first only camera ... then it moves to the centre ... when it reaches the centre the reel comes from the back of the camera to the front on parallax ... then the reel flows.&quot; the film used to fade in at .553 while the machine was still driving in, so neither entrance had its own beat. now: **.545–.620** camera alone; **.622–.662** the reel travels forward out of the machine's depth (ribbon group z −1150 → 0, plus lift and lateral drift — under perspective that depth travel is the parallax); **.660–.710** transport. spools spin only once film exists (spin-up .565 → .658). verified by frames: at .642 the film passes behind the tripod legs, by .665 in front of them.  ">
+  <summary><span class="did">D-039</span> Camera first, then the reel arrives from behind it <span class="ddate">2026-08-21 (12:00)</span></summary>
+  <dl>
+    <dt>Decision</dt><dd>Yash's sequence — &quot;first only camera ... then it moves to the centre ... when it reaches the centre the reel comes from the back of the camera to the front on parallax ... then the reel flows.&quot; The film used to fade in at .553 while the machine was still driving in, so neither entrance had its own beat. Now: <strong>.545–.620</strong> camera alone; <strong>.622–.662</strong> the reel travels forward out of the machine's depth (ribbon GROUP z −1150 → 0, plus lift and lateral drift — under perspective that depth travel IS the parallax); <strong>.660–.710</strong> transport. Spools spin only once film exists (spin-up .565 → .658). Verified by frames: at .642 the film passes BEHIND the tripod legs, by .665 IN FRONT of them.</dd>
     <dt>Why</dt><dd></dd>
     <dt>Alternatives considered</dt><dd></dd>
     <dt>Decided by</dt><dd></dd>
