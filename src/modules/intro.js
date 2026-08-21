@@ -606,8 +606,14 @@ export function createIntro({ onProgress } = {}) {
          ... then on scroll the reel will flow."
          So the film waits for the machine to land (travel completes .620)
          and arrives on its own beat instead of fading in mid-drive. */
-      const filmEmerge = smoothstep((p - 0.622) / 0.040);   // .622 -> .662
-      const filmIn = smoothstep((p - 0.624) / 0.030);
+      /* RETIMED to the frame Yash pointed at (21 Aug 12:04): he sent the
+         machine mid-drive, still angled and left of centre, and said the
+         reel starts THERE. Measured against project('lens'), that frame is
+         p=.584 (lens x .407 against his .404) — so the film sets off while
+         the camera is still travelling, and the two arrivals overlap by
+         design rather than queueing. */
+      const filmEmerge = smoothstep((p - 0.584) / 0.052);   // .584 -> .636
+      const filmIn = smoothstep((p - 0.586) / 0.034);
       /* filmOut used to end the strip at local .90 (p=.696) — before the
          camera had travelled at all, so the reel died and then a machine
          zoomed at an empty screen. The strip now lives through the whole
@@ -624,7 +630,7 @@ export function createIntro({ onProgress } = {}) {
       /* the transport starts only once the film has ARRIVED — it used to
          begin at local .44 (p .586), while the machine was still driving in
          and before the reel existed on screen */
-      const filmRaw = smoothstep((p - 0.660) / 0.050);       // .660 -> .710
+      const filmRaw = smoothstep((p - 0.640) / 0.066);       // .640 -> .706
       const slots = Math.max(filmCards.length - 1, 1);
       const pos = filmRaw * slots;
       const idx = Math.floor(pos);
@@ -983,7 +989,7 @@ export function createIntro({ onProgress } = {}) {
         const es = reduced ? 1 : 0.86 + 0.14 * travel;
         /* the spools turn when there is film to move: threading first,
            transport second (was .565, before the reel had arrived) */
-        const spinUp = smoothstep((p - 0.658) / 0.030);
+        const spinUp = smoothstep((p - 0.638) / 0.030);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
         /* The old CSS transform chain, composed here in viewport px:
            translate(dx,dy) then scale about the lens pivot (43.5%, 31%).

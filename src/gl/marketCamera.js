@@ -366,9 +366,29 @@ function buildRibbonAtlas(renderer, onReady) {
 
 const RIBBON_VERT = `
   varying vec2 vUv;
+  uniform float uEmerge;   // 0 = deep behind the machine, 1 = settled
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vec3 pos = position;
+    /* THE WAVY ARRIVAL (Yash, 21 Aug 12:04): "the reel comes from the
+       background of the camera to front of the camera in a wavy motion."
+       A travelling ripple along the arc, strongest as the film is furthest
+       back and dying to EXACTLY zero once it settles — so the rail is still
+       pixel-identical at rest, which is the rule the ribbon is built on.
+       Displacing here rather than in the geometry is what keeps that true:
+       the curve is never rebuilt, it is only pushed while in flight.
+       Two frequencies so it undulates like film rather than a sine sheet,
+       and the phase runs with uEmerge so the wave travels down the strip. */
+    float fall = 1.0 - uEmerge;
+    float ripple = sin(vUv.x * 15.0 - uEmerge * 7.5) * 1.0
+                 + sin(vUv.x * 27.0 - uEmerge * 4.0) * 0.45;
+    float amp = fall * fall * 210.0;              // eases out, never snaps
+    pos.y += ripple * amp;
+    pos.z += ripple * amp * 0.42;
+    /* the band also flutters across its own width — the far edge lags the
+       near one, which is what makes a ribbon read as cloth-thin */
+    pos.y += (vUv.y - 0.5) * ripple * fall * 90.0;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }`;
 
 const RIBBON_FRAG = `
@@ -606,6 +626,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       uPlateW: { value: RIBBON.PLATE_MM / arcMM },
       uGate: { value: gate },
       uWidth: { value: RIBBON.WIDTH },
+      uEmerge: { value: 1 },
     },
     transparent: true,
     side: DoubleSide,       // the twist shows the back near the spools
@@ -941,6 +962,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
        comes at you, all from one number. A little lift and lateral drift
        stop it reading as a straight dolly. */
     const em = state.filmEmerge;
+    ribbonMat.uniforms.uEmerge.value = em;
     ribbonGroup.position.set((1 - em) * 120, (1 - em) * -80, (1 - em) * -1150);
     ribbonMat.uniforms.uPos.value = state.filmPos;
     ribbonMat.uniforms.uAlpha.value = state.filmAlpha;
