@@ -612,8 +612,14 @@ export function createIntro({ onProgress } = {}) {
          p=.584 (lens x .407 against his .404) — so the film sets off while
          the camera is still travelling, and the two arrivals overlap by
          design rather than queueing. */
-      const filmEmerge = smoothstep((p - 0.584) / 0.052);   // .584 -> .636
-      const filmIn = smoothstep((p - 0.586) / 0.034);
+      const filmEmerge = smoothstep((p - 0.584) / 0.062);   // .584 -> .646
+      /* ⚠️ The FADE must start with the MOTION, not after it. Measured: with
+         filmIn opening at .586 the ribbon painted ZERO pixels at the exact
+         frame Yash pointed to and was not perceptible until ~.590 — 99px of
+         scroll after the beat he named. It now opens on the same frame and
+         crosses perceptibility within ~2 thousandths, so the reel is there
+         when he says it is. */
+      const filmIn = smoothstep((p - 0.5835) / 0.016);
       /* filmOut used to end the strip at local .90 (p=.696) — before the
          camera had travelled at all, so the reel died and then a machine
          zoomed at an empty screen. The strip now lives through the whole
@@ -630,7 +636,10 @@ export function createIntro({ onProgress } = {}) {
       /* the transport starts only once the film has ARRIVED — it used to
          begin at local .44 (p .586), while the machine was still driving in
          and before the reel existed on screen */
-      const filmRaw = smoothstep((p - 0.640) / 0.066);       // .640 -> .706
+      /* the transport picks up while the arrival is still settling — at
+         .640 the wave was long dead (5% of peak by .620) and the depth
+         travel 98% done by .622, so the act sat still for two hundredths */
+      const filmRaw = smoothstep((p - 0.628) / 0.078);       // .628 -> .706
       const slots = Math.max(filmCards.length - 1, 1);
       const pos = filmRaw * slots;
       const idx = Math.floor(pos);
@@ -989,7 +998,7 @@ export function createIntro({ onProgress } = {}) {
         const es = reduced ? 1 : 0.86 + 0.14 * travel;
         /* the spools turn when there is film to move: threading first,
            transport second (was .565, before the reel had arrived) */
-        const spinUp = smoothstep((p - 0.638) / 0.030);
+        const spinUp = smoothstep((p - 0.626) / 0.030);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
         /* The old CSS transform chain, composed here in viewport px:
            translate(dx,dy) then scale about the lens pivot (43.5%, 31%).

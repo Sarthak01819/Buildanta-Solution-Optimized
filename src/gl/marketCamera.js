@@ -236,7 +236,11 @@ const RIBBON = {
     [-4500,  -345,   940],   // TAKE-UP — off the left edge, dead straight
   ],
   WIDTH: 260,             // mm
-  SEGS: 260,              // longer path than the bow — keep the near pass smooth
+  /* 420, up from 260: the arrival ripple runs at 50 cycles over the arc and
+     needs ~8 samples per cycle or the wave itself renders faceted. Vertex
+     cost is trivial (840 verts) and the extra segments also keep the near
+     pass smoother. */
+  SEGS: 420,
   PITCH_MM: 470,          // plate pitch along the arc
   PLATE_MM: 420,          // plate width along the arc
   /* Roll about the tangent, 0deg = square to the render camera, keyed on
@@ -380,9 +384,15 @@ const RIBBON_VERT = `
        Two frequencies so it undulates like film rather than a sine sheet,
        and the phase runs with uEmerge so the wave travels down the strip. */
     float fall = 1.0 - uEmerge;
-    float ripple = sin(vUv.x * 15.0 - uEmerge * 7.5) * 1.0
-                 + sin(vUv.x * 27.0 - uEmerge * 4.0) * 0.45;
-    float amp = fall * fall * 210.0;              // eases out, never snaps
+    /* HIGHER frequency so more than one crest is on screen at a time.
+       Measured at 15/27: the wave's screen wavelength was about a whole
+       viewport, so a single frame showed one crest and read as a bend
+       rather than a ripple. */
+    float ripple = sin(vUv.x * 30.0 - uEmerge * 9.0) * 1.0
+                 + sin(vUv.x * 50.0 - uEmerge * 5.0) * 0.42;
+    /* falloff gentled from ^2: the ripple had spent itself by p=.620, well
+       before the beat it is timed to, so the arrival died in silence */
+    float amp = pow(fall, 1.45) * 205.0;
     pos.y += ripple * amp;
     pos.z += ripple * amp * 0.42;
     /* the band also flutters across its own width — the far edge lags the
