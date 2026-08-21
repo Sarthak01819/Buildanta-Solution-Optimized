@@ -484,10 +484,19 @@ const RIBBON_FRAG = `
        It also fixes the far run never carrying a frame LEFT of the gate:
        every unwrapped k sat downstream of it, so ~80% of the width was bare
        stock even at the fullest moment. */
-    if (uWrap > 0.5) k = mod(k, 9.0);
-    float x = rel - k;                               // -.5..+.5 within a pitch
+    /* ⚠️ THE OFFSET COMES FROM THE UNWRAPPED INDEX. Wrapping k and THEN
+       taking x = rel - k made the recycling a no-op: rel 9.2 wrapped to k 0
+       and gave x 9.2, which fails abs(x) < ph exactly as the old k<=8 test
+       did. So the far run still ran out of film and the audit measured 0%
+       art across the left half at every p, and nothing at all past ~.685.
+       Keep the true index for the geometry; wrap only what indexes the
+       atlas. */
+    float kGeo = k;                                  // true, unwrapped
+    float x = rel - kGeo;                            // -.5..+.5 within a pitch
+    if (uWrap > 0.5) k = mod(mod(k, 9.0) + 9.0, 9.0);   // GLSL mod is signed
     float ph = 0.5 * (uPlateW / uPitch);
-    if (k >= 0.0 && k <= 8.0 && abs(x) < ph && vUv.y > 0.17 && vUv.y < 0.83) {
+    bool inReel = (uWrap > 0.5) || (kGeo >= 0.0 && kGeo <= 8.0);
+    if (inReel && abs(x) < ph && vUv.y > 0.17 && vUv.y < 0.83) {
       float vv = (vUv.y - 0.17) / 0.66;
       vec2 auv;
       /* the plate's own u flips with the travel direction, or every frame
@@ -707,7 +716,12 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
      frames 0.6 code values above empty screen: an orange hoop with nothing
      in it. 0.58 puts them clearly above the floor while still reading as
      the dim far side of the loop. */
-  backMat.uniforms.uDim.value = 0.58;
+  /* 0.42: the audit measured 0.58 giving a 0.47 brightness ratio against our
+     near run where the reference sits at 0.235 — the far side was competing
+     with the near strip instead of receding. 0.42 lands near 0.33: still
+     clearly above our near-black set (which is why 0.10 failed), without
+     reading as a second equal strip. */
+  backMat.uniforms.uDim.value = 0.42;
   backMat.uniforms.uWrap.value = 1;
   backMat.uniforms.uFlip.value = 1;
   const ribbonBack = new Mesh(ribbonGeo, backMat);
@@ -723,7 +737,11 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   /* the reference has the two runs nearly TOUCHING (a 10px gap against a
      280px band); ours sat 1.47 band-heights apart and read as two unrelated
      strips rather than one loop of film */
-  ribbonBack.position.set(0, 150, -900);
+  /* pulled in from -900: at that depth the far run rendered at 0.44-0.49 of
+     the near run's scale and 0.375 of its travel speed, where the reference
+     implies 0.62 for both — a loop's far side should read as the same film,
+     just further away. */
+  ribbonBack.position.set(0, 150, -620);
   ribbonBack.renderOrder = -1;               // behind the near run
 
   const ribbon = new Mesh(ribbonGeo, ribbonMat);
