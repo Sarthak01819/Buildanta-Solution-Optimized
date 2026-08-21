@@ -432,13 +432,22 @@ for t in ped: bevel(t, 3, 1)
 camera_body = join(body_parts + [mag, mag_in] + mag_bolts + [vf] + knobs + ped, "camera_body")
 set_origin(camera_body, (0, 0, 0))
 
-# ── 8 · crank: right, THEN down (the reference's L) ─────────────────────────
-c_hub = cyl("c_hub", 13.5, 24, (227, 0, -125), 32, 'Y')
-c_arm = rod("c_arm", 7, (238, 0, -125), (318, 0, -125), SEG_HOLE)
-c_drop = rod("c_drop", 6.5, (318, 0, -125), (318, 0, -188), SEG_HOLE)
-c_shaft = rod("c_shaft", 6, (318, 0, -188), (358, 0, -188), SEG_HOLE)
-c_grip = tag_wear(cyl("c_grip", 15, 68, (392, 0, -188), SEG_HOLE, 'X'))
-crank = join([c_hub, c_arm, c_drop, c_shaft, c_grip], "crank")
+# ── 8 · crank: SIDE-MOUNTED, so the handle sweeps forward and back ──────────
+# ⚠️ The axle points SIDEWAYS (model X), out of the camera's right flank, and
+# the arm reaches across the DEPTH-vertical plane. That is how a hand-crank
+# is actually mounted, and it is what lets the handle come toward the viewer
+# and go away again as it turns (Yash, 08:39: "I want the rotation from
+# forward to backward"). Built flat in the screen plane before, with its axle
+# pointing at the viewer, it could only ever sweep round like a clock hand.
+# The hub sits ON the contract anchor (CRANK_X, CRANK_Y) so the node's
+# translation — which the matcher gates — is unchanged, and so the arm orbits
+# the axle rather than some point beside it.
+c_hub = cyl("c_hub", 15, 52, (CRANK_X, 0, CRANK_Y), 32, 'X')
+c_boss = cyl("c_boss", 21, 12, (CRANK_X - 20, 0, CRANK_Y), 24, 'X')
+c_arm = rod("c_arm", 8, (CRANK_X + 18, 0, CRANK_Y), (CRANK_X + 18, -132, CRANK_Y), SEG_HOLE)
+c_web = rod("c_web", 5.5, (CRANK_X + 18, -34, CRANK_Y), (CRANK_X + 18, -120, CRANK_Y), SEG_HOLE)
+c_grip = tag_wear(cyl("c_grip", 13, 72, (CRANK_X + 54, -132, CRANK_Y), SEG_HOLE, 'X'))
+crank = join([c_hub, c_boss, c_arm, c_web, c_grip], "crank")
 set_origin(crank, (CRANK_X, CRANK_Y, 0))
 
 # ── 9 · head: housing, tilt knobs on stalks, a three-disc pivot boss ────────
