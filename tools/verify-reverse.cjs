@@ -17,6 +17,10 @@ const STOPS = [0.46, 0.52, 0.58, 0.62, 0.66, 0.69, 0.71, 0.73, 0.75, 0.78, 0.82]
   p.on('console', m => { if (m.type() === 'error') errs.push('console: ' + m.text()); });
   await p.goto('http://127.0.0.1:5303/', { waitUntil: 'load' });
   await p.waitForFunction('window.__buildanta && window.__buildanta.intro', null, { timeout: 30000 });
+  // Pin uTime: the market band's arc breathes on the wall clock (designer swap,
+  // 25 Aug), so a forward and a backward arrival photographed seconds apart
+  // would differ by phase alone. Pinning makes the comparison pure state.
+  await p.evaluate(() => { window.__bbPinTime = 300000; });
   await p.evaluate(() => new Promise(r => setTimeout(r, 1600)));
 
   const go = async (q) => {

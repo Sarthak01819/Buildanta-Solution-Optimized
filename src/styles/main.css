@@ -5025,7 +5025,13 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 .market-blackout::after {
   content: "";
   position: absolute;
-  left: 50%; top: 50%;
+  /* ⚠️ ANCHORED TO THE APERTURE, NOT THE VIEWPORT. .consult-zero and
+     .consult-zero__light-frame were both moved onto the measured pupil; this
+     rim was missed and kept blooming at 50% 50%, which on a 1280x720 frame is
+     34px below the pupil - so the green sphere and the black disc it is
+     supposed to rim appeared as two separate dots. Same fallback as the
+     others, so it still centres before the model loads. */
+  left: var(--pupil-x, 50%); top: var(--pupil-y, 50%);
   width: calc(var(--hole, 0) * 156vmax);
   aspect-ratio: 1;
   transform: translate(-50%, -50%);
@@ -5664,7 +5670,9 @@ canvas.market-camera3d {
   animation: rc-in .45s ease both;
 }
 @keyframes rc-in {
-  from { opacity: 0; transform: translateY(.35em); }
+  /* slides in FROM the direction the film came from, so the swap reads as
+     the next box carrying its name in. --cap-dir is +1/-1 from the rig. */
+  from { opacity: 0; transform: translateX(calc(var(--cap-dir, 1) * 1.1em)); }
   to   { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -5674,20 +5682,41 @@ canvas.market-camera3d {
 }
 
 
-/* ── THE REEL'S TITLE SITS STILL (Yash's reference, 20 Aug 21:20) ───────
-   The strip now crosses the whole foreground, so a caption anchored to the
-   moving gate either landed on the machine or ran off the bottom. The
-   reference keeps its title static in clear space and only swaps the words
-   — same here, in the upper-left quadrant the composition leaves open. */
+/* ── THE REEL'S TITLE MOVED TO CENTRE-BOTTOM (22 Aug) ──────────────────
+   It used to sit in the upper-left quadrant, static, on the reasoning that a
+   caption anchored to the moving gate either landed on the machine or ran
+   off the bottom. It now reads centred along the bottom edge instead, below
+   the strip's travel, where neither can happen — and it DRIFTS with the film
+   rather than sitting still, so the words feel attached to the box they name.
+   `top: auto` is required: the base rule at :5631 sets `top`, and leaving it
+   in place would fight the `bottom` anchor. */
 .market-ribbon-caption {
-  left: clamp(1.5rem, 7vw, 9rem);
-  top: clamp(4rem, 17vh, 12rem);
-  transform: none;
-  justify-items: start;
-  text-align: left;
+  left: 50%;
+  top: auto;
+  bottom: clamp(2.2rem, 9vh, 6.5rem);
+  /* --cap-dx is written per frame by the rig: the caption slides in the
+     direction of travel while a plate crosses, and is exactly 0 at rest */
+  transform: translateX(calc(-50% + var(--cap-dx, 0px)));
+  justify-items: center;
+  text-align: center;
+  width: min(90vw, 46rem);
 }
 @media (max-width: 720px) {
-  .market-ribbon-caption { left: 1.25rem; top: 9vh; }
+  .market-ribbon-caption { left: 50%; top: auto; bottom: 6vh; width: 92vw; }
+}
+
+/* ── THE TEXT COMES OFF THE BOXES ──────────────────────────────────────
+   Each plate used to carry its own word/line/tag, so the names rode the
+   strip and stacked up across the screen — five of them visible at once.
+   The centre-bottom caption now names whichever plate is at the gate, so the
+   per-box copy is redundant.
+   ⚠️ HIDDEN, NOT DELETED. The rig reads the caption's text straight out of
+   these nodes (card.querySelector('.plate__word').textContent), so they must
+   stay in the DOM. display:none keeps textContent readable. */
+.market-frame--plate .plate__word,
+.market-frame--plate .plate__line,
+.market-frame--plate .plate__tag {
+  display: none;
 }
 
 /* ── THE HIDDEN PLATES MUST NOT CATCH THE MOUSE (audit, 21 Aug) ─────────

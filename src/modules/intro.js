@@ -174,6 +174,22 @@ export function createIntro({ onProgress } = {}) {
   let marketCam3d = null;
   let ribbonCaption = null, ribbonCaptionIdx = -1;
   let filmVel = 0, filmVelLast = 0, filmVelAt = performance.now();
+  /* Every speed-driven term in marketCamera clamps at +/-4, the reference's
+     VEL_CLAMP in plates/second. But its reel spends 60vh per plate and ours
+     about 0.17vh, so our plates/second runs ~10x hotter — measured ~12 at a
+     crawl, ~50 at a normal wheel. Every term therefore sat pinned at maximum
+     for the whole beat: the speed response was a switch, not a response.
+     applyRaw runs twice per frame (ScrollTrigger onUpdate + the ticker, the
+     second with raw=0), attenuating those to ~0.43x: 5 / 22 / 45. 0.09 puts a
+     normal wheel at ~2, mid-scale in the 0-4 band the coefficients were tuned
+     for, and still lets a flick saturate — which is what the clamp is for. */
+  /* 0.21, was 0.09. Coupled to the arrival/transport split above: slowing
+     the transport 2.375x divides plates/second by the same factor, so the old
+     value would have quietly drained the motion blur. 0.09 * 2.375 = 0.21.
+     ⚠️ These two changes are ONE change - 0.21 without the stretches would
+     over-drive every velocity term straight back into the +/-4 clamp
+     saturation the note above exists to record as fixed. */
+  const VEL_NORM = 0.21;
   let ribbonPointerOn = false, ribbonHoverAt = 0;
   let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
   /* where the aperture sat when the blackout took it — the reveal circle
@@ -613,9 +629,7 @@ export function createIntro({ onProgress } = {}) {
          p=.584 (lens x .407 against his .404) — so the film sets off while
          the camera is still travelling, and the two arrivals overlap by
          design rather than queueing. */
-      /* the entry now has three moves to make (in from the left, across to
-         the right, then the loop forward), so it gets a longer beat */
-      const filmEmerge = Math.max(0, Math.min(1, (p - 0.584) / 0.074));   // .584 -> .658
+      const filmEmerge = smoothstep((p - 0.584) / 0.062);   // .584 -> .646
       /* ⚠️ The FADE must start with the MOTION, not after it. Measured: with
          filmIn opening at .586 the ribbon painted ZERO pixels at the exact
          frame Yash pointed to and was not perceptible until ~.590 — 99px of
@@ -642,13 +656,58 @@ export function createIntro({ onProgress } = {}) {
       /* the transport picks up while the arrival is still settling — at
          .640 the wave was long dead (5% of peak by .620) and the depth
          travel 98% done by .622, so the act sat still for two hundredths */
-      const filmRaw = smoothstep((p - 0.646) / 0.062);       // .646 -> .708
+      /* ⚠️ TRANSPORT NOW FINISHES WHERE THE ZOOM BEGINS (22 Aug).
+         Was /0.078, i.e. .628 -> .706 - which ran PAST the approach at .684,
+         so the camera started pushing in while the last two plates were still
+         arriving and IoT was zoomed past rather than seen. /0.056 lands the
+         ninth plate (IoT) in the gate at exactly .684, the frame the push
+         starts on.
+         Deliberately done here and NOT by moving `approach` to .706: .684 is
+         the head of the documented handover chain (.684 approach, .716 hold,
+         .726 enter, .744 sphere, .752 out) and the approach window is only
+         0.032 wide - starting it at .706 would end it at .738, past the hold.
+         Compressing the transport leaves every protected boundary untouched. */
+      const filmRaw = smoothstep((p - 0.628) / 0.056);       // .628 -> .684
       const slots = Math.max(filmCards.length - 1, 1);
-      const pos = filmRaw * slots;
-      const idx = Math.floor(pos);
-      const frac = pos - idx;
-      const detent = frac < 0.34 ? 0 : frac > 0.72 ? 1 : smoothstep((frac - 0.34) / 0.38);
-      const filmTravel = (idx + detent) / slots;
+      /* ⚠️ posScroll is the RAW scroll position; `pos` below is the DETENTED
+         one. Everything printed on the film - the DOM strip, both spools, the
+         crank, the shutter, the iris and the 3D ribbon - must ride the same
+         number, or the pictures step while the sprockets slide. Previously
+         only filmTravel was detented and `pos` stayed linear, so the strip
+         and the spools moved smoothly under a stepping ribbon. */
+      const posScroll = filmRaw * slots;
+      const idx = Math.floor(posScroll);
+      const frac = posScroll - idx;
+      /* ── THE SNAP OVERSHOOTS (22 Aug) ───────────────────────────────
+         The reference lands each step on a SPRING (stiffness 73, damping 12)
+         whose signature is a single overshoot of ~3.1% of a slot peaking
+         ~516ms in. That overshoot is most of what makes its stepping read as
+         mechanical rather than interpolated.
+         ⚠️ REPRODUCED AS A PURE FUNCTION OF frac, NOT AS A SPRING. A real
+         spring is an integrator: its output depends on how it arrived, so the
+         same scroll position would render differently coming down than going
+         back up. This act's contract is the opposite — every motion reversible
+         from scroll progress, which tools/verify-reverse.cjs exists to assert.
+         Verified: peak 0.03103 at frac .752, continuous at both joins,
+         d(0)=0, d(1)=1. */
+      const OVERSHOOT = 0.031;      // 3.1% of a slot, the reference's own
+      const HUMP_PEAK = 0.5787;     // max of sin(pi t)(1-t), makes OVERSHOOT exact
+      let detent;
+      if (frac < 0.34) detent = 0;
+      else if (frac < 0.66) {
+        const t = (frac - 0.34) / 0.32;
+        detent = 1 - Math.pow(1 - t, 3);                  // cubic-out rise
+      } else if (frac < 0.92) {
+        const t = (frac - 0.66) / 0.26;                   // the settle
+        detent = 1 + (OVERSHOOT / HUMP_PEAK) * Math.sin(Math.PI * t) * (1 - t);
+      } else detent = 1;
+      const scrollTravel = (idx + detent) / slots;
+      /* reduced motion parks the whole transport on plate 4 at the SOURCE, so
+         the strip and the spools park with the ribbon instead of travelling
+         under it - the old `reduced ? 4` guards sat only on filmPos and the
+         caption index and left the rest moving */
+      const pos = reduced ? 4 : scrollTravel * slots;
+      const filmTravel = pos / slots;
       /* TRANSPORT SPEED in plates/second — the reference drives its arc
          amplitude, its per-plate curvature and its shear from exactly this,
          and its own doc is emphatic that speed changes curvature, scale and
@@ -657,9 +716,27 @@ export function createIntro({ onProgress } = {}) {
       {
         const nowMs = performance.now();
         const dt = Math.min(0.1, Math.max(0.001, (nowMs - filmVelAt) / 1000));
-        const posNow = filmTravel * slots;
+        const posNow = pos;                     // already detented at source
         const raw = (posNow - filmVelLast) / dt;
-        filmVel += (raw - filmVel) * 0.25;          // smoothed, or it jitters
+        /* FIX-FORWARD (25 Aug): dt-based, was 0.25/call. A per-call factor
+           decays at whatever rate the caller runs — throttled rAF (headless
+           rigs, background tabs) stretched the ~0.4s settle to many seconds,
+           and a 120Hz display would halve it. dt*15 ≡ 0.25 at 60Hz, so the
+           tuning the designer shipped is preserved at the rate it was
+           tuned at. */
+        filmVel += (raw - filmVel) * Math.min(1, dt * 15); // smoothed, or it jitters
+        /* FIX-FORWARD (25 Aug, part 2): SNAP to exact zero below a deadband.
+           The art sampler in the ribbon frag BRANCHES at smearPlates <= 1e-5
+           - one exact sample at rest vs a 9-tap walk while moving - so an
+           asymptotic filter that never quite reaches zero parks the band
+           permanently on the blurred branch, and WHICH branch you rested on
+           depended on the approach (verify-reverse .690: fwd held ~0.003 and
+           stayed soft, rev hit exact 0 and stayed crisp - proven bit-identical
+           once filmVel was pinned equal). 0.02 plates/s pre-NORM is uVel
+           0.0042: the 9 taps sit within 0.15mm of the exact sample there, so
+           the snap itself cannot pop. Honours the shader's own contract:
+           "the approved still frame stays bit-identical" at rest. */
+        if (Math.abs(filmVel) < 0.02) filmVel = 0;
         filmVelLast = posNow;
         filmVelAt = nowMs;
       }
@@ -836,7 +913,12 @@ export function createIntro({ onProgress } = {}) {
          must equal consultReveal's — they are the SAME circle seen from the
          market side and the consult side; moving one without the other opens
          a hole onto a still-clipped world and the stall survives. */
-      const sphere = smoothstep((p - 0.744) / 0.044);      // .744 → .788
+      /* .738, was .744. The blackout completes at .738, so a .744 start left
+         six thousandths of pure black between the push finishing and the
+         aperture opening - the "one beat of black" this comment used to
+         describe, which reads as a stall rather than a beat. The end stays at
+         .788 so nothing downstream moves; only the dead gap is removed. */
+      const sphere = smoothstep((p - 0.738) / 0.050);      // .738 → .788
       /* The layer turns the lens's near-black into TRUE black. It is full
          BEFORE the aperture opens, so what you pass through into is the dark
          and not the inside of a scaled photograph — it is hidden behind the
@@ -1018,7 +1100,7 @@ export function createIntro({ onProgress } = {}) {
         const es = reduced ? 1 : 0.86 + 0.14 * travel;
         /* the spools turn when there is film to move: threading first,
            transport second (was .565, before the reel had arrived) */
-        const spinUp = smoothstep((p - 0.644) / 0.030);
+        const spinUp = smoothstep((p - 0.626) / 0.030);
         const camVis = camIn * (1 - smoothstep((p - 0.752) / 0.008));
         /* The old CSS transform chain, composed here in viewport px:
            translate(dx,dy) then scale about the lens pivot (43.5%, 31%).
@@ -1078,11 +1160,16 @@ export function createIntro({ onProgress } = {}) {
              is the act's existing detent curve. Reduced motion: strip
              visible and legible, no transport — the middle plate holds. */
           filmEmerge: reduced ? 1 : filmEmerge,
-          filmVel: reduced ? 0 : filmVel,
-          filmPos: reduced ? 4 : filmTravel * slots,
+          filmVel: reduced ? 0 : filmVel * VEL_NORM,
+          filmPos: pos,                          // reduced handled at source
           filmAlpha: filmVis,
           rect,
-        }, performance.now());
+        /* uTime source: pinnable, so the reverse rig can compare a forward
+           and a backward arrival without the band's live arc phase differing
+           between two wall-clock moments (tools/verify-reverse.cjs sets
+           __bbPinTime). Real clock otherwise — this feeds uTime only; the
+           vel filter's dt stays on performance.now(). */
+        }, window.__bbPinTime ?? performance.now());
         /* ── THE DOM CAPTION over the apex plate (ribbon brief): the word,
            line and tag render as crisp HTML that swaps as the frame changes,
            exactly like the reference — only the artwork is texture. */
@@ -1090,9 +1177,9 @@ export function createIntro({ onProgress } = {}) {
           /* DETENTED index, same drive as the ribbon — round(raw pos)
              swapped the caption while the plate was still travelling into
              the gate, so the words led the picture */
-          const apexIdx = Math.max(0, Math.min(8,
-            Math.round(reduced ? 4 : filmTravel * slots)));
+          const apexIdx = Math.max(0, Math.min(8, Math.round(pos)));
           if (apexIdx !== ribbonCaptionIdx && filmCards[apexIdx]) {
+            const prevIdx = ribbonCaptionIdx;
             ribbonCaptionIdx = apexIdx;
             const card = filmCards[apexIdx];
             ribbonCaption.querySelector(".rc-word").textContent =
@@ -1101,20 +1188,53 @@ export function createIntro({ onProgress } = {}) {
               card.querySelector(".plate__line")?.innerHTML || "";
             ribbonCaption.querySelector(".rc-tag").textContent =
               card.querySelector(".plate__tag")?.textContent || "";
+            /* which way the reel is going, so the new words enter from the
+               side the box came from rather than always the same edge */
+            ribbonCaption.style.setProperty("--cap-dir", apexIdx > prevIdx ? "1" : "-1");
             ribbonCaption.classList.remove("is-swap");
             void ribbonCaption.offsetWidth;            // restart the fade
             ribbonCaption.classList.add("is-swap");
           }
-          /* STATIC, like the reference's title — it does not chase the strip,
-             it simply swaps as the frame changes. Tracking the 3D gate put
-             the words over the machine (and, when the gate ran forward and
-             low, off the bottom of the screen entirely). The upper-left
-             quadrant is the one area the strip and the machine both leave
-             clear on this composition. */
+          /* ── THE CAPTION TRAVELS WITH THE BOX (22 Aug) ────────────────
+             Supersedes the old "STATIC, in the upper-left quadrant" rule.
+             The words now sit centre-bottom, below the strip's travel, where
+             neither the machine nor the bottom edge can swallow them - and
+             they DRIFT with the film so they feel attached to the box they
+             name. The drift is a half-sine over the crossing window, so it is
+             EXACTLY ZERO at both detent rests: the caption is only ever
+             off-centre while something is actually moving.
+             0.34 / 0.92 are the detent band edges above, not p values, so
+             this self-tracks the detent rather than a beat. */
+          const CAP_DRIFT_PX = 34;
+          let capDx = 0;
+          if (!reduced && frac > 0.34 && frac < 0.92) {
+            const cross = (frac - 0.34) / 0.58;         // 0..1 across the gap
+            capDx = -Math.sin(Math.PI * cross) * CAP_DRIFT_PX;
+          }
+          ribbonCaption.style.setProperty("--cap-dx", capDx.toFixed(1) + "px");
           /* it was still legible at p=.708, half behind the machine, long
              after the strip it labels had gone under the zoom */
+          /* ── THE CAPTION WAITS FOR ITS BOX (22 Aug) ───────────────────
+             It used to ride filmVis alone, which completes early in the
+             arrival, so the first plate's name was on screen before its box
+             had reached the gate. capGate is expressed against filmEmerge -
+             a normalised 0..1 ramp, NOT a p value - so 0.82/0.18 mean "the
+             last 18% of the arrival" and bind to whatever window filmEmerge
+             currently spans. No beat is referenced. */
+          /* ⚠️ GATED ON THE TRANSPORT START, NOT ON THE ARRIVAL RAMP.
+             This used to read smoothstep((filmEmerge - 0.82) / 0.18), which
+             finished at the END of the ribbon's fly-in - but the fly-in runs
+             to .646 while the transport begins at .628, so the fade was still
+             climbing after the plates had started stepping. Measured: SEO sat
+             at 0.31 opacity while SEO was in the gate, and the caption only
+             reached full when AEO and then ADS had already taken it - so the
+             first plate was the one plate whose name you never actually read.
+             Landing the fade on TRANSPORT_P0 means every plate, SEO included,
+             is fully legible for the whole time it holds the gate. */
+          const capGate = smoothstep((p - (TRANSPORT_P0 - 0.020)) / 0.020);
           ribbonCaption.style.opacity =
-            (filmVis * (1 - approach) * (1 - smoothstep((p - 0.688) / 0.014))).toFixed(3);
+            (filmVis * capGate * (1 - approach)
+              * (1 - smoothstep((p - 0.688) / 0.014))).toFixed(3);
         }
         /* the canvas takes the pointer ONLY while the reel is interactive —
            outside that window it must stay transparent to events */
@@ -1283,7 +1403,7 @@ export function createIntro({ onProgress } = {}) {
          cut to black now, so there is nothing to bleed over the reel. */
       const lightFrame = 0;
       /* the sphere: the world's own clip-circle, opening AFTER the black beat */
-      const consultReveal = smoothstep((p - 0.744) / 0.044);  // = the --hole window, always
+      const consultReveal = smoothstep((p - 0.738) / 0.050);  // = the --hole window, always
       const consultOut = 1 - smoothstep((p - 0.992) / 0.008);
       /* fully painted behind the black before the circle opens, so the circle
          is the ONLY reveal — a world that also fades in reads as a dissolve,
@@ -1506,8 +1626,29 @@ export function createIntro({ onProgress } = {}) {
   /* WE MARKET needs room: ten plates each get a readable beat (Yash, 7 Aug).
      Given as EXTRA viewport-heights on that act's own slice of the timeline,
      so every other act keeps exactly the pacing it already had. */
-  const marketStretch = reduced ? 0 : 3.0;   // ~0.42vh of scroll per plate
+  /* ── ARRIVAL AND TRANSPORT PACE SEPARATELY (22 Aug) ────────────────────
+     One stretch across .425 -> .684 gave the whole act a single speed, so
+     slowing the reel enough to read each plate also made the camera's
+     approach crawl. Split at TRANSPORT_P0 - which is already the transport
+     start, not a new beat - so the two halves can be paced apart.
+       .425 -> .628  ARRIVAL    5.19vh   (was 6.29vh of the old single row)
+       .628 -> .684  TRANSPORT  2.19vh
+     With handoverStretch 3.6 the 8-plate transport costs 3.226vh, i.e.
+     0.403vh (~323px at 800px) per plate against 0.170vh before - a 2.375x
+     slow-down. The reduced ? 0 guards are kept: mapScrollProgress skips
+     zero-vh rows, which is how reduced motion collapses the timeline. */
+  const arrivalStretch   = reduced ? 0 : 4.3;
+  /* 2.98, was 1.94. The transport row now carries ALL eight slot changes
+     (it used to hand the last ~2 to the handover row), so its scroll cost has
+     to grow to match or the plates would speed up: 8 * 0.403vh = 3.226vh,
+     minus the 0.246vh the span costs at base, leaves 2.98. Per-plate scroll
+     is therefore unchanged at 0.403vh - only WHERE the plates finish moved. */
+  const transportStretch = reduced ? 0 : 2.98;
   const MARKET_P0 = 0.425, MARKET_P1 = 0.684;
+  /* NOT a new beat: this is the existing transport start (filmRaw below,
+     smoothstep((p - 0.628) / 0.078)), reused as a segment boundary so the
+     arrival and the transport can carry different amounts of scroll. */
+  const TRANSPORT_P0 = 0.628;
   /* THE HANDOVER GETS ITS OWN SCROLL (Yash, 18:20).
      It used to live in the p-slice between the market and the consult, which
      carries NO extra vh — 0.008 * baseScrollLength = 0.035vh, a thirtieth of
@@ -1529,7 +1670,7 @@ export function createIntro({ onProgress } = {}) {
      the choreography changes. This is the SAFE lever: `stretch` is extra
      viewport-heights on the segment, not a p value. Moving those p values is
      what silently ate WE SCALE twice in one evening. */
-  const handoverStretch = reduced ? 0 : 1.4;
+  const handoverStretch = reduced ? 0 : 3.6;   // carries the reel's last plates
   /* Black-hole beat ka apna scroll span, burn ke poora hone ke BAAD —
      intro ka saara purana ganit introScrollLength par hi chalta hai,
      isliye acts/consult ki pacing ko ye chhoota tak nahi. */
@@ -1556,7 +1697,8 @@ export function createIntro({ onProgress } = {}) {
      A row with pFrom === pTo is a HOLD: p stands still while its vh scrolls. */
   const SEGMENTS = [
     [0, MARKET_P0, 0],
-    [MARKET_P0, MARKET_P1, marketStretch],
+    [MARKET_P0, TRANSPORT_P0, arrivalStretch],
+    [TRANSPORT_P0, MARKET_P1, transportStretch],
     [MARKET_P1, HANDOVER_P1, handoverStretch],
     [HANDOVER_P1, FILM_P, consultStretch * 0.85],
     [FILM_P, FILM_P, filmStretch],
@@ -1847,6 +1989,21 @@ export function createIntro({ onProgress } = {}) {
         b.style.height = (3 + lv * 30 * k).toFixed(1) + "px";
       });
     }
+
+    /* ── FIX-FORWARD (25 Aug, designer swap): keep the act's clock alive.
+       The vel filter lives inside applyRaw, and applyRaw's call sites are
+       all scroll events — the "runs twice per frame (+ the ticker)" note
+       above VEL_NORM describes the designer's rig, not this one. At rest
+       filmVel FROZE at its last signed value and the canvas held a smeared,
+       direction-keyed frame (verify-reverse .620/.660/.690: fwd latched
+       +vel, rev latched -vel, ~24% of band pixels apart). Replaying lastRaw
+       is idempotent (onReady does the same). While the camera canvas is
+       live it replays every tick — the designer's own cadence, which also
+       lets uTime breathe the band's arc at rest, exactly like the other
+       acts render on this same ticker; the vel term keeps a decaying
+       transport settling even once the canvas has faded out. */
+    const camOn = marketCam3d && parseFloat(marketCam3d.canvas.style.opacity || "0") > 0.01;
+    if (camOn || Math.abs(filmVel) > 0.02) applyRaw(lastRaw);
 
     // idle hint
     if (Math.abs(progress - lastP) > 0.0004) { idleFor = 0; lastP = progress; }

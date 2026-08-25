@@ -196,69 +196,69 @@ const GRAIN = { camera_body: 1.00, reel_a: 1.35, reel_b: 1.35,
    Z toward viewer. Parented to the RIG, so the film rides the machine
    through the drive-in and stays threaded through its reels. */
 const RIBBON = {
-  /* THE PATH — derived from a study of shader.se's own source (20 Aug), not
-     guessed. Their reel is a CatmullRomCurve3, closed=false, curveType
-     'chordal', and the study reproduced our measured screen centreline from
-     it to within 0.5% of slope. Our route follows Yash's brief rather than
-     copying theirs: theirs bulges nearest at MID-span, his wants the nearest
-     pass at the END of the journey — "starts from the back & right side of
-     the camera... near the end of the right side of the screen... then it
-     comes in forward".
-     Generated as a WIDENING SPIRAL about the machine's right side. The
-     radius never drops below ~1210mm (about 4.7x the ribbon width): tighter
-     than that and the band pinches and self-intersects at the turn, which is
-     what the study's own first two attempts did before it rebuilt them. */
+  /* THE PATH — Exact match to user sketch:
+     1. Upper-left run feeding horizontally from the left into the camera (arrow ->)
+     2. Passes through/behind the camera body below spools
+     3. Emerges out the top-right heading upward-right (arrow ↗)
+     4. Curves around the right side in a smooth U-turn loop (arrow ↷ / ↓)
+     5. Sweeps across the bottom foreground in front of the tripod legs (arrow ←)
+     6. Exits horizontally off-screen to the bottom-left */
   POINTS: [
-    /* ⚠️ MONOTONIC IN X — the path must never double back across the frame.
-       The studied spiral swung far behind the machine, and its deep tail
-       projected back INTO frame as a second, dimmer pass: the two sections
-       met near the left edge with a dark sliver between them, which reads
-       as a tear in the film. (Not a hole — a raycast hit the mesh there;
-       that is how it was told apart.) One pass only, entering off-frame
-       right and leaving off-frame left. */
-    [ 3400,   690, -1600],   // collinear guard for the feed tangent
-    [ 2600,   420,  -900],   // FEED — off-frame right, behind the machine
-    [ 1900,   150,  -200],   // coming round and forward
-    [ 1350,   -60,   380],   // crosses the lens plane
-    [  700,  -230,   780],   // forward, right of centre
-    [  100,  -330,   930],   // near pass — the hero plate
-    /* THE LEVEL RUN (Yash, 22:37): "end on the left side in HORIZONTAL
-       fashion." Y AND Z both fixed — under perspective a level line that
-       changes depth still slopes on screen. */
-    [ -800,  -345,   940],
-    [-1900,  -345,   940],
-    [-3200,  -345,   940],
-    /* ⚠️ COLLINEAR GUARD. Catmull-Rom extrapolates its end tangent, and the
-       last segment was hooking back — the hook projected into frame as a
-       separate, brighter sliver of film with a dark break before it, which
-       is the "tear" the audit saw near the left edge. A final point on the
-       same straight line pins the tail flat. */
-    [-4500,  -345,   940],   // TAKE-UP — off the left edge, dead straight
+    /* 1. Upper-left horizontal run entering camera from left */
+    [-3600,   180,  -350],
+    [-2000,   180,  -300],
+    [ -800,   180,  -250],
+    [    0,   190,  -250],   // through/behind camera body at spool level
+
+    /* 2. Upper-right run emerging out the camera */
+    [  800,   200,  -180],
+    [ 1800,   140,    50],
+
+    /* 3. Right U-turn loop */
+    [ 2600,   -60,   450],   // apex of right turn
+    [ 2200,  -260,   750],   // curving down & forward
+
+    /* 4. Bottom foreground run passing in front of tripod legs */
+    [ 1200,  -345,   940],   // in front of right tripod leg
+    [    0,  -345,   940],   // hero plate at gate in front of center leg
+    [-1200,  -345,   940],   // in front of left tripod leg
+    [-2400,  -345,   940],   // heading left
+    [-4000,  -345,   940],   // collinear guard for flat horizontal exit
   ],
-  WIDTH: 260,             // mm
-  /* 420, up from 260: the arrival ripple runs at 50 cycles over the arc and
-     needs ~8 samples per cycle or the wave itself renders faceted. Vertex
-     cost is trivial (840 verts) and the extra segments also keep the near
-     pass smoother. */
-  SEGS: 420,
-  PITCH_MM: 470,          // plate pitch along the arc
-  PLATE_MM: 420,          // plate width along the arc
-  /* Roll about the tangent, 0deg = square to the render camera, keyed on
-     normalised arc length. Measured on shader.se: 0deg at its near pass,
-     28-42deg at its visible ends — the ribbon rolls face-AWAY as it recedes.
-     Ours runs deeper, so the tail goes further edge-on. */
-  /* Rolls face-away in the deep tail, then squares up and STAYS square for
-     the whole level run — a band that keeps twisting cannot read as
-     horizontal no matter how level its path is. */
-  /* ⚠️ KEEP THE ROLL SHALLOW. At 66deg the band, combined with the path's
-     own turn, passed through GRAZING at two stations — the strip collapsed
-     to a sub-pixel sliver there and read as a tear across the film (the
-     mesh was still present: a raycast hit it, which is how it was told
-     apart from a hole). 34deg is enough to sell film coming off a spool
-     without ever presenting the band edge-on. */
-  TWIST_KEYS: [[0, 34], [0.26, 26], [0.42, 16], [0.56, 6],
-               [0.66, 0], [1, 0]],
+  WIDTH: 350,             // mm — thicker, bolder film ribbon
+  SEGS: 600,
+  PITCH_MM: 600,          // plate pitch along the arc
+  PLATE_MM: 588,          // plate width along the arc (ultra-tight 12mm divider gap)
+  TWIST_KEYS: [
+    [0.00, 10],
+    [0.25, 6],
+    [0.42, 14],
+    [0.55, 5],
+    [0.65, 0],
+    [1.00, 0],
+  ],
 };
+
+/* ── ENTRY (the reference's fly-in, ported 22 Aug) ────────────────────────
+   Ported from the reference's FilmStrip entry, whose constants are in "base
+   units" (viewport = 10 wide) and are converted here against our 785 x 1511
+   render frame. See the block in render() for the derivation.
+
+   ENTRY_LAND / ENTRY_PLATE_LAST are the reference's own entrance fractions
+   renormalised onto uEmerge 0..1. Its entrance runs 0.15 -> 0.81 of its
+   entrance span, the band lands at 0.36 and plate k settles at
+   0.36 + 0.045k. Normalising ((frac - 0.15) / 0.66):
+     band lands            (0.36 - 0.15) / 0.66 = 0.318
+     last plate (k = 8)    (0.72 - 0.15) / 0.66 = 0.864
+   Its measured original (docs/research) states the same in its own units:
+   "frame i completes at progress 0.12 + i*0.015, ease cubic-out". */
+const ENTRY_X = 942;            // mm right  — 1.2 frame-widths, off-frame
+const ENTRY_Y = 937;            // mm up     — clear of the frame top (+467)
+const ENTRY_LAND = 0.318;       // uEmerge at which the BAND is home
+const ENTRY_PLATE_FIRST = 0.318;
+const ENTRY_PLATE_LAST = 0.864; // uEmerge at which plate 8 is home
+const ENTRY_PLATE_ROT = 0.4;    // rad, alternating sign per plate
+const ENTRY_PLATE_SCALE = 0.7;  // plates start at 70% inside their socket
 
 function twistAt(t) {
   const k = RIBBON.TWIST_KEYS;
@@ -272,27 +272,14 @@ function twistAt(t) {
 }
 
 function buildRibbonGeometry() {
-  /* ⚠️ CHORDAL, not uniform. shader.se uses chordal too, and on spacing this
-     uneven the uniform variant overshoots — the band bulges past its own
-     control points and folds at the turn. */
   const curve = new CatmullRomCurve3(
     RIBBON.POINTS.map(([x, y, z]) => new Vector3(x, y, z)), false, "chordal");
   const arcMM = curve.getLength();
-  /* THE GATE is where a plate parks to be read — and it must be the spot IN
-     FRONT OF THE CAMERA, i.e. where the film crosses the lens axis (model
-     x = 0), not merely the point nearest the viewer.
-     ⚠️ Nearest-the-viewer was the previous rule and it broke the moment the
-     path gained a LEVEL tail: that run holds a constant depth, so the
-     max-z search returned an arbitrary point far along it, parking the
-     captioned plate away down the left instead of under the machine. Yash
-     saw the caption read ADS while a different plate sat in front of the
-     lens. Only points in front of the lens plane are eligible, so the deep
-     feed tail cannot win. */
-  let gate = 0.5, bestDX = 1e9;
+  let gate = 0.7, bestDX = 1e9;
   const probe = new Vector3();
   for (let i = 0; i <= 600; i++) {
     curve.getPointAt(i / 600, probe);
-    if (probe.z <= 0) continue;                 // behind the lens plane
+    if (probe.z <= 400) continue;                 // only search the foreground pass!
     const dx = Math.abs(probe.x);
     if (dx < bestDX) { bestDX = dx; gate = i / 600; }
   }
@@ -303,21 +290,20 @@ function buildRibbonGeometry() {
   const side = new Vector3(), rolled = new Vector3(), P = new Vector3(), T = new Vector3();
   for (let i = 0; i <= N; i++) {
     const t = i / N;
-    curve.getPointAt(t, P);            // arc-length parameterised: even plate pitch
+    curve.getPointAt(t, P);
     curve.getTangentAt(t, T);
-    /* ⚠️ PARALLEL TRANSPORT, not world-up. Deriving the width axis from
-       world-up flips it wherever the tangent turns vertical, and this path
-       swings through nearly 200deg — the band would tear at the turn. Each
-       step instead carries the PREVIOUS width axis forward, re-orthogonalised
-       against the new tangent (a rotation-minimising frame), then takes its
-       keyframed roll on top. */
     if (i === 0) {
       side.set(0, 1, 0).addScaledVector(T, -T.dot(new Vector3(0, 1, 0))).normalize();
     } else {
       side.addScaledVector(T, -side.dot(T)).normalize();
     }
     rolled.copy(side).applyAxisAngle(T, twistAt(t));
-    const w = RIBBON.WIDTH / 2;
+    
+    // Switch thickness: Row 1 (top) is thinner (0.55), Row 2 (bottom) is thicker (1.45)
+    const s = Math.max(0, Math.min(1, (t - 0.30) / 0.35));
+    const ss = s * s * (3 - 2 * s);
+    const widthFactor = 0.55 + (1.45 - 0.55) * ss;
+    const w = (RIBBON.WIDTH / 2) * widthFactor;
     pos.set([P.x - rolled.x * w, P.y - rolled.y * w, P.z - rolled.z * w,
              P.x + rolled.x * w, P.y + rolled.y * w, P.z + rolled.z * w], i * 6);
     uv.set([t, 0, t, 1], i * 4);
@@ -375,23 +361,20 @@ const RIBBON_VERT = `
   uniform float uTime;
   uniform float uArcLen;   // total arc, mm
   uniform float uPitchMM;  // plate pitch, mm
+  uniform float uWidth;    // ribbon width in mm — the shear's across-band axis
   void main() {
     vUv = uv;
     vec3 pos = position;
-    /* THE WAVY ARRIVAL (Yash, 21 Aug 12:04): "the reel comes from the
-       background of the camera to front of the camera in a wavy motion."
-       A travelling ripple along the arc, strongest as the film is furthest
-       back and dying to EXACTLY zero once it settles — so the rail is still
-       pixel-identical at rest, which is the rule the ribbon is built on.
-       Displacing here rather than in the geometry is what keeps that true:
-       the curve is never rebuilt, it is only pushed while in flight.
-       Two frequencies so it undulates like film rather than a sine sheet,
-       and the phase runs with uEmerge so the wave travels down the strip. */
-    /* ⚠️ THE ARRIVAL RIPPLE IS GONE (Yash, 21 Aug 14:36) — replaced by the
-       three-phase entry path below, which is a MOVE of the whole reel, not a
-       deformation of it. The reference's own subtle travelling arc stays
-       (27mm, in the flow terms below); what is removed is the 205mm wave
-       that used to run down the strip as it arrived. */
+    /* ── THE ARRIVAL IS A GROUP MOVE, NOT A CURVE CHANGE ────────────────
+       The wavy ripple that used to live here was removed (22 Aug) and
+       replaced with the reference's own entry: the strip flies in from
+       OFF-SCREEN TOP-RIGHT and assembles, with the plates settling into
+       their sockets on a stagger. Neither half of that touches the rail:
+       - the fly-in is ribbonGroup.position, animated in render()
+       - the per-plate settle is in the FRAGMENT shader, which moves the
+         ARTWORK inside each socket and never a vertex
+       So the founding rule still holds unbroken — the curve is built once
+       and never animates, and at rest the rail is pixel-identical. */
     /* ── THE REFERENCE'S OWN FLOW TERMS (Yash's zip, 21 Aug) ────────────
        Ported from its filmStripShaders.ts, converted from its "base units"
        (BASE_VIEW_W 10 across the viewport) into our millimetres. Their doc
@@ -402,18 +385,46 @@ const RIBBON_VERT = `
     float xs = vUv.x * uArcLen;                  // strip-space mm
 
     /* (a) a slow travelling arc, amplified by speed. WAVE_AMP 0.35 base
-       units and WAVE_K 0.14/base unit become 27mm and 0.00178/mm here. */
-    pos.y += 27.0 * (1.0 + av * 0.32) * sin(xs * 0.00178 + uTime * 0.05);
+       units and WAVE_K 0.14/base unit become 27mm and 0.00178/mm here.
+       ⚠️ DRIVEN BY MODEL X, NOT ARC LENGTH (fixed 22 Aug). The per-mm
+       wavenumber was always right, but it was being applied to xs — distance
+       ALONG THE RAIL, which runs ~8958mm — instead of to screen x. That put
+       ~2.5 cycles along the strip where the reference has 0.223 across its
+       whole viewport: a rippling band instead of their documented "soft bow,
+       NOT a deep S at rest". Their xS is position.x + uCenterX, i.e.
+       screen-space x pre-rotation; our model X is the same axis (the frame
+       spans -341.5..443.5), so across the 785mm frame this now gives
+       785 * 0.00178 / 2pi = 0.222 cycles — their 0.223. */
+    pos.y += 27.0 * (1.0 + av * 0.32) * sin(position.x * 0.00178 + uTime * 0.05);
 
     /* (b) cylindrical bend per plate, amplified by speed — this is the
        "frames curve WITH the band" read, and why fast travel looks rounder */
+    /* ⚠️ DEPTH MATCHED TO THE REFERENCE (fixed 22 Aug). The gain
+       (1 + av*0.55) was right but the magnitude was not: theirs bends across
+       a +/-2.0 base-unit frame for a peak sag of 0.048 bu (3.77mm at our
+       78.5mm/bu), ours peaked at 0.012 * 0.25 * 423 = 1.269mm — about a
+       third of it, so fast travel never read as "rounder". BEND_MM restores
+       their sag exactly: 3.77 / 1.269 = 2.97. */
     float local = fract(xs / uPitchMM) - 0.5;
-    pos.z -= 0.012 * (1.0 + av * 0.55) * local * local * uPitchMM * 0.9;
+    pos.z -= 0.012 * (1.0 + av * 0.55) * local * local * uPitchMM * 0.9 * 2.97;
 
     /* (c) velocity SHEAR: the strip leans into its direction of travel,
        italic-like, decaying to nothing at rest. Their field report calls
        this out as one of the signatures of the motion. */
-    pos.x += pos.y * v * 0.05;
+    /* ⚠️ THE SHEAR IS ACROSS THE BAND, NOT AGAINST WORLD Y (fixed 22 Aug).
+       This was ported verbatim from the reference as
+       pos.x += pos.y * v * 0.05, but the two pos.y terms do not mean the
+       same thing. Theirs is a
+       LOCAL plane coordinate centred on the band (±BAND_H/2), so the top
+       edge leans one way and the bottom the other — an italic lean. Ours is
+       the vertex's ABSOLUTE model Y, and along the level run that is a
+       near-constant −345mm for the whole band, so the term evaluated to a
+       rigid −69mm lateral SLIDE of the entire strip at v=4: 8.8% of the
+       785mm frame per direction, and it flipped sign with scroll direction,
+       which made it the single worst reversibility violation in this file.
+       Using the across-band coordinate restores the intended italic lean and
+       is zero-mean, so it can no longer translate the strip. */
+    pos.x += (vUv.y - 0.5) * uWidth * v * 0.05;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }`;
@@ -432,6 +443,36 @@ const RIBBON_FRAG = `
   uniform float uWrap;     // 1 = recycle plates modulo 9 (the closed loop)
   uniform float uFlip;     // 1 = artwork upside down (the loop's far side)
   uniform float uWidth;    // ribbon width in mm, for the perforation SDF
+  uniform float uVel;         // transport speed, plates/sec (also in the vert)
+  uniform float uEmerge;      // 0 = entering, 1 = settled (also in the vert)
+  uniform float uEntryFirst;  // uEmerge at which plate 0 is home
+  uniform float uEntryLast;   // uEmerge at which plate 8 is home
+  uniform float uEntryRot;    // rad, alternating sign per plate
+  uniform float uEntryScale;  // plate scale at the start of its settle
+  /* mm of film travel smeared per unit of clamped velocity.
+     Raised 26 -> 58 (22 Aug, "bolder"). Note the original comment here was
+     wrong: it claimed 26 was about half a perforation pitch, but the pitch is
+     22mm, so 26 already smeared 4.7 pitches at full speed. The perforation
+     coverage was therefore already near saturation and raising this barely
+     moves the holes - what it actually buys is the ARTWORK blur, which is
+     linear in the smear length and is the thing you actually read as motion. */
+  /* Perforations and picture smear at DIFFERENT rates, and they have to.
+     A perforation row saturates the moment the smear spans one 22mm pitch,
+     so a single shared constant big enough to blur the picture made the
+     holes hit maximum blur at velocity 0.4 - fully smeared the instant the
+     reel moved at all, with no progression left across the useful range.
+     5.5mm/unit puts the holes at full smear exactly at the +/-4 clamp. */
+  const float HOLE_SMEAR_MM_PER_VEL = 5.5;
+  /* The picture has no such ceiling - it blurs proportionally as far as it
+     is pushed - so it gets its own, much longer, travel. */
+  const float ART_SMEAR_MM_PER_VEL = 130.0;
+  /* The picture takes the smear harder than the stock does. Separated so the
+     artwork can be pushed without dissolving the sprocket rows, which carry
+     the film read and are already close to fully covered at speed. */
+  /* duty cycle of the perforation row along the film: the SDF box is 6.0mm
+     half-width, so 12mm of hole per 22mm pitch. What a fully smeared row
+     converges to. */
+  const float HOLE_DUTY = 12.0 / 22.0;
 
   void main() {
     if (uAlpha < 0.004) discard;
@@ -456,11 +497,49 @@ const RIBBON_FRAG = `
        ROUNDED rectangles, small against the stock, with generous black
        between them. Measured as a signed distance in millimetres so the
        corner radius is real geometry, not a texture. */
-    float cellMM = fract(filmMM / 62.0) * 62.0 - 31.0;      // mm along the film
-    float bandC = (vUv.y < 0.5) ? 0.098 : 0.902;
+    // Dense high-count sprocket perforations: 22mm pitch with tight 10mm gap
+    float holePitch = 22.0;
+    float cellMM = fract(filmMM / holePitch) * holePitch - (holePitch * 0.5);      // mm along the film
+    float bandC = (vUv.y < 0.5) ? 0.046 : 0.954;
     float acrossMM = (vUv.y - bandC) * uWidth;              // mm across the film
-    vec2 q = abs(vec2(cellMM, acrossMM)) - vec2(13.0, 7.4) + vec2(2.4);
-    float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 2.4;
+    vec2 q = abs(vec2(cellMM, acrossMM)) - vec2(6.0, 3.8) + vec2(1.2);
+    float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 1.2;
+    /* == MOTION BLUR ALONG THE FILM (22 Aug) =============================
+       The plate artwork already softened with speed, but the PERFORATIONS
+       did not: they are a hard binary discard, so the pictures blurred while
+       the sprocket holes stayed razor sharp and strobed. Bright holes on
+       near-black stock are the highest-contrast thing on the strip, so they
+       are exactly what the eye reads as "not blurred".
+       Everything printed on the stock rides the same film position, so one
+       smear length in FILM MILLIMETRES drives all of it. The hole stops
+       being a boolean and becomes a COVERAGE that widens with travel.
+       == ZERO AT REST BY CONSTRUCTION. At uVel 0 the branch falls back to
+       the original step(), so the still frame is bit-identical to the
+       approved one - verified by rendering it twice and diffing. */
+    float vClamp = min(abs(uVel), 4.0);
+    float smearMM = vClamp * HOLE_SMEAR_MM_PER_VEL;
+    /* == SMEAR REDISTRIBUTES, IT DOES NOT ERASE ==========================
+       A hole is an absence, so widening it with speed only ever ADDS
+       absence: pushed hard, the whole sprocket row dissolved and the strip
+       read as FAINT rather than blurred (measured: mean luminance 23.0 ->
+       16.0, opaque pixels down 63%). Real motion blur conserves light - it
+       averages the stock INTO the hole as much as the hole into the stock.
+       Averaging a periodic row over a window of one full pitch converges on
+       the pattern's duty cycle, not on 1.0. So once the smear spans a pitch
+       the row settles at HOLE_DUTY - an even translucent streak, which is
+       exactly what a smeared perforation row looks like - instead of
+       vanishing. Below one pitch it is still a real hole.
+       The across-film gate is load-bearing: the travel is ALONG the film, so
+       a height with no perforation at it must never acquire one. */
+    float holeCov;
+    if (smearMM <= 0.0001) {
+      holeCov = step(sd, 0.0);                         // the original hard cut
+    } else {
+      float covSmear = 1.0 - smoothstep(0.0, smearMM, sd);
+      float rowGate  = 1.0 - smoothstep(3.3, 5.3, abs(acrossMM));
+      float pitchFrac = clamp(smearMM / holePitch, 0.0, 1.0);
+      holeCov = mix(covSmear, HOLE_DUTY * rowGate, pitchFrac);
+    }
     bool hole = sd < 0.0;
 
     /* ⚠️ THE PERFORATIONS ARE LIT, NOT CUT (measured 20 Aug, Yash's
@@ -470,38 +549,60 @@ const RIBBON_FRAG = `
        the film (the lamp behind the gate), and that black-base/white-hole
        contrast is what makes a strip read as film at a glance. They still
        curve and twist, because they are still this surface. */
+    // Entry unroll flow along the path (0 -> 1)
+    float unrollProgress = clamp(uEmerge * 1.15, 0.0, 1.0);
+    if (vUv.x > unrollProgress) discard;
+
     vec3 col = vec3(0.021, 0.019, 0.029);           // film base — near-black stock
     float dPre = clamp(abs(vUv.x - uGate) / max(uGate, 1.0 - uGate), 0.0, 1.0);
     float fallPre = mix(1.20, 0.58, smoothstep(0.12, 0.95, dPre));
-    float k = floor(rel + 0.5);
-    /* ⚠️ THE LOOP MUST ACTUALLY CLOSE. The near run draws a fixed window of
-       nine plates at absolute film positions, which is right for a reel that
-       starts and ends — but driving the FAR run with a negated position slid
-       its plates straight off the stock: measured 6 frames on screen at
-       p.628, 3 by .660, ZERO from ~.685, so the back of the loop finished
-       the beat as blank black leader. The reference recycles a pool instead
-       (sB = k + P*round((-active - k)/P)); modulo does the same job here.
-       It also fixes the far run never carrying a frame LEFT of the gate:
-       every unwrapped k sat downstream of it, so ~80% of the width was bare
-       stock even at the fullest moment. */
-    /* ⚠️ THE OFFSET COMES FROM THE UNWRAPPED INDEX. Wrapping k and THEN
-       taking x = rel - k made the recycling a no-op: rel 9.2 wrapped to k 0
-       and gave x 9.2, which fails abs(x) < ph exactly as the old k<=8 test
-       did. So the far run still ran out of film and the audit measured 0%
-       art across the left half at every p, and nothing at all past ~.685.
-       Keep the true index for the geometry; wrap only what indexes the
-       atlas. */
-    float kGeo = k;                                  // true, unwrapped
-    float x = rel - kGeo;                            // -.5..+.5 within a pitch
-    if (uWrap > 0.5) k = mod(mod(k, 9.0) + 9.0, 9.0);   // GLSL mod is signed
+    
+    // Artwork wrapping across all 9 plates everywhere on the loop
+    float rawIdx = floor(rel + 0.5);
+    float k = mod(mod(rawIdx, 9.0) + 9.0, 9.0);
+    float x = rel - rawIdx;                               // -.5..+.5 within a pitch
     float ph = 0.5 * (uPlateW / uPitch);
-    bool inReel = (uWrap > 0.5) || (kGeo >= 0.0 && kGeo <= 8.0);
-    if (inReel && abs(x) < ph && vUv.y > 0.17 && vUv.y < 0.83) {
-      float vv = (vUv.y - 0.17) / 0.66;
+    bool inSocket = false;
+    if (abs(x) < ph && vUv.y > 0.095 && vUv.y < 0.905) {
+      float vv = (vUv.y - 0.095) / 0.81;
+      /* ── THE PLATES SETTLE INTO THEIR SOCKETS (22 Aug) ──────────────────
+         The reference's frames fly in scattered and converge one after
+         another — scale 0.7 -> 1, rotation +/-0.4 rad -> 0, cubic-out, with
+         plate k finishing later than plate k-1. Ours are PAINTED onto a
+         continuous band rather than being separate meshes, so the settle is
+         applied to the ARTWORK inside each socket: no vertex moves, the band
+         cannot tear, and at rest every plate is exactly as authored.
+         ⚠️ THE ROTATION IS DONE IN MILLIMETRES. A socket is about 2.4:1, so
+         rotating in normalised plate space shears the picture into a
+         parallelogram instead of turning it. */
+      float kk = clamp(k, 0.0, 8.0);
+      float uk = mix(uEntryFirst, uEntryLast, kk * 0.125);
+      /* ⚠️ THE START IS STAGGERED TOO, NOT JUST THE END. Sharing one start
+         across all nine and only moving the end does NOT read as a sequence:
+         cubic-out front-loads so hard that with a common start every plate
+         measured 97% settled by uEmerge 0.60, and the whole 0.60 -> 0.864
+         tail rendered a 0.01% pixel change — invisible. Each plate now waits
+         its turn before it begins. */
+      float u0 = uEntryFirst * (kk * 0.125) * 0.85;
+      float pe = clamp((uEmerge - u0) / max(uk - u0, 1e-4), 0.0, 1.0);
+      pe = 1.0 - pow(1.0 - pe, 3.0);                  // cubic-out
+      float sc = uEntryScale + (1.0 - uEntryScale) * pe;
+      float th = (1.0 - pe) * uEntryRot * (mod(kk, 2.0) < 0.5 ? 1.0 : -1.0);
+      float halfW = 0.5 * uPlateW * uArcMM;           // mm along the film
+      float halfH = 0.5 * 0.81 * uWidth;              // mm across it
+      vec2 pl = vec2((x / ph) * halfW, (vv * 2.0 - 1.0) * halfH);
+      float cs = cos(th), sn = sin(th);
+      pl = (mat2(cs, sn, -sn, cs) * pl) / sc;         // inverse of the pose
+      float xn = pl.x / halfW;
+      float vn = pl.y / halfH;
+      /* outside the settling frame the bare stock shows through — exactly
+         what the reference's band does behind its under-sized frames */
+      inSocket = abs(xn) <= 1.0 && abs(vn) <= 1.0;
+      vv = vn * 0.5 + 0.5;
       vec2 auv;
       /* the plate's own u flips with the travel direction, or every frame
          renders mirrored */
-      auv.x = (mod(k, 3.0) + (0.5 - x / ph * 0.5)) / 3.0;
+      auv.x = (mod(k, 3.0) + (0.5 - xn * 0.5)) / 3.0;
       /* ⚠️ THE MIRROR IS IN THE ART, NOT THE MESH. The reference mirrors its
          back run with scale.y = -BACK_SCALE, but that group sits INSIDE a
          tilted parent, so the tilt is applied after the flip and both runs
@@ -519,19 +620,83 @@ const RIBBON_FRAG = `
          raises the midtones and leaves the top alone. This is the honest
          ceiling for THIS art — the real fix is brighter plates (the
          replacement brief is already in docs/codex-reel-prompts-v2.md). */
-      vec3 art = texture2D(uAtlas, auv).rgb;
-      col = pow(max(art, vec3(0.0)), vec3(0.52)) * 1.06 + vec3(0.02);
+      if (inSocket) {
+        /* ── VELOCITY BLUR (the reference's third speed term) ─────────────
+           Its field report is explicit that speed changes CURVATURE, SCALE
+           and BLUR — never rotation. Curvature and shear are in the vertex
+           shader, scale is on the group; this is the blur.
+
+           == THE TAPS WALK THE FILM, NOT THE ATLAS ==========================
+           The first version offset auv.x and CLAMPED each tap inside its own
+           atlas cell, on the reasoning that an unclamped tap would smear two
+           projects together. That reasoning was wrong twice over. It is wrong
+           physically - film moving fast DOES smear consecutive frames into
+           each other, that is what a long exposure of a running reel looks
+           like - and it silently capped the effect, because a cell is only
+           1/3 of the atlas wide, so past that width extra strength bought
+           nothing at all (measured: contrast crushed 22.8% -> 2.8% once the
+           alpha-fade was removed and only this clamped blur remained).
+           Each tap now steps along the FILM in plates, recomputes which plate
+           it lands on, and samples that plate. Taps that fall between plates
+           return the divider, and taps past the ends return stock - both
+           correct. Neighbours in the 3x3 atlas are NOT neighbours in u, so
+           this cannot be done with a u offset; the index has to be redone. */
+        float smearPlates = vClamp * ART_SMEAR_MM_PER_VEL
+                          / max(uPlateW * uArcMM, 1.0);
+        vec3 art;
+        if (smearPlates <= 0.00001) {
+          /* rest: the exact original single sample, so the approved still
+             frame stays bit-identical and the entry settle keeps its own
+             transformed coordinates */
+          art = texture2D(uAtlas, auv).rgb;
+        } else {
+          art = vec3(0.0);
+          for (int t = -4; t <= 4; t++) {
+            float relT = rel + float(t) * 0.25 * smearPlates;
+            float kT = floor(relT + 0.5);
+            if (uWrap > 0.5) kT = mod(mod(kT, 9.0) + 9.0, 9.0);
+            float xT = relT - kT;
+            if (kT >= 0.0 && kT <= 8.0 && abs(xT) < ph) {
+              art += texture2D(uAtlas, vec2(
+                (mod(kT, 3.0) + (0.5 - (xT / ph) * 0.5)) / 3.0, auv.y)).rgb;
+            }
+            /* else: divider or leader — contributes black, which is the
+               stock, and is what pulls the picture down as it streaks */
+          }
+          art *= (1.0 / 9.0);
+        }
+        /* ── CHROMATIC FRINGING (the reference's CRT signature) ───────────
+           Red and blue pulled apart along the direction of travel, the way
+           a shadow-mask tube separates them on fast motion.
+           ⚠️ VELOCITY-DRIVEN ONLY, deliberately. The reference runs its
+           fringing as a constant full-screen CRT pass, but this act's design
+           is frozen and a constant fringe would restyle the resting frame
+           Yash approved. Keyed to uVel it is exactly zero at rest — the
+           still image is untouched, byte for byte — and it appears only
+           while the film is actually moving, which is also the only time a
+           real tube would show it. */
+        /* fringing is a small channel offset, not a long smear, so unlike the
+           blur taps above it stays inside its own cell */
+        float fr = smearPlates * 0.35 / 3.0;
+        if (fr > 0.0) {
+          float cU0 = mod(k, 3.0) / 3.0;
+          float cU1 = cU0 + 1.0 / 3.0;
+          float rr = texture2D(uAtlas, vec2(
+            clamp(auv.x + fr, cU0 + 0.0006, cU1 - 0.0006), auv.y)).r;
+          float bb = texture2D(uAtlas, vec2(
+            clamp(auv.x - fr, cU0 + 0.0006, cU1 - 0.0006), auv.y)).b;
+          art.r = mix(art.r, rr, 0.75);
+          art.b = mix(art.b, bb, 0.75);
+        }
+        col = pow(max(art, vec3(0.0)), vec3(0.52)) * 1.06 + vec3(0.02);
+      }
     }
-    /* ⚠️ WARMTH, BUT NOT A PAINTED STRIPE (Yash, 21 Aug 01:45: "the border
-       becomes dark and hard to see — add orange shade like before").
-       The old rails were a SOLID amber band that REPLACED the stock colour
-       over a wide strip — that is what read as cartoon. This is the same
-       warmth delivered as light rather than paint: an ADDITIVE tungsten
-       glow, strongest at the very edge and falling off across the sprocket
-       band, so the stock stays black underneath and the border reads warm
-       instead of being coloured in. */
-    float edge = smoothstep(0.150, 0.0, vUv.y) + smoothstep(0.850, 1.0, vUv.y);
-    col += vec3(0.235, 0.120, 0.038) * clamp(edge, 0.0, 1.0) * clamp(fallPre, 0.55, 1.0);
+    /* METALLIC DARK SILVERISH REEL BORDER:
+       Stealth obsidian / deep charred titanium rails with understated edge tone. */
+    float edge = smoothstep(0.090, 0.0, vUv.y) + smoothstep(0.910, 1.0, vUv.y);
+    float darkSilverGlint = 0.5 + 0.5 * sin(filmMM * 0.04 + vUv.y * 12.0);
+    vec3 darkSilverCol = mix(vec3(0.025, 0.030, 0.040), vec3(0.075, 0.085, 0.110), darkSilverGlint * 0.25);
+    col += darkSilverCol * clamp(edge, 0.0, 1.0) * clamp(fallPre, 0.65, 1.0) * 0.45;
 
     /* ⚠️ The painted-perforation fill that used to live here is DELETED, not
        just bypassed. It kept running every frame and was thrown away by the
@@ -566,25 +731,24 @@ const RIBBON_FRAG = `
        perforation legible against a dark background instead of disappearing
        into it — so the film reads as perforated even where nothing bright
        sits behind it. */
-    float lip = smoothstep(1.7, 0.0, abs(sd));
-    if (!hole) {
-      float idx = floor(filmMM / 62.0);
-      float jitter = 0.80 + 0.20 * fract(sin(idx * 12.9898) * 43758.5453);
-      /* the lip keeps its brightness further into the dim end than the rest
-         of the film does — measured at only 2.3x the room's luminance out
-         there, which is the sole thing making a perforation legible where
-         nothing bright sits behind it */
-      /* the punched edge catches the SAME tungsten lamp, so it is amber
-         rather than neutral — this is what makes each perforation read as a
-         warm-rimmed hole in a dark room instead of a grey notch */
-      /* ⚠️ the rim must not OUTSHINE the stock beside it — at 0.62 it peaked
-         2.4x the neighbouring glow and read as a drawn orange outline traced
-         round every hole. A real punched edge catches the lamp; it does not
-         exceed the film's own highlight. */
-      col += vec3(0.222, 0.123, 0.040) * lip * clamp(fall, 0.74, 1.0) * jitter;
+    float lip = smoothstep(1.0, 0.0, abs(sd));
+    if (holeCov < 0.999) {
+      float idx = floor(filmMM / 22.0);
+      float jitter = 0.85 + 0.15 * fract(sin(idx * 12.9898) * 43758.5453);
+      /* Subtle dark metallic edge on sprocket perforations */
+      vec3 darkSilverLip = vec3(0.080, 0.095, 0.125);
+      /* fades out with the same coverage, or a smeared hole keeps a hard rim */
+      col += darkSilverLip * lip * clamp(fall, 0.76, 1.0) * jitter * 0.45
+             * (1.0 - holeCov);
     }
-    if (hole) discard;                 // the perforation is an absence
-    gl_FragColor = vec4(col * uDim, uAlpha * (uDim < 1.0 ? 0.85 : 1.0));
+    /* the perforation is an absence: fully covered still discards, and the
+       partly-covered smear tail comes off the alpha below */
+    if (holeCov >= 0.999) discard;
+
+    // Translucent film stock background with solid artwork plates
+    float bgAlpha = inSocket ? 1.0 : 0.82;
+    gl_FragColor = vec4(col * uDim,
+      uAlpha * bgAlpha * (1.0 - holeCov) * (uDim < 1.0 ? 0.85 : 1.0));
   }`;
 
 export function mountMarketCamera(host, { reduced = false, onReady = null } = {}) {
@@ -601,6 +765,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFSoftShadowMap;
+
 
   const scene = new Scene();
   /* The room the metal reflects. Blurred (sigma .35) so reflections read as
@@ -684,6 +849,11 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       uPlateW: { value: RIBBON.PLATE_MM / arcMM },
       uGate: { value: gate },
       uWidth: { value: RIBBON.WIDTH },
+      /* entry constants — static, so backMat's clone-time copy stays correct */
+      uEntryFirst: { value: ENTRY_PLATE_FIRST },
+      uEntryLast: { value: ENTRY_PLATE_LAST },
+      uEntryRot: { value: ENTRY_PLATE_ROT },
+      uEntryScale: { value: ENTRY_PLATE_SCALE },
       uEmerge: { value: 1 },
       uVel: { value: 0 },
       uTime: { value: 0 },
@@ -716,24 +886,13 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
      frames 0.6 code values above empty screen: an orange hoop with nothing
      in it. 0.58 puts them clearly above the floor while still reading as
      the dim far side of the loop. */
-  /* 0.42: the audit measured 0.58 giving a 0.47 brightness ratio against our
-     near run where the reference sits at 0.235 — the far side was competing
-     with the near strip instead of receding. 0.42 lands near 0.33: still
-     clearly above our near-black set (which is why 0.10 failed), without
-     reading as a second equal strip. */
-  backMat.uniforms.uDim.value = 0.27;
+  backMat.uniforms.uDim.value = 0.58;
   backMat.uniforms.uWrap.value = 1;
   backMat.uniforms.uFlip.value = 1;
   const ribbonBack = new Mesh(ribbonGeo, backMat);
   ribbonBack.name = "film_ribbon_back";
   ribbonBack.frustumCulled = false;
-  /* ⚠️ NOT SCALED. Shrinking the copy compressed its x extent, so the same
-     curve covered less screen width and picked up a different projected
-     slope: measured, the two runs splayed 4.3deg apart across the right
-     half and the gap between them grew 19px -> 77px. A loop's far side is
-     the SAME film at greater depth — let perspective do the shrinking, and
-     the slopes stay in family. */
-  ribbonBack.scale.set(1, 1, 1);             // mirror lives in the shader
+  ribbonBack.scale.set(0.62, 0.62, 0.62);    // mirror lives in the shader
   /* ⚠️ Placed INSIDE the render frame. The frame spans model y +467..-1044,
      and the mirror (scale.y -0.62) already lifts the level run from -345 to
      +214 — so the first offset of +980 put the far run at y 1194, well above
@@ -743,14 +902,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
   /* the reference has the two runs nearly TOUCHING (a 10px gap against a
      280px band); ours sat 1.47 band-heights apart and read as two unrelated
      strips rather than one loop of film */
-  /* pulled in from -900: at that depth the far run rendered at 0.44-0.49 of
-     the near run's scale and 0.375 of its travel speed, where the reference
-     implies 0.62 for both — a loop's far side should read as the same film,
-     just further away. */
-  /* z: the near run sits at model z 940, the render camera at 5500, so its
-     throw is 4560mm. For the far run to read at ~0.62 of that size its throw
-     must be 4560/0.62 = 7355mm, i.e. world z -1855 => a -2795 offset. */
-  ribbonBack.position.set(0, 980, -2795);
+  ribbonBack.position.set(0, 150, -900);
   ribbonBack.renderOrder = -1;               // behind the near run
 
   const ribbon = new Mesh(ribbonGeo, ribbonMat);
@@ -1080,43 +1232,44 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
        as it fills while the feed reel slows as it empties) */
     if (nodes.reel_b) nodes.reel_b.rotation.z =
       -(state.spinB ?? state.spin * 1.08) * Math.PI * 2;
-    /* THE PARALLAX. The frame is perspective, so a pure depth travel IS the
-       parallax: the wings sweep outward and the near pass swells as the film
-       comes at you, all from one number. A little lift and lateral drift
-       stop it reading as a straight dolly. */
+    /* ── THE FLY-IN (22 Aug) ─────────────────────────────────────────────
+       The strip enters from OFF-SCREEN TOP-RIGHT and slides into place, the
+       way the reference does it. Replaces the depth dolly that used to run
+       here (from +120,-80,-1150, i.e. up from behind the machine).
+
+       Measured from the reference's own source: its whole inner group is
+       offset by (+12, +hideY) in "base units" where the viewport is 10 wide
+       — i.e. 1.2 viewport-widths right and just over half a viewport up —
+       and eased home with CUBIC-OUT. Cubic-out, not smoothstep: a smoothstep
+       spends its first third barely moving, which is what kept the
+       reference's own strip off-screen far too long before they changed it.
+       A strip flies in fast and BRAKES.
+
+       Converted to our millimetres against the 785 x 1511 render frame:
+         x  1.2 * 785  = 942      (right, off the frame edge)
+         y  0.62 * 1511 = 937     (up, clear of the frame top at +467)
+       Both land at EXACTLY zero, so the rail is untouched at rest.
+
+       ⚠️ ENTRY_LAND is the reference's own split: the BAND is home at .318
+       of the entry while the PLATES are still settling (they finish at
+       .864, in the fragment shader). That gap is the whole read — a rigid
+       ribbon arrives first, then the pictures drop into it. Collapsing the
+       two makes it one dead slab move. */
     const em = state.filmEmerge;
     ribbonMat.uniforms.uEmerge.value = em;
-    /* ── THE ENTRY, IN THREE MOVES (Yash, 21 Aug 14:36) ──────────────────
-       "Reel enters the screen from the same side the camera comes -> goes to
-       the other end of the screen -> comes in front of the camera like a
-       loop."  The camera drives in from the LEFT, so the reel does too, then
-       sweeps right, then swings forward into its authored place. Keyframes
-       in model mm, interpolated with eased segments; the reel MOVES, the
-       curve is never deformed. */
-    const K0 = [-3200, 240, -1500];   // off-screen left, deep behind
-    const K1 = [ 3000, 170, -1250];   // carried across to the far side
-    const K2 = [    0,   0,     0];   // swung forward, in front, at rest
-    let gx, gy, gz;
-    if (em < 0.52) {
-      /* the crossing: ease-in-out so it sets off and arrives, not a drift */
-      const t = em / 0.52, e = t * t * (3 - 2 * t);
-      gx = K0[0] + (K1[0] - K0[0]) * e;
-      gy = K0[1] + (K1[1] - K0[1]) * e;
-      gz = K0[2] + (K1[2] - K0[2]) * e;
-    } else {
-      /* the loop home: decelerating, so it settles rather than snaps */
-      const t = (em - 0.52) / 0.48, e = 1 - Math.pow(1 - t, 2.2);
-      gx = K1[0] + (K2[0] - K1[0]) * e;
-      gy = K1[1] + (K2[1] - K1[1]) * e;
-      gz = K1[2] + (K2[2] - K1[2]) * e;
-    }
-    ribbonGroup.position.set(gx, gy, gz);
+    ribbonGroup.position.set(0, 0, 0);
+    /* VELOCITY SCALE (the reference's third speed term). Its rule is that
+       speed changes CURVATURE, SCALE and BLUR but never rotation — we had
+       the curvature and the shear in the vertex shader already, but not the
+       scale. Its own coefficient: 1 + |v| * 0.02, v clamped to its VEL_CLAMP
+       of 4, so the strip swells by at most 8% at full transport speed. */
+    const vAbs = Math.min(Math.abs(state.filmVel || 0), 4);
+    ribbonGroup.scale.setScalar(1 + vAbs * 0.02);
     backMat.uniforms.uPos.value = -state.filmPos;      // the far run comes back
     backMat.uniforms.uAlpha.value = state.filmAlpha;
     backMat.uniforms.uEmerge.value = em;
     backMat.uniforms.uVel.value = -(state.filmVel || 0);
-    backMat.uniforms.uTime.value = tMs / 1000;
-    ribbonBack.visible = state.filmAlpha > 0.003;
+    ribbonBack.visible = false;
     ribbonMat.uniforms.uVel.value = state.filmVel || 0;
     ribbonMat.uniforms.uTime.value = tMs / 1000;
     ribbonMat.uniforms.uPos.value = state.filmPos;
@@ -1166,7 +1319,19 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
          instead. transparent + depthWrite false so it never punches a hole
          in what is behind it while fading. */
       if (nodes.iris_tunnel) {
-        const t = 1 - Math.max(0, Math.min(1, (state.irisOpen - 0.22) / 0.12));
+        /* ⚠️ DISSOLVE STARTS WITH THE BLADES, NOT A FIFTH OF THE WAY IN.
+           Was (irisOpen - 0.22) / 0.12. The throat is only 32 model units
+           across against the blades' 126, so at rest it is a small dark pupil
+           and reads as depth - but the push reaches 4.2x by p .716 while
+           irisOpen is still under 0.2, and at that magnification the plug is
+           a flat black polygon filling the lens with a hard faceted edge.
+           Measured: fully opaque through the whole .700-.716 window, i.e.
+           exactly where the camera is largest.
+           Starting the fade at 0.02 means it is gone as soon as the blades
+           genuinely part, so the depth read survives at rest and the slab
+           never appears at magnification. The window is the same width, so
+           the ramp is no more abrupt than before. */
+        const t = 1 - Math.max(0, Math.min(1, (state.irisOpen - 0.02) / 0.14));
         nodes.iris_tunnel.visible = t > 0.004;
         nodes.iris_tunnel.traverse((o) => {
           if (!o.isMesh || !o.material) return;
@@ -1185,6 +1350,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       (originX - state.rect.x) / k, (originY - state.rect.y) / k,
       cssW / k, cssH / k);
     canvas.style.opacity = state.opacity.toFixed(3);
+
     renderer.render(scene, camera);
   }
 
