@@ -1,25 +1,30 @@
-/* ── THE MEET v3 — the Veo handshake as a GPU flipbook (D-043) ───────────
-   Yash's 12 MCQs (31 Aug): his Veo footage (green hand + human hand meeting
-   in a HANDSHAKE) replaces the built hands; hands are MATTED off the red
-   curtain offline (scratchpad/matte2.py — keys + hole-fill + component
-   cleanup + de-spill + spearmint grade + watermark inpaint) and composited
-   STANDALONE over the act's black void (a curtain shader can come later);
-   pure scroll drive; crossfade between adjacent frames so slow scrolls
-   never step; both handshake pumps included; spark + WE SCALE title fire at
-   the clasp; finger beat retired (his call); small frame set for phones.
+/* ── THE MEET v4 — real 3D hands, scroll-scrubbed handshake (D-044) ──────
+   Yash, 31 Aug: "make it a real 3D model, idle like the reference when the
+   cursor rests, end with the handshake." Built end-to-end tonight:
 
-   ENGINE (research round wf_1fb21696-f7b): 96 unique frames (the 120 PNG
-   export carried 24 pulldown duplicates) as WebP-with-alpha, fetched as
-   blobs up front (~3.3MB desktop / ~1.1MB phone), decoded to GPU textures
-   through a skeleton-set + LRU ring so VRAM stays bounded (~28 textures
-   resident ≈ 84MB desktop, ~12MB phone) — scrubbing samples a texture pair
-   by INDEX: zero per-frame decode on the scroll path, both directions.
+   MODEL  meet-handshake.glb — two MakeHuman(MPFB)-generated arms (CC0
+          output), rigify rigs collapsed to DEF bones, choreography traced
+          from Yash's Veo clip (approach → clasp f112 → two pumps → settle,
+          150f @24fps; authored in scratchpad/choreo-build.py, iterated
+          v1–v6 against renders), human skin Cycles-baked into the GLB.
+   LOOK   green hand: MeshMatcapMaterial + our fitted spearmint matcap
+          (h3d-gen-matcap.py, ~5/255 from the reference's own render — the
+          reference technique, our texture). Human hand: unlit baked skin.
+          The consult renderer is unlit/no-tonemap, so both land as authored.
+   SCRUB  the reference's exact pattern: paused clipAction per animation,
+          action.time = duration * f(progress), mixer.update(dt) EVERY frame
+          (a paused mixer still re-stamps bones each update — which is what
+          makes the post-mixer idle sway safe to layer on top).
+   IDLE   the reference's decompiled finger micro-sway, 1:1: amp 7e-4 rad ×
+          {1, .6, .35} per segment, freq 0.5Hz × (1 + finger×.05), phase
+          finger×1.3 + segment×0.4, local X, weight eased in/out at 3 s⁻¹
+          gated on |Δprogress| > 1e-5 — alive at rest, gone while scrubbing.
+   DRIFT  group drift is a pure function of scroll + pointer parallax
+          (their camera trick, applied to the subject so the act's shared
+          camera never moves).
 
-   ⚠️ PURE SCROLL: the frame pair and mix are functions of progress alone.
-   Texture AVAILABILITY is the only async part — a missing neighbour shows
-   the nearest loaded frame crisp (no mix), and any settled stop has its
-   exact pair resident well inside the reverse-rig's 460ms settle. uTime
-   feeds only the motes and the spark flicker. */
+   ⚠️ Frame pose = f(progress); sway/motes = f(time) only, and the reverse
+   rig pins time via __bbPinTime, so suites stay deterministic. */
 import {
   AdditiveBlending,
   BufferGeometry,
@@ -28,13 +33,22 @@ import {
   LinearFilter,
   MathUtils,
   Mesh,
+  MeshBasicMaterial,
+  MeshMatcapMaterial,
   PlaneGeometry,
   Points,
+  Quaternion,
   ShaderMaterial,
   SRGBColorSpace,
-  Texture,
+  TextureLoader,
   Vector3,
+  AnimationMixer,
+  LoopOnce,
 } from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import HANDSHAKE_URL from "../assets/meet-handshake.glb?url";
+import MATCAP_URL from "../assets/meet-matcap.png?url";
+import SKIN_MATCAP_URL from "../assets/meet-skin-matcap.png?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const smooth = (v) => {
@@ -46,157 +60,92 @@ const hash = (n) => {
   return s - Math.floor(s);
 };
 
-/* fingerprinted frame URLs — the D-030 immutable-cache law: everything
-   goes through Vite, never fixed names in public/ */
-const globDesktop = import.meta.glob("../assets/meet-frames/d/*.webp", {
-  eager: true, query: "?url", import: "default",
-});
-const globMobile = import.meta.glob("../assets/meet-frames/m/*.webp", {
-  eager: true, query: "?url", import: "default",
-});
-const urlList = (glob) => Object.keys(glob).sort().map((k) => glob[k]);
+/* Blender-world → act-world: the shot was authored 1.35m wide; the act's
+   camera (fov 32, z 12.5) sees ~12.75 units — scale ≈ 9, recentred so the
+   grip lands just above screen centre. */
+const SCALE = 9.0;
+const CENTER_LIFT = new Vector3(0, -9.05, 0.15);
+/* the clasp point (grip world in the authored shot, mapped through the
+   transform above) — spark, core and ring all live here */
+const CP = new Vector3(0.18, 0.28, 0.4);
 
-const FRAME_COUNT = 96;
-/* footage beats in unique-frame indices (research frame map, 120→96 space):
-   0-6 empty lead, green enters ~7, human ~15, grip closed ~72, pumps 79-94,
-   settle 95 */
-const FIRST_VISIBLE = 6;
-const RING_MAX = 28;          // LRU cap beyond the skeleton set
-const SKELETON_STEP = 8;      // always-resident spine so any jump shows NOW
+/* the reference's idle-sway constants, decompiled 1:1 */
+const SWAY_FINGERS = ["f_index", "f_middle", "f_ring", "f_pinky", "thumb"];
+const SWAY_AMP = 7e-4;
+const SWAY_SEG = [1.0, 0.6, 0.35];
 
 export function createConsultMeet(scene, _opts = {}) {
   const group = new Group();
   group.renderOrder = 6;
   scene.add(group);
 
-  /* the clasp's screen anchor — spark/core/ring live where the grip closes
-     (measured on frame 90: centre ≈ (0.512, 0.463) of the footage frame) */
-  const CP = new Vector3(0.16, 0.27, 0.25);
+  const matcapTexture = new TextureLoader().load(MATCAP_URL);
+  matcapTexture.colorSpace = SRGBColorSpace;
+  matcapTexture.generateMipmaps = false;
+  matcapTexture.minFilter = LinearFilter;
+  const skinMatcapTexture = new TextureLoader().load(SKIN_MATCAP_URL);
+  skinMatcapTexture.colorSpace = SRGBColorSpace;
+  skinMatcapTexture.generateMipmaps = false;
+  skinMatcapTexture.minFilter = LinearFilter;
 
-  /* ── FOOTAGE RETIRED (31 Aug, Yash: "rip it out now") ──
-     The flipbook is off while the real 3D hands (D-044 build) replace it —
-     the act keeps its motes + spark + title as the interim climax. The
-     frame assets and this loader leave entirely with the 3D swap commit. */
-  const FOOTAGE_RETIRED = true;
+  const rigGroup = new Group();
+  rigGroup.scale.setScalar(SCALE);
+  rigGroup.position.copy(CENTER_LIFT);
+  group.add(rigGroup);
 
-  const coarse = typeof matchMedia === "function"
-    && matchMedia("(pointer: coarse)").matches;
-  const urls = urlList(coarse ? globMobile : globDesktop);
+  let mixer = null;
+  let actions = [];
+  let clipDuration = 1;
+  const swayBones = [];   // { bone, finger, seg, baseQuat-free (post-mixer) }
+  const tmpQ = new Quaternion();
+  const AXIS_X = new Vector3(1, 0, 0);
 
-  /* ── loader: blobs up front, textures through skeleton + LRU ring ── */
-  const blobs = new Array(FRAME_COUNT).fill(null);
-  const textures = new Array(FRAME_COUNT).fill(null);
-  const decoding = new Set();
-  const ringOrder = [];       // LRU of non-skeleton indices
-  const isSkeleton = (i) => i % SKELETON_STEP === 0 || i === FRAME_COUNT - 1;
-
-  const fetchAll = async () => {
-    await Promise.all(urls.map(async (u, i) => {
-      try {
-        const r = await fetch(u);
-        blobs[i] = await r.blob();
-      } catch (_) { /* a missing frame degrades to nearest-loaded */ }
-    }));
-    for (let i = 0; i < FRAME_COUNT; i += 1) if (isSkeleton(i)) ensure(i);
-  };
-
-  function ensure(i) {
-    if (i < 0 || i >= FRAME_COUNT) return null;
-    if (textures[i]) {
-      if (!isSkeleton(i)) {
-        const at = ringOrder.indexOf(i);
-        if (at !== -1) ringOrder.splice(at, 1);
-        ringOrder.push(i);
-      }
-      return textures[i];
-    }
-    if (!blobs[i] || decoding.has(i)) return null;
-    decoding.add(i);
-    createImageBitmap(blobs[i], { imageOrientation: "flipY" }).then((bmp) => {
-      const t = new Texture(bmp);
-      t.flipY = false;
-      t.colorSpace = SRGBColorSpace;
-      t.minFilter = LinearFilter;
-      t.magFilter = LinearFilter;
-      t.generateMipmaps = false;
-      t.needsUpdate = true;
-      textures[i] = t;
-      decoding.delete(i);
-      if (!isSkeleton(i)) {
-        ringOrder.push(i);
-        while (ringOrder.length > RING_MAX) {
-          const evict = ringOrder.shift();
-          const old = textures[evict];
-          textures[evict] = null;
-          old.image?.close?.();
-          old.dispose();
+  new GLTFLoader().load(HANDSHAKE_URL, (gltf) => {
+    const root = gltf.scene;
+    root.traverse((o) => {
+      if (o.isMesh) {
+        o.frustumCulled = false;
+        if (o.name.includes("Green")) {
+          o.material = new MeshMatcapMaterial({
+            matcap: matcapTexture,
+            toneMapped: false,
+          });
+        } else {
+          /* skin as a matcap too — same unlit contract as the green hand,
+             deterministic from every angle (the Cycles bake kept leaving
+             the forearm's far side black; the bake path stays in
+             choreo-build.py as the photoreal upgrade route) */
+          o.material = new MeshMatcapMaterial({
+            matcap: skinMatcapTexture,
+            toneMapped: false,
+          });
         }
       }
-    }).catch(() => decoding.delete(i));
-    return null;
-  }
-
-  const nearestLoaded = (i) => {
-    for (let d = 0; d < FRAME_COUNT; d += 1) {
-      if (textures[i - d]) return i - d;
-      if (textures[i + d]) return i + d;
+      if (o.isBone) {
+        const m = o.name.match(/DEF-(f_index|f_middle|f_ring|f_pinky|thumb)\.(\d\d)\./);
+        if (m) {
+          swayBones.push({
+            bone: o,
+            finger: SWAY_FINGERS.indexOf(m[1]),
+            seg: parseInt(m[2], 10) - 1,
+          });
+        }
+      }
+    });
+    rigGroup.add(root);
+    mixer = new AnimationMixer(root);
+    for (const clip of gltf.animations) {
+      const a = mixer.clipAction(clip);
+      a.setLoop(LoopOnce);
+      a.clampWhenFinished = true;
+      a.play();
+      a.paused = true;
+      actions.push(a);
+      clipDuration = Math.max(clipDuration, clip.duration);
     }
-    return -1;
-  };
-
-  if (!FOOTAGE_RETIRED) fetchAll();
-
-  /* ── the hands plane ── */
-  const PLANE_W = 12.9;
-  const PLANE_H = PLANE_W * (648 / 1152);
-  /* 1×1 transparent placeholder so the M9 precompile pass and the warm
-     loop can draw this material before any footage has decoded */
-  const dummy = new Texture(
-    Object.assign(document.createElement("canvas"), { width: 2, height: 2 }),
-  );
-  dummy.needsUpdate = true;
-  const handsMaterial = new ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    uniforms: {
-      uTexA: { value: dummy },
-      uTexB: { value: dummy },
-      uMix: { value: 0 },
-      uOpacity: { value: 0 },
-      uFlash: { value: 0 },
-    },
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform sampler2D uTexA;
-      uniform sampler2D uTexB;
-      uniform float uMix;
-      uniform float uOpacity;
-      uniform float uFlash;
-      varying vec2 vUv;
-      void main() {
-        vec4 a = texture2D(uTexA, vUv);
-        vec4 b = texture2D(uTexB, vUv);
-        vec4 c = mix(a, b, uMix);
-        /* the clasp flash lifts the hands, masked by their own alpha */
-        c.rgb *= 1.0 + uFlash * 0.35;
-        gl_FragColor = vec4(c.rgb, c.a * uOpacity);
-      }
-    `,
   });
-  const hands = new Mesh(new PlaneGeometry(PLANE_W, PLANE_H), handsMaterial);
-  hands.position.set(0, 0.15, 0.2);
-  hands.renderOrder = 6;
-  hands.frustumCulled = false;
-  hands.visible = !FOOTAGE_RETIRED;
-  group.add(hands);
 
-  /* ── ambient motes (kept from v2) ── */
+  /* ── ambient motes (unchanged act atmosphere) ── */
   const MN = 240;
   const motePos = new Float32Array(MN * 3);
   const moteSeed = new Float32Array(MN);
@@ -243,8 +192,7 @@ export function createConsultMeet(scene, _opts = {}) {
   motes.frustumCulled = false;
   group.add(motes);
 
-  /* ── spark burst + white-hot core + ring at the clasp (kept from v2,
-     re-anchored to CP) ── */
+  /* ── spark + white-hot core + ring at the clasp ── */
   const SN = 260;
   const sparkDir = new Float32Array(SN * 3);
   const sparkSeed = new Float32Array(SN);
@@ -363,72 +311,79 @@ export function createConsultMeet(scene, _opts = {}) {
   ring.frustumCulled = false;
   group.add(ring);
 
-  /* ── THE DRIVE — footage window .10–.825 of consultLocal ──
-     The grip closes at unique frame ~72 → consultLocal ≈ .64, which is
-     where the spark and the title (intro.js) fire; the two pumps ride
-     .66–.81; the settle pins; beatFade hands off to the Franklin. */
+  /* ── THE DRIVE ──
+     beat window .10–.825 of consultLocal; the shot's frames 6→150 map
+     linearly across it, so the grip (f112) lands at cl ≈ .634 — where the
+     spark and the title (intro.js) fire. */
   const START = 0.10, END = 0.825;
-  function update(progress, time, visibility) {
+  let lastProgress = -1;
+  let lastTime = 0;
+  let swayWeight = 1;
+  let px = 0, py = 0;
+
+  function update(progress, time, visibility, pointerX = 0, pointerY = 0) {
     const p = clamp01(progress);
     const beatFade = 1 - smooth((p - 0.83) / 0.025);
     const on = visibility * beatFade;
     group.visible = on > 0.002;
-    if (!group.visible) return;
+    if (!group.visible) { lastProgress = p; lastTime = time; return; }
 
+    const dt = Math.max(0, Math.min(0.05, time - lastTime));
     const t = clamp01((p - START) / (END - START));
-    const fPos = FIRST_VISIBLE + (FRAME_COUNT - 1 - FIRST_VISIBLE) * t;
-    const A = Math.floor(fPos);
-    const B = Math.min(A + 1, FRAME_COUNT - 1);
-    /* sharpened crossfade (skeptic minor): a parked stop mid-crossing used
-       to show a 50/50 double exposure — smoothstepping the fraction keeps
-       rests crisp on the nearest frame and blends only through the middle
-       of each step. Still a pure function of scroll. */
-    const rawFrac = fPos - A;
-    const frac = smooth((rawFrac - 0.18) / 0.64);
-    /* prefetch a window around the scroll position (direction-blind is
-       fine: the ring holds both sides of the current pair) */
-    for (let d = 1; d <= 5; d += 1) { ensure(A + d); ensure(A - d); }
-    let texA = ensure(A);
-    let texB = ensure(B);
-    let mix = frac;
-    if (!texA || !texB) {
-      const n = nearestLoaded(Math.round(fPos));
-      const fallback = n >= 0 ? textures[n] : dummy;
-      texA = texA || fallback;
-      texB = texB || texA;
-      if (!textures[A] || !textures[B]) mix = texA === texB ? 0 : mix;
-    }
-    const sparkT = smooth((p - 0.625) / 0.06);
-    handsMaterial.uniforms.uTexA.value = texA;
-    handsMaterial.uniforms.uTexB.value = texB;
-    handsMaterial.uniforms.uMix.value = mix;
-    handsMaterial.uniforms.uOpacity.value = on * smooth((p - 0.08) / 0.05);
-    handsMaterial.uniforms.uFlash.value = Math.sin(clamp01(sparkT) * Math.PI) * 0.8;
 
+    if (mixer) {
+      const at = clipDuration * (0.04 + 0.96 * t);
+      for (const a of actions) a.time = Math.min(at, a.getClip().duration - 1e-4);
+      mixer.update(0);   // paused mixer still re-stamps every bone
+      /* the reference's idle sway, layered post-mixer: alive at rest,
+         eased out while the scrub is actually moving */
+      const moving = Math.abs(p - lastProgress) > 1e-5;
+      swayWeight = MathUtils.clamp(swayWeight + (moving ? -1 : 1) * dt * 3, 0, 1);
+      if (swayWeight > 0.001) {
+        for (const s of swayBones) {
+          const amp = SWAY_AMP * SWAY_SEG[Math.min(s.seg, 2)] * swayWeight;
+          const freq = 0.5 * (1 + s.finger * 0.05);
+          const ang = amp * Math.sin(Math.PI * 2 * freq * time + s.finger * 1.3 + s.seg * 0.4);
+          tmpQ.setFromAxisAngle(AXIS_X, ang);
+          s.bone.quaternion.multiply(tmpQ);
+        }
+      }
+    }
+
+    /* drift (pure scroll) + pointer parallax — the subject leans, the
+       act's shared camera never moves */
+    px += (pointerX - px) * 0.05;
+    py += (pointerY - py) * 0.05;
+    rigGroup.rotation.y = Math.sin(t * Math.PI) * 0.04 + px * 0.045;
+    rigGroup.rotation.x = -py * 0.028;
+    rigGroup.position.x = CENTER_LIFT.x + Math.sin(t * Math.PI * 0.8) * 0.12;
+    group.traverse((o) => { if (o.isMesh || o.isPoints) o.visible = true; });
+
+    const handsIn = smooth((p - 0.08) / 0.05);
+    rigGroup.visible = handsIn > 0.01;
+
+    const sparkT = smooth((p - 0.625) / 0.06);
     moteMaterial.uniforms.uTime.value = time;
     moteMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1);
-
     sparkMaterial.uniforms.uSpark.value = sparkT;
     sparkMaterial.uniforms.uTime.value = time;
     sparkMaterial.uniforms.uOpacity.value = on;
-    coreMaterial.uniforms.uOpacity.value = on * Math.sin(clamp01(sparkT) * Math.PI);
+    coreMaterial.uniforms.uOpacity.value = on * Math.sin(clamp01(sparkT) * Math.PI) * 0.9;
     core.scale.setScalar(0.5 + sparkT * 1.15);
     ringMaterial.uniforms.uSpark.value = sparkT;
     ringMaterial.uniforms.uOpacity.value = on;
+
+    lastProgress = p;
+    lastTime = time;
   }
 
-  function resize(px) {
-    moteMaterial.uniforms.uPx.value = px;
-    sparkMaterial.uniforms.uPx.value = px;
+  function resize(pxh) {
+    moteMaterial.uniforms.uPx.value = pxh;
+    sparkMaterial.uniforms.uPx.value = pxh;
   }
 
   function dispose() {
-    for (const t of textures) {
-      if (t) { t.image?.close?.(); t.dispose(); }
-    }
-    dummy.dispose();
-    handsMaterial.dispose();
-    hands.geometry.dispose();
+    matcapTexture.dispose();
     moteGeometry.dispose();
     moteMaterial.dispose();
     sparkGeometry.dispose();
@@ -437,6 +392,11 @@ export function createConsultMeet(scene, _opts = {}) {
     core.geometry.dispose();
     ringMaterial.dispose();
     ring.geometry.dispose();
+    rigGroup.traverse((o) => {
+      o.geometry?.dispose?.();
+      if (o.material?.map) o.material.map.dispose();
+      o.material?.dispose?.();
+    });
   }
 
   return { update, resize, dispose };

@@ -1992,7 +1992,7 @@ export function createConsultHand(canvas) {
 
     /* the meet rides the same progress/visibility contract as everything
        else in this scene — pure scroll, bows out before the note strip */
-    meet.update(progress, time, visibility * (1 - exit));
+    meet.update(progress, time, visibility * (1 - exit), pointerX, pointerY);
 
     canvas.style.opacity = String(visibility * (1 - exit));
     renderer.render(scene, camera);
