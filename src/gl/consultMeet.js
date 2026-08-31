@@ -73,6 +73,12 @@ export function createConsultMeet(scene, _opts = {}) {
      (measured on frame 90: centre ≈ (0.512, 0.463) of the footage frame) */
   const CP = new Vector3(0.16, 0.27, 0.25);
 
+  /* ── FOOTAGE RETIRED (31 Aug, Yash: "rip it out now") ──
+     The flipbook is off while the real 3D hands (D-044 build) replace it —
+     the act keeps its motes + spark + title as the interim climax. The
+     frame assets and this loader leave entirely with the 3D swap commit. */
+  const FOOTAGE_RETIRED = true;
+
   const coarse = typeof matchMedia === "function"
     && matchMedia("(pointer: coarse)").matches;
   const urls = urlList(coarse ? globMobile : globDesktop);
@@ -138,7 +144,7 @@ export function createConsultMeet(scene, _opts = {}) {
     return -1;
   };
 
-  fetchAll();
+  if (!FOOTAGE_RETIRED) fetchAll();
 
   /* ── the hands plane ── */
   const PLANE_W = 12.9;
@@ -187,6 +193,7 @@ export function createConsultMeet(scene, _opts = {}) {
   hands.position.set(0, 0.15, 0.2);
   hands.renderOrder = 6;
   hands.frustumCulled = false;
+  hands.visible = !FOOTAGE_RETIRED;
   group.add(hands);
 
   /* ── ambient motes (kept from v2) ── */
