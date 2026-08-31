@@ -5769,22 +5769,26 @@ canvas.market-camera3d {
 .consult-meet__title {
   position: absolute;
   left: 50%;
-  top: 58%;
+  top: 20%; /* clear of the contact glow below — subline must stay legible */
   transform: translate(-50%, 0) scale(calc(0.92 + var(--meet-title, 0) * 0.08));
   text-align: center;
   opacity: var(--meet-title, 0);
   width: min(92vw, 46rem);
 }
 .consult-meet__title strong {
+  /* the act's own serif voice (matches the opening copy's Instrument
+     Serif), so the payoff is ONE title identity — not a second, cheaper
+     grotesk (craft skeptic major, 31 Aug) */
   display: block;
-  font-size: clamp(2.6rem, 6.5vw, 5.4rem);
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font: 400 clamp(3.2rem, 6.4vw, 6.2rem)/0.92 "Instrument Serif", Georgia, serif;
+  letter-spacing: -0.05em;
   color: #f2fff7;
+  text-shadow: 0 0 26px rgba(84, 240, 165, 0.35);
 }
 .consult-meet__title strong em {
-  font-style: normal;
+  font-style: italic;
   color: #54f0a5;
+  text-shadow: 0 0 26px rgba(84, 240, 165, 0.6), 0 0 70px rgba(84, 240, 165, 0.3);
 }
 .consult-meet__title p {
   margin-top: 0.8rem;

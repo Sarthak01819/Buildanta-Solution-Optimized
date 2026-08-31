@@ -1420,17 +1420,19 @@ export function createIntro({ onProgress } = {}) {
          not as something you entered */
       const consultOpacity = smoothstep((p - 0.732) / 0.010) * consultOut;  // painted before .744
       const consultLocal = Math.max(0, Math.min(1, (p - 0.768) / 0.224));
-      /* ── THE MEET's DOM copy (D-042) — vars on consultZero so the
-         .consult-meet descendants actually inherit them (the D-032/D-034
-         scope trap: set custom properties where they are READ). Windows
-         match consultMeet.js: target line rides the flip beat .30–.46,
-         the title lands with the spark .805 and exits before the strip
-         pose owns the frame. */
+      /* ── THE MEET's DOM copy + the act title RE-IGNITION (D-042 v2).
+         Vars on consultZero so .consult-meet descendants inherit them (the
+         D-032/D-034 scope law). The neon serif act title used to burn
+         through 60% of the act and SPOILED the spark reveal (skeptic
+         major, 31 Aug) — it now exits early (introOut below) and the SAME
+         neon re-lights at contact via the max() where --zero-intro is set,
+         so the payoff speaks in the act's own voice instead of a second,
+         cheaper title. */
+      const meetL1 = smoothstep((consultLocal - 0.30) / 0.05)
+        * (1 - smoothstep((consultLocal - 0.44) / 0.04));
+      const meetTitle = smoothstep((consultLocal - 0.775) / 0.04)
+        * (1 - smoothstep((consultLocal - 0.838) / 0.022));
       if (consultZero) {
-        const meetL1 = smoothstep((consultLocal - 0.30) / 0.05)
-          * (1 - smoothstep((consultLocal - 0.46) / 0.05));
-        const meetTitle = smoothstep((consultLocal - 0.775) / 0.04)
-          * (1 - smoothstep((consultLocal - 0.838) / 0.022));
         consultZero.style.setProperty("--meet-l1", meetL1.toFixed(3));
         consultZero.style.setProperty("--meet-title", meetTitle.toFixed(3));
       }
@@ -1445,7 +1447,12 @@ export function createIntro({ onProgress } = {}) {
       const handOut = 1 - smoothstep((consultLocal - 0.39) / 0.15);
       const handPulseLocal = Math.max(0, Math.min(1, (consultLocal - 0.12) / 0.25));
       const handPulse = Math.sin(handPulseLocal * Math.PI);
-      const handCopy = handIn * (1 - smoothstep((consultLocal - 0.64) / 0.14));
+      /* ── THE SPOILER FIX (D-042 v2, skeptic major): the serif opening
+         copy ("WE SCALE.") used to burn until .78 — through the whole meet
+         — so the spark's title reveal revealed words already on screen.
+         It now exits before the flip copy arrives; the payoff title at
+         contact speaks in the same serif voice (.consult-meet__title). */
+      const handCopy = handIn * (1 - smoothstep((consultLocal - 0.20) / 0.08));
       const update1 = smoothstep((consultLocal - 0.20) / 0.12);
       const update2 = smoothstep((consultLocal - 0.36) / 0.12);
       const update3 = smoothstep((consultLocal - 0.52) / 0.12);
