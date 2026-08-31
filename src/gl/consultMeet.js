@@ -372,7 +372,12 @@ export function createConsultMeet(scene, _opts = {}) {
     const fPos = FIRST_VISIBLE + (FRAME_COUNT - 1 - FIRST_VISIBLE) * t;
     const A = Math.floor(fPos);
     const B = Math.min(A + 1, FRAME_COUNT - 1);
-    const frac = fPos - A;
+    /* sharpened crossfade (skeptic minor): a parked stop mid-crossing used
+       to show a 50/50 double exposure — smoothstepping the fraction keeps
+       rests crisp on the nearest frame and blends only through the middle
+       of each step. Still a pure function of scroll. */
+    const rawFrac = fPos - A;
+    const frac = smooth((rawFrac - 0.18) / 0.64);
     /* prefetch a window around the scroll position (direction-blind is
        fine: the ring holds both sides of the current pair) */
     for (let d = 1; d <= 5; d += 1) { ensure(A + d); ensure(A - d); }
