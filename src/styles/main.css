@@ -5733,3 +5733,66 @@ canvas.market-camera3d {
 .market-film .market-frame * {
   pointer-events: none !important;
 }
+
+/* ── THE MEET (D-042) — the finger beat's target line + the spark-revealed
+   WE SCALE title. Vars --meet-l1/--meet-title are written per frame by
+   intro.js onto .consult-zero, so these descendants inherit them. ─────── */
+.consult-meet {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* above the film shots and the statue — the copy must never sink under
+     the editorial imagery the act keeps playing */
+  z-index: 30;
+}
+.consult-meet__target {
+  position: absolute;
+  left: clamp(1.5rem, 8vw, 10rem);
+  top: clamp(4.5rem, 20vh, 13rem);
+  text-align: left;
+  opacity: var(--meet-l1, 0);
+  transform: translateY(calc((1 - var(--meet-l1, 0)) * 0.6rem));
+}
+.consult-meet__target small {
+  display: block;
+  font-size: clamp(0.6rem, 0.9vw, 0.75rem);
+  letter-spacing: 0.32em;
+  color: rgba(150, 210, 178, 0.85);
+  margin-bottom: 0.55rem;
+}
+.consult-meet__target strong {
+  font-size: clamp(1.3rem, 2.6vw, 2.2rem);
+  font-weight: 600;
+  color: #eefff5;
+  letter-spacing: 0.01em;
+}
+.consult-meet__title {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, 0) scale(calc(0.92 + var(--meet-title, 0) * 0.08));
+  text-align: center;
+  opacity: var(--meet-title, 0);
+  width: min(92vw, 46rem);
+}
+.consult-meet__title strong {
+  display: block;
+  font-size: clamp(2.6rem, 6.5vw, 5.4rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #f2fff7;
+}
+.consult-meet__title strong em {
+  font-style: normal;
+  color: #54f0a5;
+}
+.consult-meet__title p {
+  margin-top: 0.8rem;
+  font-size: clamp(0.85rem, 1.3vw, 1.05rem);
+  letter-spacing: 0.14em;
+  color: rgba(210, 240, 222, 0.85);
+}
+.consult-meet__title p em {
+  font-style: normal;
+  color: #a9ffd3;
+}

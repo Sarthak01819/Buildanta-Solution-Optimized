@@ -45,6 +45,7 @@ function handPixelRatio() {
 
 import { createConsultNetwork } from "./consultNetwork.js";
 import { createConsultInside } from "./consultInside.js";
+import { createConsultMeet } from "./consultMeet.js";
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 const smooth = (value) => {
@@ -753,6 +754,13 @@ export function createConsultHand(canvas) {
   handPlane.position.y = -0.15;
   handRig.add(handPlane);
 
+  /* ── THE MEET (D-042, Yash's 6 MCQs 31 Aug): particle AI hand reaches the
+     human hand, spark reveals WE SCALE. Replaces the funded-world story —
+     see MEET_REPLACES_FUNDED_WORLD below. The human-hand sprite REUSES
+     handTexture as a placeholder until the generated photoreal reach lands
+     (docs/meet-hand-prompts.md). */
+  const meet = createConsultMeet(scene, { handTexture });
+
   const billGeometry = new PlaneGeometry(1.82, 0.78, 5, 2);
   const billTexture = new TextureLoader().load(
     "https://images.unsplash.com/photo-1636115734305-aac2f83cd8d4?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
@@ -1397,6 +1405,7 @@ export function createConsultHand(canvas) {
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    meet.resize(height);
   }
 
   function setProgress(value, opacity = 1) {
@@ -1444,7 +1453,16 @@ export function createConsultHand(canvas) {
     /* Quick clean exit finishing at .905 — the instant before the growing
        note's face reaches the hand's screen region. Holding any later parks
        a half-faded hand ON the note (depth can't save a fading sprite). */
-    const fundedWorldFade = 1 - smooth((progress - 0.885) / 0.02);
+    /* ── THE MEET REPLACES THE FUNDED WORLD (Yash MCQ 2, 31 Aug, D-042) ──
+       RETIRED, NOT DELETED — same pattern as the burn fragments. Forcing the
+       fade to 0 retires globe, palm, plant, ecology, birds, fume and the six
+       supporting notes in the one place they all multiply; the hero Franklin
+       (supportingFade 1) and its burn are untouched. Restoring the old story
+       is flipping this constant back. */
+    const MEET_REPLACES_FUNDED_WORLD = true;
+    const fundedWorldFade = MEET_REPLACES_FUNDED_WORLD
+      ? 0
+      : 1 - smooth((progress - 0.885) / 0.02);
     /* worldCut: after the epilogue film has played (Yash, 15 Aug: "after book
        a growth call remove the hands and plant thing and dont remove the
        flying dollar") the globe — which owns the plant, its ecology and the
@@ -1972,6 +1990,10 @@ export function createConsultHand(canvas) {
       && progress < 0.87
       && fundedWorldFade > 0.002;
 
+    /* the meet rides the same progress/visibility contract as everything
+       else in this scene — pure scroll, bows out before the note strip */
+    meet.update(progress, time, visibility * (1 - exit));
+
     canvas.style.opacity = String(visibility * (1 - exit));
     renderer.render(scene, camera);
   }
@@ -2025,6 +2047,7 @@ export function createConsultHand(canvas) {
       globeFumeGeometry.dispose();
       globeFumeMaterial.dispose();
       consultNet?.dispose();
+      meet.dispose();
       plantAtlasTexture.dispose();
       plantAtlasMaterial.dispose();
       plantAtlasGeometries.forEach((geometry) => geometry.dispose());

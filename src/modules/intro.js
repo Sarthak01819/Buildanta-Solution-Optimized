@@ -174,6 +174,7 @@ export function createIntro({ onProgress } = {}) {
   let marketCam3d = null;
   let ribbonCaption = null, ribbonCaptionIdx = -1;
   let filmVel = 0, filmVelLast = 0, filmVelAt = performance.now();
+  let filmStillSince = performance.now(); // wall-clock rest detector (31 Aug deadband)
   /* Every speed-driven term in marketCamera clamps at +/-4, the reference's
      VEL_CLAMP in plates/second. But its reel spends 60vh per plate and ours
      about 0.17vh, so our plates/second runs ~10x hotter — measured ~12 at a
@@ -737,6 +738,15 @@ export function createIntro({ onProgress } = {}) {
            the snap itself cannot pop. Honours the shader's own contract:
            "the approved still frame stays bit-identical" at rest. */
         if (Math.abs(filmVel) < 0.02) filmVel = 0;
+        /* FIX-FORWARD (31 Aug): the deadband above still lost a race under
+           load — it needs enough TICKS to decay there, and a busy machine
+           (or throttled headless rig) can fit too few in a settle window,
+           parking the art sampler on its blur branch on one approach only
+           (verify-reverse .660 flag, 4.5%, reproduced twice). Wall-clock
+           beats tick-count: once the driver has been STILL for 250ms, the
+           transport is at rest by definition — snap exactly to zero. */
+        if (Math.abs(raw) > 0.02) filmStillSince = nowMs;
+        else if (nowMs - filmStillSince > 250) filmVel = 0;
         filmVelLast = posNow;
         filmVelAt = nowMs;
       }
@@ -1410,6 +1420,20 @@ export function createIntro({ onProgress } = {}) {
          not as something you entered */
       const consultOpacity = smoothstep((p - 0.732) / 0.010) * consultOut;  // painted before .744
       const consultLocal = Math.max(0, Math.min(1, (p - 0.768) / 0.224));
+      /* ── THE MEET's DOM copy (D-042) — vars on consultZero so the
+         .consult-meet descendants actually inherit them (the D-032/D-034
+         scope trap: set custom properties where they are READ). Windows
+         match consultMeet.js: target line rides the flip beat .30–.46,
+         the title lands with the spark .805 and exits before the strip
+         pose owns the frame. */
+      if (consultZero) {
+        const meetL1 = smoothstep((consultLocal - 0.30) / 0.05)
+          * (1 - smoothstep((consultLocal - 0.46) / 0.05));
+        const meetTitle = smoothstep((consultLocal - 0.775) / 0.04)
+          * (1 - smoothstep((consultLocal - 0.838) / 0.022));
+        consultZero.style.setProperty("--meet-l1", meetL1.toFixed(3));
+        consultZero.style.setProperty("--meet-title", meetTitle.toFixed(3));
+      }
 
       // The same palm globe begins around the camera and zooms out into place.
       // Bring its mint world in immediately—there is no separate space scene.
@@ -1966,7 +1990,10 @@ export function createIntro({ onProgress } = {}) {
     corridor.render(time);
     orbHero?.render(time);            // no-ops once handed off (setOpacity 0)
     projector?.render(time);
-    consultHand?.render(time);
+    /* pinnable like the market canvas: the meet beat drifts its unassembled
+       particles on the wall clock, so the reverse rig pins the clock to make
+       fwd/rev comparisons pure state (same __bbPinTime contract). */
+    consultHand?.render(window.__bbPinTime ? window.__bbPinTime / 1000 : time);
     blackholeBeat?.tick(dt);          // gas churns on its own clock (hybrid)
     projectObjects(groups, corridor, time);
 
