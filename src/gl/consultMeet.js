@@ -1,43 +1,40 @@
-/* ── THE MEET v2 — solid hands (WE SCALE beat, D-042) ────────────────────
-   v1's particle AI hand was rejected by Yash (31 Aug, "should be a proper
-   hand") and by the craft skeptic ("flat dot-stencil"). v2: two REAL meshes
-   built in Blender from the same capsule skeletons (skin modifier + subsurf,
-   tools: scratchpad/build-hands.py), shaded with a PROCEDURAL spearmint
-   matcap — the reference's material technique (matcap IS the lighting; no
-   scene lights), zero borrowed assets.
+/* ── THE MEET v3 — the Veo handshake as a GPU flipbook (D-043) ───────────
+   Yash's 12 MCQs (31 Aug): his Veo footage (green hand + human hand meeting
+   in a HANDSHAKE) replaces the built hands; hands are MATTED off the red
+   curtain offline (scratchpad/matte2.py — keys + hole-fill + component
+   cleanup + de-spill + spearmint grade + watermark inpaint) and composited
+   STANDALONE over the act's black void (a curtain shader can come later);
+   pure scroll drive; crossfade between adjacent frames so slow scrolls
+   never step; both handshake pumps included; spark + WE SCALE title fire at
+   the clasp; finger beat retired (his call); small frame set for phones.
 
-   Beat contract (consultLocal, all pure scroll — reverse replays exactly):
-   .10–.24  the flip hand rises in (fist, middle finger up), copy names the
-            target (.30–.44, DOM)
-   .42–.52  crossfade flip → open reaching hand
-   .50–.64  the human photo hand enters low-right (opaque fast — no ghost
-            double-exposure over the statue: skeptic minor)
-   .52–.80  approach; a faint volumetric beam charges the space between the
-            fingertips (the dead-centre fix)
-   .775–.85 contact: white-hot core + burst + tight ring AT the fingertips,
-            and the act's own neon serif title re-lights (intro.js)
-   .83–.855 the beat bows out; Franklin strip (.849+) and burn untouched.
+   ENGINE (research round wf_1fb21696-f7b): 96 unique frames (the 120 PNG
+   export carried 24 pulldown duplicates) as WebP-with-alpha, fetched as
+   blobs up front (~3.3MB desktop / ~1.1MB phone), decoded to GPU textures
+   through a skeleton-set + LRU ring so VRAM stays bounded (~28 textures
+   resident ≈ 84MB desktop, ~12MB phone) — scrubbing samples a texture pair
+   by INDEX: zero per-frame decode on the scroll path, both directions.
 
-   ⚠️ uTime feeds only idle shimmer/flicker; the reverse rig pins the clock
-   via __bbPinTime (see intro.js render call). */
+   ⚠️ PURE SCROLL: the frame pair and mix are functions of progress alone.
+   Texture AVAILABILITY is the only async part — a missing neighbour shows
+   the nearest loaded frame crisp (no mix), and any settled stop has its
+   exact pair resident well inside the reverse-rig's 460ms settle. uTime
+   feeds only the motes and the spark flicker. */
 import {
   AdditiveBlending,
   BufferGeometry,
-  CanvasTexture,
   Float32BufferAttribute,
   Group,
+  LinearFilter,
   MathUtils,
   Mesh,
-  MeshMatcapMaterial,
   PlaneGeometry,
   Points,
   ShaderMaterial,
   SRGBColorSpace,
+  Texture,
   Vector3,
 } from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import REACH_URL from "../assets/meet-hand-reach.glb?url";
-import FLIP_URL from "../assets/meet-hand-flip.glb?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const smooth = (v) => {
@@ -49,139 +46,150 @@ const hash = (n) => {
   return s - Math.floor(s);
 };
 
-/* ── PROCEDURAL SPEARMINT MATCAP ──
-   The reference's green hand recipe, rebuilt in the act's own palette:
-   pale-mint key upper-left, spearmint body, deep green shadow, cyan
-   backlight rim at grazing angles. 256px is plenty — matcaps are looked up
-   by normal, not by texel density. */
-function makeMatcap() {
-  const c = document.createElement("canvas");
-  c.width = 256;
-  c.height = 256;
-  const g = c.getContext("2d");
-  g.fillStyle = "#04150c";
-  g.fillRect(0, 0, 256, 256);
-  /* body: key light upper-left */
-  const body = g.createRadialGradient(100, 88, 8, 128, 128, 132);
-  body.addColorStop(0, "#eafff2");
-  body.addColorStop(0.22, "#8df0b4");
-  body.addColorStop(0.5, "#2fae6e");
-  body.addColorStop(0.8, "#0b5433");
-  body.addColorStop(1, "#04371f");
-  g.beginPath();
-  g.arc(128, 128, 127, 0, Math.PI * 2);
-  g.fillStyle = body;
-  g.fill();
-  /* faint warm-mint bounce lower-right */
-  const bounce = g.createRadialGradient(178, 182, 4, 178, 182, 90);
-  bounce.addColorStop(0, "rgba(140,255,196,0.30)");
-  bounce.addColorStop(1, "rgba(140,255,196,0)");
-  g.beginPath();
-  g.arc(128, 128, 127, 0, Math.PI * 2);
-  g.fillStyle = bounce;
-  g.fill();
-  /* cyan backlight rim — the grazing-angle ring */
-  const rim = g.createRadialGradient(128, 128, 96, 128, 128, 127);
-  rim.addColorStop(0, "rgba(64,216,206,0)");
-  rim.addColorStop(0.75, "rgba(64,216,206,0.28)");
-  rim.addColorStop(1, "rgba(110,240,230,0.62)");
-  g.beginPath();
-  g.arc(128, 128, 127, 0, Math.PI * 2);
-  g.fillStyle = rim;
-  g.fill();
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  return t;
-}
+/* fingerprinted frame URLs — the D-030 immutable-cache law: everything
+   goes through Vite, never fixed names in public/ */
+const globDesktop = import.meta.glob("../assets/meet-frames/d/*.webp", {
+  eager: true, query: "?url", import: "default",
+});
+const globMobile = import.meta.glob("../assets/meet-frames/m/*.webp", {
+  eager: true, query: "?url", import: "default",
+});
+const urlList = (glob) => Object.keys(glob).sort().map((k) => glob[k]);
 
-export function createConsultMeet(scene, { handTexture } = {}) {
+const FRAME_COUNT = 96;
+/* footage beats in unique-frame indices (research frame map, 120→96 space):
+   0-6 empty lead, green enters ~7, human ~15, grip closed ~72, pumps 79-94,
+   settle 95 */
+const FIRST_VISIBLE = 6;
+const RING_MAX = 28;          // LRU cap beyond the skeleton set
+const SKELETON_STEP = 8;      // always-resident spine so any jump shows NOW
+
+export function createConsultMeet(scene, _opts = {}) {
   const group = new Group();
   group.renderOrder = 6;
   scene.add(group);
 
-  /* contact point — a touch above centre; spark, ring, beam and both
-     fingertips all aim at exactly this (skeptic major: v1's FX floated
-     ~80–175px off the true meet) */
-  const CP = new Vector3(0.1, 0.62, 0.2);
+  /* the clasp's screen anchor — spark/core/ring live where the grip closes
+     (measured on frame 90: centre ≈ (0.512, 0.463) of the footage frame) */
+  const CP = new Vector3(0.16, 0.27, 0.25);
 
-  /* ── THE AI HAND — two solid meshes, crossfaded flip → reach ── */
-  const matcapTexture = makeMatcap();
-  const flipMaterial = new MeshMatcapMaterial({
-    matcap: matcapTexture, transparent: true, opacity: 0,
-  });
-  const reachMaterial = new MeshMatcapMaterial({
-    matcap: matcapTexture, transparent: true, opacity: 0,
-  });
-  const aiGroup = new Group();
-  aiGroup.renderOrder = 6;
-  group.add(aiGroup);
-  let flipMesh = null, reachMesh = null;
-  const loader = new GLTFLoader();
-  loader.load(FLIP_URL, (gltf) => {
-    flipMesh = gltf.scene;
-    flipMesh.traverse((o) => { if (o.isMesh) { o.material = flipMaterial; o.frustumCulled = false; } });
-    aiGroup.add(flipMesh);
-  });
-  loader.load(REACH_URL, (gltf) => {
-    reachMesh = gltf.scene;
-    reachMesh.traverse((o) => { if (o.isMesh) { o.material = reachMaterial; o.frustumCulled = false; } });
-    aiGroup.add(reachMesh);
-  });
+  const coarse = typeof matchMedia === "function"
+    && matchMedia("(pointer: coarse)").matches;
+  const urls = urlList(coarse ? globMobile : globDesktop);
 
-  /* ── THE HUMAN HAND (photo sprite) ──
-     PLACEHOLDER texture (consult-hand-v2.png) until the generated photoreal
-     reach lands — docs/meet-hand-prompts.md. The shader GRADES the source's
-     lime cast toward the act's spearmint so it stops reading "Hulk glove"
-     (craft major): red pulled hard, a touch of desaturation. */
-  const humanGroup = new Group();
-  const humanPlane = new Mesh(new PlaneGeometry(3.4, 5.1), null);
-  let humanMaterial = null;
-  if (handTexture) {
-    humanMaterial = new ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      uniforms: {
-        uMap: { value: handTexture },
-        uOpacity: { value: 0 },
-        uSpark: { value: 0 },
-        uTime: { value: 0 },
-      },
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  /* ── loader: blobs up front, textures through skeleton + LRU ring ── */
+  const blobs = new Array(FRAME_COUNT).fill(null);
+  const textures = new Array(FRAME_COUNT).fill(null);
+  const decoding = new Set();
+  const ringOrder = [];       // LRU of non-skeleton indices
+  const isSkeleton = (i) => i % SKELETON_STEP === 0 || i === FRAME_COUNT - 1;
+
+  const fetchAll = async () => {
+    await Promise.all(urls.map(async (u, i) => {
+      try {
+        const r = await fetch(u);
+        blobs[i] = await r.blob();
+      } catch (_) { /* a missing frame degrades to nearest-loaded */ }
+    }));
+    for (let i = 0; i < FRAME_COUNT; i += 1) if (isSkeleton(i)) ensure(i);
+  };
+
+  function ensure(i) {
+    if (i < 0 || i >= FRAME_COUNT) return null;
+    if (textures[i]) {
+      if (!isSkeleton(i)) {
+        const at = ringOrder.indexOf(i);
+        if (at !== -1) ringOrder.splice(at, 1);
+        ringOrder.push(i);
+      }
+      return textures[i];
+    }
+    if (!blobs[i] || decoding.has(i)) return null;
+    decoding.add(i);
+    createImageBitmap(blobs[i], { imageOrientation: "flipY" }).then((bmp) => {
+      const t = new Texture(bmp);
+      t.flipY = false;
+      t.colorSpace = SRGBColorSpace;
+      t.minFilter = LinearFilter;
+      t.magFilter = LinearFilter;
+      t.generateMipmaps = false;
+      t.needsUpdate = true;
+      textures[i] = t;
+      decoding.delete(i);
+      if (!isSkeleton(i)) {
+        ringOrder.push(i);
+        while (ringOrder.length > RING_MAX) {
+          const evict = ringOrder.shift();
+          const old = textures[evict];
+          textures[evict] = null;
+          old.image?.close?.();
+          old.dispose();
         }
-      `,
-      fragmentShader: `
-        uniform sampler2D uMap;
-        uniform float uOpacity;
-        uniform float uSpark;
-        uniform float uTime;
-        varying vec2 vUv;
-        void main() {
-          vec4 texel = texture2D(uMap, vUv);
-          /* lime -> spearmint: kill the red channel's chartreuse pull,
-             lift blue slightly, then ease off saturation */
-          vec3 graded = texel.rgb * vec3(0.60, 1.0, 1.04);
-          float luma = dot(graded, vec3(0.299, 0.587, 0.114));
-          graded = mix(graded, vec3(luma), 0.16);
-          /* contact light sweeping down the arm from the fingertip */
-          float d = distance(vUv, vec2(0.14, 0.94));
-          float ring = 1.0 - smoothstep(0.0, 0.32, abs(d - uSpark * 1.5 + 0.12));
-          vec3 lit = graded * (1.0 + ring * uSpark * 0.9);
-          lit += vec3(0.55, 1.0, 0.72) * ring * uSpark * 0.35 * texel.a;
-          gl_FragColor = vec4(lit, texel.a * uOpacity);
-        }
-      `,
-    });
-    humanPlane.material = humanMaterial;
-    humanPlane.rotation.z = 0.98;
-    humanGroup.add(humanPlane);
+      }
+    }).catch(() => decoding.delete(i));
+    return null;
   }
-  group.add(humanGroup);
 
-  /* ── AMBIENT MOTES ── */
+  const nearestLoaded = (i) => {
+    for (let d = 0; d < FRAME_COUNT; d += 1) {
+      if (textures[i - d]) return i - d;
+      if (textures[i + d]) return i + d;
+    }
+    return -1;
+  };
+
+  fetchAll();
+
+  /* ── the hands plane ── */
+  const PLANE_W = 12.9;
+  const PLANE_H = PLANE_W * (648 / 1152);
+  /* 1×1 transparent placeholder so the M9 precompile pass and the warm
+     loop can draw this material before any footage has decoded */
+  const dummy = new Texture(
+    Object.assign(document.createElement("canvas"), { width: 2, height: 2 }),
+  );
+  dummy.needsUpdate = true;
+  const handsMaterial = new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: {
+      uTexA: { value: dummy },
+      uTexB: { value: dummy },
+      uMix: { value: 0 },
+      uOpacity: { value: 0 },
+      uFlash: { value: 0 },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uTexA;
+      uniform sampler2D uTexB;
+      uniform float uMix;
+      uniform float uOpacity;
+      uniform float uFlash;
+      varying vec2 vUv;
+      void main() {
+        vec4 a = texture2D(uTexA, vUv);
+        vec4 b = texture2D(uTexB, vUv);
+        vec4 c = mix(a, b, uMix);
+        /* the clasp flash lifts the hands, masked by their own alpha */
+        c.rgb *= 1.0 + uFlash * 0.35;
+        gl_FragColor = vec4(c.rgb, c.a * uOpacity);
+      }
+    `,
+  });
+  const hands = new Mesh(new PlaneGeometry(PLANE_W, PLANE_H), handsMaterial);
+  hands.position.set(0, 0.15, 0.2);
+  hands.renderOrder = 6;
+  hands.frustumCulled = false;
+  group.add(hands);
+
+  /* ── ambient motes (kept from v2) ── */
   const MN = 240;
   const motePos = new Float32Array(MN * 3);
   const moteSeed = new Float32Array(MN);
@@ -228,35 +236,8 @@ export function createConsultMeet(scene, { handTexture } = {}) {
   motes.frustumCulled = false;
   group.add(motes);
 
-  /* ── THE MEET-AXIS BEAM — charges the space between the hands ── */
-  const beamMaterial = new ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: AdditiveBlending,
-    uniforms: { uOpacity: { value: 0 } },
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float uOpacity;
-      varying vec2 vUv;
-      void main() {
-        vec2 q = (vUv - 0.5) * vec2(2.0, 2.0);
-        float body = 1.0 - smoothstep(0.0, 1.0, length(q * vec2(1.0, 2.6)));
-        gl_FragColor = vec4(vec3(0.35, 0.95, 0.62), body * body * uOpacity);
-      }
-    `,
-  });
-  const beam = new Mesh(new PlaneGeometry(3.6, 1.1), beamMaterial);
-  beam.renderOrder = 5;
-  beam.frustumCulled = false;
-  group.add(beam);
-
-  /* ── THE SPARK — white-hot core + burst + tight ring, all AT CP ── */
+  /* ── spark burst + white-hot core + ring at the clasp (kept from v2,
+     re-anchored to CP) ── */
   const SN = 260;
   const sparkDir = new Float32Array(SN * 3);
   const sparkSeed = new Float32Array(SN);
@@ -277,10 +258,8 @@ export function createConsultMeet(scene, { handTexture } = {}) {
     depthWrite: false,
     blending: AdditiveBlending,
     uniforms: {
-      uSpark: { value: 0 },
-      uTime: { value: 0 },
-      uOpacity: { value: 0 },
-      uPx: { value: 1 },
+      uSpark: { value: 0 }, uTime: { value: 0 },
+      uOpacity: { value: 0 }, uPx: { value: 1 },
     },
     vertexShader: `
       attribute vec3 aDir;
@@ -316,7 +295,6 @@ export function createConsultMeet(scene, { handTexture } = {}) {
   spark.position.copy(CP);
   group.add(spark);
 
-  /* white-hot contact core — a soft radial glow exactly at CP */
   const coreMaterial = new ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -378,7 +356,11 @@ export function createConsultMeet(scene, { handTexture } = {}) {
   ring.frustumCulled = false;
   group.add(ring);
 
-  /* ── THE DRIVE ── */
+  /* ── THE DRIVE — footage window .10–.825 of consultLocal ──
+     The grip closes at unique frame ~72 → consultLocal ≈ .64, which is
+     where the spark and the title (intro.js) fire; the two pumps ride
+     .66–.81; the settle pins; beatFade hands off to the Franklin. */
+  const START = 0.10, END = 0.825;
   function update(progress, time, visibility) {
     const p = clamp01(progress);
     const beatFade = 1 - smooth((p - 0.83) / 0.025);
@@ -386,53 +368,30 @@ export function createConsultMeet(scene, { handTexture } = {}) {
     group.visible = on > 0.002;
     if (!group.visible) return;
 
-    const enter = smooth((p - 0.10) / 0.14);
-    const unflip = smooth((p - 0.42) / 0.10);
-    const humanIn = smooth((p - 0.50) / 0.14);
-    const approach = smooth((p - 0.52) / 0.28);
-    const sparkT = smooth((p - 0.775) / 0.075);
-
-    /* solid hand: rises in as the fist, crossfades to the reach */
-    const flipLift = 1 - unflip;
-    const gapNow = MathUtils.lerp(1.45, 0.30, approach) - sparkT * 0.06;
-    aiGroup.position.set(
-      CP.x - gapNow + flipLift * 1.15,
-      CP.y - MathUtils.lerp(0.95, 0.02, approach) + flipLift * 0.05 - (1 - enter) * 0.5,
-      CP.z,
-    );
-    aiGroup.rotation.z = MathUtils.lerp(-0.18, 0.05, approach) + flipLift * 0.08;
-    aiGroup.scale.setScalar(1.28 * (0.94 + enter * 0.06));
-    /* idle micro-sway — sub-pixel life at rest, like the reference's
-       finger-bone sines */
-    aiGroup.rotation.z += Math.sin(time * 0.6) * 0.004;
-    const flash = 1 + Math.sin(clamp01(sparkT) * Math.PI) * 0.30;
-    flipMaterial.opacity = on * enter * flipLift;
-    reachMaterial.opacity = on * enter * unflip;
-    flipMaterial.color.setScalar(flash);
-    reachMaterial.color.setScalar(flash);
-    if (flipMesh) flipMesh.visible = flipMaterial.opacity > 0.005;
-    if (reachMesh) reachMesh.visible = reachMaterial.opacity > 0.005;
-
-    if (humanMaterial) {
-      humanGroup.scale.setScalar(0.92);
-      const hGap = MathUtils.lerp(3.1, 0.30, approach) - sparkT * 0.10;
-      humanGroup.position.set(
-        CP.x + hGap + 0.15,
-        CP.y - MathUtils.lerp(4.4, 1.42, humanIn) + approach * 0.35,
-        CP.z - 0.15,
-      );
-      humanGroup.rotation.z = MathUtils.lerp(-0.35, -0.16, approach);
-      humanMaterial.uniforms.uOpacity.value = on * humanIn;
-      humanMaterial.uniforms.uSpark.value = sparkT;
-      humanMaterial.uniforms.uTime.value = time;
+    const t = clamp01((p - START) / (END - START));
+    const fPos = FIRST_VISIBLE + (FRAME_COUNT - 1 - FIRST_VISIBLE) * t;
+    const A = Math.floor(fPos);
+    const B = Math.min(A + 1, FRAME_COUNT - 1);
+    const frac = fPos - A;
+    /* prefetch a window around the scroll position (direction-blind is
+       fine: the ring holds both sides of the current pair) */
+    for (let d = 1; d <= 5; d += 1) { ensure(A + d); ensure(A - d); }
+    let texA = ensure(A);
+    let texB = ensure(B);
+    let mix = frac;
+    if (!texA || !texB) {
+      const n = nearestLoaded(Math.round(fPos));
+      const fallback = n >= 0 ? textures[n] : dummy;
+      texA = texA || fallback;
+      texB = texB || texA;
+      if (!textures[A] || !textures[B]) mix = texA === texB ? 0 : mix;
     }
-
-    /* the beam bridges the tips and dies as the spark takes over */
-    beam.position.set(CP.x - gapNow * 0.5 - 0.15, CP.y - 0.05, CP.z - 0.05);
-    beam.scale.x = (gapNow + 1.6) / 3.6;
-    beamMaterial.uniforms.uOpacity.value =
-      on * approach * approach * 0.20 * (1 - sparkT * 0.4);
-    beam.visible = approach > 0.03;
+    const sparkT = smooth((p - 0.625) / 0.06);
+    handsMaterial.uniforms.uTexA.value = texA;
+    handsMaterial.uniforms.uTexB.value = texB;
+    handsMaterial.uniforms.uMix.value = mix;
+    handsMaterial.uniforms.uOpacity.value = on * smooth((p - 0.08) / 0.05);
+    handsMaterial.uniforms.uFlash.value = Math.sin(clamp01(sparkT) * Math.PI) * 0.8;
 
     moteMaterial.uniforms.uTime.value = time;
     moteMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1);
@@ -452,10 +411,12 @@ export function createConsultMeet(scene, { handTexture } = {}) {
   }
 
   function dispose() {
-    [flipMesh, reachMesh].forEach((m) => m?.traverse((o) => o.geometry?.dispose?.()));
-    flipMaterial.dispose();
-    reachMaterial.dispose();
-    matcapTexture.dispose();
+    for (const t of textures) {
+      if (t) { t.image?.close?.(); t.dispose(); }
+    }
+    dummy.dispose();
+    handsMaterial.dispose();
+    hands.geometry.dispose();
     moteGeometry.dispose();
     moteMaterial.dispose();
     sparkGeometry.dispose();
@@ -464,10 +425,6 @@ export function createConsultMeet(scene, { handTexture } = {}) {
     core.geometry.dispose();
     ringMaterial.dispose();
     ring.geometry.dispose();
-    beamMaterial.dispose();
-    beam.geometry.dispose();
-    humanPlane.geometry.dispose();
-    humanMaterial?.dispose();
   }
 
   return { update, resize, dispose };

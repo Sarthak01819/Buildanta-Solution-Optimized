@@ -1428,9 +1428,12 @@ export function createIntro({ onProgress } = {}) {
          neon re-lights at contact via the max() where --zero-intro is set,
          so the payoff speaks in the act's own voice instead of a second,
          cheaper title. */
-      const meetL1 = smoothstep((consultLocal - 0.30) / 0.05)
-        * (1 - smoothstep((consultLocal - 0.44) / 0.04));
-      const meetTitle = smoothstep((consultLocal - 0.775) / 0.04)
+      /* finger beat retired with the Veo footage swap (D-043, Yash's call)
+         — the target line never shows; DOM kept for an easy revive */
+      const meetL1 = 0;
+      /* title fires at the CLASP: the grip closes at consultLocal ≈ .64
+         (footage frame ~72 of 96 in the .10–.825 window) */
+      const meetTitle = smoothstep((consultLocal - 0.63) / 0.04)
         * (1 - smoothstep((consultLocal - 0.838) / 0.022));
       if (consultZero) {
         consultZero.style.setProperty("--meet-l1", meetL1.toFixed(3));
