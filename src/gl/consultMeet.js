@@ -394,6 +394,37 @@ export function createConsultMeet(scene, _opts = {}) {
   ring.frustumCulled = false;
   group.add(ring);
 
+  /* ── radial emerald wash behind the grip — lifts the void off pure black
+     (judge floor #073020-ish at the grip, corners keep a whisper) so the
+     dark side of the lacquer separates from the background ── */
+  const washMaterial = new ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: AdditiveBlending,
+    uniforms: { uOpacity: { value: 0 } },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      varying vec2 vUv;
+      void main() {
+        float d = length(vUv - 0.5) * 2.0;
+        float g = pow(max(0.0, 1.0 - d), 1.8);
+        vec3 col = vec3(0.039, 0.235, 0.149) * (0.12 + 0.88 * g);
+        gl_FragColor = vec4(col, uOpacity);
+      }
+    `,
+  });
+  const wash = new Mesh(new PlaneGeometry(22, 22), washMaterial);
+  wash.position.set(CP.x, CP.y, CP.z - 3.5);
+  wash.frustumCulled = false;
+  group.add(wash);
+
   /* ── THE DRIVE ──
      beat window .10–.825 of consultLocal; the shot's frames 6→150 map
      linearly across it, so the grip (f112) lands at cl ≈ .634 — where the
@@ -459,6 +490,7 @@ export function createConsultMeet(scene, _opts = {}) {
     core.scale.setScalar(1.1 + sparkT * 2.4);
     ringMaterial.uniforms.uSpark.value = sparkT;
     ringMaterial.uniforms.uOpacity.value = on;
+    washMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1);
 
     lastProgress = p;
     lastTime = time;
@@ -479,6 +511,8 @@ export function createConsultMeet(scene, _opts = {}) {
     core.geometry.dispose();
     ringMaterial.dispose();
     ring.geometry.dispose();
+    washMaterial.dispose();
+    wash.geometry.dispose();
     rigGroup.traverse((o) => {
       o.geometry?.dispose?.();
       if (o.material?.map) o.material.map.dispose();
