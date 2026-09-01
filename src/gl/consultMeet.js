@@ -46,8 +46,9 @@ import {
   LoopOnce,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import HANDSHAKE_URL from "../assets/meet-handshake.glb?url";
-import MATCAP_URL from "../assets/meet-matcap.png?url";
+import MATCAP_URL from "../assets/meet-matcap-lacquer.png?url";
 import SKIN_MATCAP_URL from "../assets/meet-skin-matcap.png?url";
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
 
@@ -155,7 +156,15 @@ export function createConsultMeet(scene, _opts = {}) {
     geo.setAttribute("color", new Float32BufferAttribute(col, 3));
   }
 
-  new GLTFLoader().load(HANDSHAKE_URL, (gltf) => {
+  /* The detailed arms are 70k verts each with baked 2K maps — Draco takes the
+     geometry from 34MB to 2.8MB. The decoder is a fixed vendor file, so
+     public/draco/ is correct here (nothing to cache-bust: D-030 applies to
+     assets that CHANGE). */
+  const gltfLoader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath("/draco/");
+  gltfLoader.setDRACOLoader(draco);
+  gltfLoader.load(HANDSHAKE_URL, (gltf) => {
     const root = gltf.scene;
     root.traverse((o) => {
       if (o.isMesh) {
