@@ -49,6 +49,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import HANDSHAKE_URL from "../assets/meet-handshake.glb?url";
 import MATCAP_URL from "../assets/meet-matcap.png?url";
 import SKIN_MATCAP_URL from "../assets/meet-skin-matcap.png?url";
+import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const smooth = (v) => {
@@ -87,6 +88,12 @@ export function createConsultMeet(scene, _opts = {}) {
   skinMatcapTexture.colorSpace = SRGBColorSpace;
   skinMatcapTexture.generateMipmaps = false;
   skinMatcapTexture.minFilter = LinearFilter;
+  /* neutral bright form-shading matcap — multiplies the baked skin texture
+     so the human arm keeps 3D form while staying unlit (model-matcap.py) */
+  const neutralMatcapTexture = new TextureLoader().load(NEUTRAL_MATCAP_URL);
+  neutralMatcapTexture.colorSpace = SRGBColorSpace;
+  neutralMatcapTexture.generateMipmaps = false;
+  neutralMatcapTexture.minFilter = LinearFilter;
 
   const rigGroup = new Group();
   rigGroup.scale.setScalar(SCALE);
@@ -100,25 +107,85 @@ export function createConsultMeet(scene, _opts = {}) {
   const tmpQ = new Quaternion();
   const AXIS_X = new Vector3(1, 0, 0);
 
+  /* ── THE SEVERED-END FADE ──
+     The arms are cut at the upper arm, and on the act's black ground that cut
+     reads as a cut. Blender's exporter kept a stale second colour layer, so
+     the fade is authored HERE instead: distance of each bind-space vertex from
+     its own hand bone, smoothstepped to black over the last third of the arm.
+     Bind space is pose-independent, so one pass at load covers every frame. */
+  function fadeStub(mesh) {
+    const geo = mesh.geometry;
+    const pos = geo.getAttribute("position");
+    if (!pos) return;
+    geo.computeBoundingBox();
+    const bb = geo.boundingBox;
+    const size = new Vector3().subVectors(bb.max, bb.min);
+    /* the arm's long axis; project every vertex onto it */
+    const ax = size.x >= size.y && size.x >= size.z ? 0
+      : (size.y >= size.z ? 1 : 2);
+    const comp = ["x", "y", "z"][ax];
+    const lo = bb.min[comp], hi = bb.max[comp], span = hi - lo || 1;
+    const t = new Float32Array(pos.count);
+    for (let i = 0; i < pos.count; i += 1) {
+      t[i] = (pos.getComponent(i, ax) - lo) / span;
+    }
+    /* WHICH end is the cut? The severed end is a flat disc — its vertices
+       bunch into a razor-thin slab. The hand end spreads along the axis
+       (fingers). Measure each end's axial thickness and pick the flatter. */
+    const band = (near1) => {
+      let n = 0, mn = 1, mx = 0;
+      for (let i = 0; i < pos.count; i += 1) {
+        const d = near1 ? 1 - t[i] : t[i];
+        if (d < 0.06) { n += 1; mn = Math.min(mn, t[i]); mx = Math.max(mx, t[i]); }
+      }
+      return n > 8 ? mx - mn : 1;
+    };
+    const cutAtHigh = band(true) < band(false);
+    const col = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i += 1) {
+      const d = cutAtHigh ? t[i] : 1 - t[i];        // 1 at the cut
+      const k = 1 - smooth((d - 0.50) / 0.34);      // fade to black well before the cut
+      col[i * 3] = k; col[i * 3 + 1] = k; col[i * 3 + 2] = k;
+    }
+    geo.setAttribute("color", new Float32BufferAttribute(col, 3));
+  }
+
   new GLTFLoader().load(HANDSHAKE_URL, (gltf) => {
     const root = gltf.scene;
     root.traverse((o) => {
       if (o.isMesh) {
         o.frustumCulled = false;
+        fadeStub(o);
         if (o.name.includes("Green")) {
           o.material = new MeshMatcapMaterial({
             matcap: matcapTexture,
             toneMapped: false,
+            /* COLOR_0 "Shade" fades the severed forearm end into the act's
+               black so the cut never reads as a cut (stub-fade.py) */
+            vertexColors: !!o.geometry.getAttribute("color"),
           });
         } else {
-          /* skin as a matcap too — same unlit contract as the green hand,
-             deterministic from every angle (the Cycles bake kept leaving
-             the forearm's far side black; the bake path stays in
-             choreo-build.py as the photoreal upgrade route) */
-          o.material = new MeshMatcapMaterial({
-            matcap: skinMatcapTexture,
-            toneMapped: false,
-          });
+          /* photoreal path: the GLB carries a baked skin texture now
+             (albedo x warm AO, model-build/model-fix.py) — show it unlit,
+             same contract as the matcaps. Falls back to the skin matcap
+             if a build ever ships without the bake. */
+          const bakedMap = o.material && o.material.map ? o.material.map : null;
+          if (bakedMap) {
+            bakedMap.colorSpace = SRGBColorSpace;
+            o.material = new MeshMatcapMaterial({
+              matcap: neutralMatcapTexture,
+              map: bakedMap,
+              toneMapped: false,
+              /* COLOR_0 "Shade": fades the severed-arm stub into shadow so
+                 the cut never reads as a cut (model-fix3.py) */
+              vertexColors: !!o.geometry.getAttribute("color"),
+            });
+          } else {
+            o.material = new MeshMatcapMaterial({
+              matcap: skinMatcapTexture,
+              toneMapped: false,
+            });
+          }
         }
       }
       if (o.isBone) {
