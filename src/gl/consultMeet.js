@@ -64,11 +64,16 @@ const hash = (n) => {
 /* Blender-world → act-world: the shot was authored 1.35m wide; the act's
    camera (fov 32, z 12.5) sees ~12.75 units — scale ≈ 9, recentred so the
    grip lands just above screen centre. */
-const SCALE = 9.0;
-const CENTER_LIFT = new Vector3(0, -9.05, 0.15);
+/* CLOSEUP (Yash's 5 reference frames, 1 Sep): the hands must FILL the frame —
+   at the old scale the grip was a thumbnail and no finger detail could read.
+   Hand length 0.185m authored; at 24x that is ~40% of the visible width, which
+   is what his frames show. CENTER_LIFT re-solved so the grip stays centred:
+   act_y = 24 * 1.05 + CL.y = 0.4. */
+const SCALE = 24.0;
+const CENTER_LIFT = new Vector3(0, -24.8, 0.2);
 /* the clasp point (grip world in the authored shot, mapped through the
    transform above) — spark, core and ring all live here */
-const CP = new Vector3(0.18, 0.28, 0.4);
+const CP = new Vector3(0.0, 0.40, 0.2);
 
 /* the reference's idle-sway constants, decompiled 1:1 */
 const SWAY_FINGERS = ["f_index", "f_middle", "f_ring", "f_pinky", "thumb"];
@@ -421,9 +426,9 @@ export function createConsultMeet(scene, _opts = {}) {
        act's shared camera never moves */
     px += (pointerX - px) * 0.05;
     py += (pointerY - py) * 0.05;
-    rigGroup.rotation.y = Math.sin(t * Math.PI) * 0.04 + px * 0.045;
-    rigGroup.rotation.x = -py * 0.028;
-    rigGroup.position.x = CENTER_LIFT.x + Math.sin(t * Math.PI * 0.8) * 0.12;
+    rigGroup.rotation.y = Math.sin(t * Math.PI) * 0.02 + px * 0.020;
+    rigGroup.rotation.x = -py * 0.014;
+    rigGroup.position.x = CENTER_LIFT.x + Math.sin(t * Math.PI * 0.8) * 0.30;
     group.traverse((o) => { if (o.isMesh || o.isPoints) o.visible = true; });
 
     const handsIn = smooth((p - 0.08) / 0.05);
@@ -436,7 +441,7 @@ export function createConsultMeet(scene, _opts = {}) {
     sparkMaterial.uniforms.uTime.value = time;
     sparkMaterial.uniforms.uOpacity.value = on;
     coreMaterial.uniforms.uOpacity.value = on * Math.sin(clamp01(sparkT) * Math.PI) * 0.9;
-    core.scale.setScalar(0.5 + sparkT * 1.15);
+    core.scale.setScalar(1.1 + sparkT * 2.4);
     ringMaterial.uniforms.uSpark.value = sparkT;
     ringMaterial.uniforms.uOpacity.value = on;
 

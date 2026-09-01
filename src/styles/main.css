@@ -5767,13 +5767,18 @@ canvas.market-camera3d {
   letter-spacing: 0.01em;
 }
 .consult-meet__title {
+  /* CLOSEUP composition (1 Sep): at frame-filling scale the arms run
+     upper-left -> centre -> lower-right, so a centred title sits ON the green
+     forearm. The lower-left quadrant is the one area both arms leave empty. */
   position: absolute;
-  left: 50%;
-  top: 20%; /* clear of the contact glow below — subline must stay legible */
-  transform: translate(-50%, 0) scale(calc(0.92 + var(--meet-title, 0) * 0.08));
-  text-align: center;
+  left: clamp(1.5rem, 6vw, 7rem);
+  bottom: clamp(4rem, 16vh, 11rem);
+  top: auto;
+  transform: scale(calc(0.94 + var(--meet-title, 0) * 0.06));
+  transform-origin: left bottom;
+  text-align: left;
   opacity: var(--meet-title, 0);
-  width: min(92vw, 46rem);
+  width: min(80vw, 34rem);
 }
 .consult-meet__title strong {
   /* the act's own serif voice (matches the opening copy's Instrument
