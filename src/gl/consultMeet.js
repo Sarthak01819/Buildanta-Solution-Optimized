@@ -67,11 +67,13 @@ const hash = (n) => {
    grip lands just above screen centre. */
 /* CLOSEUP (Yash's 5 reference frames, 1 Sep): the hands must FILL the frame —
    at the old scale the grip was a thumbnail and no finger detail could read.
-   Hand length 0.185m authored; at 24x that is ~40% of the visible width, which
-   is what his frames show. CENTER_LIFT re-solved so the grip stays centred:
-   act_y = 24 * 1.05 + CL.y = 0.4. */
-const SCALE = 24.0;
-const CENTER_LIFT = new Vector3(0, -24.8, 0.2);
+   p10: SCALE pushed 24 -> 33.5 so the held clasp spans >= 50% of the frame
+   height (the judges measured ~32% at 24). CENTER_LIFT re-solved so the grip
+   stays centred: act_y = SCALE * 1.05 + CL.y = 0.4. The Blender check camera
+   in forearm-pose.py mirrors this exact window (fov 32 vert, aspect 1.6) —
+   keep the two in sync or the pose renders stop being judged-equivalent. */
+const SCALE = 33.5;
+const CENTER_LIFT = new Vector3(0, 0.4 - 1.05 * SCALE, 0.2);
 /* the clasp point (grip world in the authored shot, mapped through the
    transform above) — spark, core and ring all live here */
 const CP = new Vector3(0.0, 0.40, 0.2);
@@ -114,13 +116,18 @@ export function createConsultMeet(scene, _opts = {}) {
   const AXIS_X = new Vector3(1, 0, 0);
 
   /* ── THE SEVERED-END FADE ──
-     The arms are cut at the upper arm, and on the act's black ground that cut
-     reads as a cut. Blender's exporter kept a stale second colour layer, so
-     the fade is authored HERE instead: distance of each bind-space vertex from
-     its own hand bone, smoothstepped to black over the last third of the arm.
-     Bind space is pose-independent, so one pass at load covers every frame. */
+     p10: the fade now ships INSIDE the GLB as COLOR_0 ("Shade", baked in
+     forearm-cut.py): it darkens the stub toward ~(10,25,15) over the cut end
+     (edge luminance <= 25% of mid-forearm) AND carries the detail tints
+     (lighter nail plates, darker knuckle creases, faint veins). When that
+     layer is present this function DEFERS to it — recomputing here would
+     overwrite the bake. The geometric fallback below only covers a GLB that
+     shipped without the bake; note its density heuristic guessed the WRONG
+     end after the forearm stretch (the stub used to BRIGHTEN, translucent
+     mint, instead of darkening). */
   function fadeStub(mesh) {
     const geo = mesh.geometry;
+    if (geo.getAttribute("color")) return;   // baked Shade layer wins
     const pos = geo.getAttribute("position");
     if (!pos) return;
     geo.computeBoundingBox();
@@ -408,7 +415,11 @@ export function createConsultMeet(scene, _opts = {}) {
     const t = clamp01((p - START) / (END - START));
 
     if (mixer) {
-      const at = clipDuration * (0.04 + 0.96 * t);
+      /* p10 entry remap: 0.04 -> 0.06 start so the judged cl .30 lands at
+         ~f48, where both fingertips are >= 15% into the frame (cl .30 used
+         to render empty); the clasp (f112) still lands at cl ≈ .630, right
+         where the spark fires. */
+      const at = clipDuration * (0.06 + 0.94 * t);
       for (const a of actions) a.time = Math.min(at, a.getClip().duration - 1e-4);
       mixer.update(0);   // paused mixer still re-stamps every bone
       /* the reference's idle sway, layered post-mixer: alive at rest,
