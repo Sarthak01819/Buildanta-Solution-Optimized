@@ -135,22 +135,22 @@ export function createConsultMeet(scene, _opts = {}) {
     for (let i = 0; i < pos.count; i += 1) {
       t[i] = (pos.getComponent(i, ax) - lo) / span;
     }
-    /* WHICH end is the cut? The severed end is a flat disc — its vertices
-       bunch into a razor-thin slab. The hand end spreads along the axis
-       (fingers). Measure each end's axial thickness and pick the flatter. */
-    const band = (near1) => {
-      let n = 0, mn = 1, mx = 0;
-      for (let i = 0; i < pos.count; i += 1) {
-        const d = near1 ? 1 - t[i] : t[i];
-        if (d < 0.06) { n += 1; mn = Math.min(mn, t[i]); mx = Math.max(mx, t[i]); }
-      }
-      return n > 8 ? mx - mn : 1;
-    };
-    const cutAtHigh = band(true) < band(false);
+    /* WHICH end is the cut? The hand end is where the geometry is DENSE —
+       fingers, nails, knuckles pack far more vertices per unit length than a
+       smooth forearm tube. (The old flat-slab test broke once the forearm was
+       stretched for the no-elbow build.) */
+    let nLo = 0, nHi = 0;
+    for (let i = 0; i < pos.count; i += 1) {
+      if (t[i] < 0.12) nLo += 1;
+      else if (t[i] > 0.88) nHi += 1;
+    }
+    const cutAtHigh = nHi < nLo;                 // sparse end == the cut
     const col = new Float32Array(pos.count * 3);
     for (let i = 0; i < pos.count; i += 1) {
-      const d = cutAtHigh ? t[i] : 1 - t[i];        // 1 at the cut
-      const k = 1 - smooth((d - 0.50) / 0.34);      // fade to black well before the cut
+      const d = cutAtHigh ? t[i] : 1 - t[i];     // 1 at the cut
+      /* only the last stretch dims — the forearm runs off-frame anyway, so a
+         long fade would eat the arm the client asked to SEE */
+      const k = 1 - smooth((d - 0.86) / 0.13);
       col[i * 3] = k; col[i * 3 + 1] = k; col[i * 3 + 2] = k;
     }
     geo.setAttribute("color", new Float32BufferAttribute(col, 3));
@@ -183,23 +183,18 @@ export function createConsultMeet(scene, _opts = {}) {
              (albedo x warm AO, model-build/model-fix.py) — show it unlit,
              same contract as the matcaps. Falls back to the skin matcap
              if a build ever ships without the bake. */
-          const bakedMap = o.material && o.material.map ? o.material.map : null;
-          if (bakedMap) {
-            bakedMap.colorSpace = SRGBColorSpace;
-            o.material = new MeshMatcapMaterial({
-              matcap: neutralMatcapTexture,
-              map: bakedMap,
-              toneMapped: false,
-              /* COLOR_0 "Shade": fades the severed-arm stub into shadow so
-                 the cut never reads as a cut (model-fix3.py) */
-              vertexColors: !!o.geometry.getAttribute("color"),
-            });
-          } else {
-            o.material = new MeshMatcapMaterial({
-              matcap: skinMatcapTexture,
-              toneMapped: false,
-            });
-          }
+          /* ⚠️ THE BAKED SKIN MAP IS NOT USED. Measured on the shipped GLB:
+             67% of that 2048² atlas is black, and the arm's exported UVs land
+             largely outside its islands, so the hand rendered black wherever
+             the palm wasn't. The sculpted nails, tendons, knuckles and veins
+             are GEOMETRY, so a matcap shades them perfectly well and cannot
+             fail this way. Re-enable the map only with a bake whose islands
+             are verified against the exported TEXCOORD_0. */
+          o.material = new MeshMatcapMaterial({
+            matcap: skinMatcapTexture,
+            toneMapped: false,
+            vertexColors: !!o.geometry.getAttribute("color"),
+          });
         }
       }
       if (o.isBone) {
