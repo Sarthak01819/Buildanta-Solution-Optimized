@@ -1659,7 +1659,7 @@ export function createIntro({ onProgress } = {}) {
   /* 1.4 -> 2.1: Yash asked for +50% scroll length on the fist-bump beat
      (3 Sep). This lengthens how far you scroll THROUGH the act; the act's
      p-boundaries are untouched, so no other beat moves. */
-  const consultStretch = reduced ? 0 : 2.1;
+  const consultStretch = reduced ? 0 : 2.52;   // +50% then a further +20% (Yash, 3 Sep)
   /* WE MARKET needs room: ten plates each get a readable beat (Yash, 7 Aug).
      Given as EXTRA viewport-heights on that act's own slice of the timeline,
      so every other act keeps exactly the pacing it already had. */
