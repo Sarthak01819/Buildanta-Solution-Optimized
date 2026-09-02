@@ -543,12 +543,14 @@ export function createConsultMeet(scene, _opts = {}) {
     skyPlane.material.opacity = bgOn;
     cloudsPlane.material.opacity = bgOn;
     landPlane.material.opacity = bgOn;
-    skyPlane.position.x = 0 + px * 0.25 - t * 0.4;
-    skyPlane.position.y = 2.2 + py * 0.15;
-    cloudsPlane.position.x = 2.0 + px * 0.7 - t * 1.2;
-    cloudsPlane.position.y = 0.9 + py * 0.35;
-    landPlane.position.x = 0 + px * 1.2 - t * 1.5;
-    landPlane.position.y = -3.6 + py * 0.7 + t * 0.5;
+    /* parallax rides the CURSOR only (Yash, 2 Sep) — scroll no longer
+       shifts the layers; depth comes from each layer's pointer rate */
+    skyPlane.position.x = 0 + px * 0.45;
+    skyPlane.position.y = 2.2 + py * 0.28;
+    cloudsPlane.position.x = 2.0 + px * 1.1;
+    cloudsPlane.position.y = 0.9 + py * 0.65;
+    landPlane.position.x = 0 + px * 2.2;
+    landPlane.position.y = -3.6 + py * 1.25;
     rigGroup.rotation.y = Math.sin(t * Math.PI) * 0.02 + px * 0.020;
     rigGroup.rotation.x = -py * 0.014;
     rigGroup.position.x = CENTER_LIFT.x + Math.sin(t * Math.PI * 0.8) * 0.30;
