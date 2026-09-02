@@ -1656,7 +1656,10 @@ export function createIntro({ onProgress } = {}) {
   /* ── ScrollTrigger: pin + scrub ── */
   const perAct = reduced ? 0.6 : (INTRO.scrollPerAct ?? 1.1);
   const baseScrollLength = perAct * n;
-  const consultStretch = reduced ? 0 : 1.4;
+  /* 1.4 -> 2.1: Yash asked for +50% scroll length on the fist-bump beat
+     (3 Sep). This lengthens how far you scroll THROUGH the act; the act's
+     p-boundaries are untouched, so no other beat moves. */
+  const consultStretch = reduced ? 0 : 2.1;
   /* WE MARKET needs room: ten plates each get a readable beat (Yash, 7 Aug).
      Given as EXTRA viewport-heights on that act's own slice of the timeline,
      so every other act keeps exactly the pacing it already had. */

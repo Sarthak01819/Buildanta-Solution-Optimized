@@ -392,6 +392,15 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Also:** the severed arm ends are faded in JS, not Blender — the exporter kept a stale second colour layer, so COLOR_0 was never mine; the loader now derives the fade from geometry (long axis + flat-cap detection: the cut end is a razor-thin vertex slab, the hand end spreads into fingers).
 - **Suites:** journey + verify-reverse green (11/11 identical). Scripts: scratchpad/probe-frame.py, clasp-solve.py, stub-fade.py; source of truth handshake-anim3.blend.
 
+### D-051 — Fists actually touch, and the beat gets +50% scroll
+- **Date:** 2026-09-03
+- **Trigger:** Yash's screenshot: the fists stop short of each other. Plus "increase the scroll time of that particular part by 50%".
+- **🔴 The contact term had the WRONG SIGN and nobody caught it because it was never measured.** `OVERLAP` in build_new.py is applied as `G_POS = ... + DIR*(-g_front - OVERLAP)` / `H_POS = ... + DIR*(-h_back + OVERLAP)`, which pushes each hand AWAY from the meeting point — so the "overlap" knob was a separation knob. At 0.02 it left a real 0.043-unit gap; raising it to 0.046 widened the gap to 0.093, which is what exposed the inversion.
+- **Fixed by measurement, not estimation:** a KD-tree min-distance probe between the two evaluated (subdivided) meshes at f75/f77. Gap is linear in the term (slope ~2, one displacement per hand), so `OVERLAP = -0.004` lands it. Verified: min gap 0.0006 units at f75 and **332 human vertices within 0.01 of the green at f77**, i.e. a real contact patch across the knuckles, not a point kiss.
+- **Why the original estimate could never work:** it derived contact from each mesh's extreme projection along DIR, measured BEFORE subdivision (Catmull-Clark shrinks the cage) and taken from whichever single vertex happened to be frontmost — which sits on a different finger for each hand. Extent-along-an-axis is not the same as closest-approach.
+- **Scroll:** `consultStretch` 1.4 → 2.1 in intro.js. This is the act's own slice of the timeline, so the beat takes 50% more scrolling while every p-boundary — and therefore every other act's pacing — is untouched. (CLAUDE.md forbids moving beat boundaries unasked; this was asked, and boundaries did not move.)
+- **Verified:** journey green; reverse-scroll identical at all 11 stops after the length change; deployed and byte-verified.
+
 ### D-050 — Yash's own hand textures + reference lighting + elbow-out framing
 - **Date:** 2026-09-03
 - **Trigger:** Yash: match the reference's hand lighting exactly, use the textures already inside his zip, keep the fist bump, and zoom so only elbow→fingertips shows (upper arm hidden by the edge blur).
