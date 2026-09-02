@@ -148,8 +148,8 @@ export function createConsultMeet(scene, _opts = {}) {
   horizonPlane.position.set(0, 0, -18);
   bgGroup.add(horizonPlane);
   const skyPlane = mkLayer(SKY_URL, 34, 19.1, 0, 2.2, -16, 0);       // fills frame, gradient higher
-  const cloudsPlane = mkLayer(CLOUDS_URL, 19, 10.7, 2.0, 0.9, -10, 0); // zoomed out, mass centre-right like the reference
-  const landPlane = mkLayer(LAND_URL, 22, 16.5, 0, -3.6, -5, 0);   // meadow ~ bottom third, like the reference
+  const cloudsPlane = mkLayer(CLOUDS_URL, 19, 10.7, 2.0, 3.1, -10, 0); // cloud mass rides the upper band
+  const landPlane = mkLayer(LAND_URL, 22, 16.5, 0, -0.62, -5, 0);  // meadow covers ~57% of the frame
 
   const rigGroup = new Group();
   rigGroup.scale.setScalar(SCALE);
@@ -549,9 +549,9 @@ export function createConsultMeet(scene, _opts = {}) {
     skyPlane.position.x = 0 + px * 0.45;
     skyPlane.position.y = 2.2 + py * 0.28;
     cloudsPlane.position.x = 2.0 + px * 1.1;
-    cloudsPlane.position.y = 0.9 + py * 0.65;
+    cloudsPlane.position.y = 3.1 + py * 0.65;
     landPlane.position.x = 0 + px * 2.2;
-    landPlane.position.y = -3.6 + py * 1.25;
+    landPlane.position.y = -0.62 + py * 1.25;
     rigGroup.rotation.y = Math.sin(t * Math.PI) * 0.02 + px * 0.020;
     rigGroup.rotation.x = -py * 0.014;
     rigGroup.position.x = CENTER_LIFT.x + Math.sin(t * Math.PI * 0.8) * 0.30;
