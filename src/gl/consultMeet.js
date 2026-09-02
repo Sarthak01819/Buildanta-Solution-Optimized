@@ -84,11 +84,15 @@ const hash = (n) => {
    (measured, f75 bbox), so SCALE fits THAT to ~60% frame height on the 12.75-
    unit camera window. Contact point = model origin; assembly centre (0.19,
    0.30) -> CENTER_LIFT = -SCALE*centre (+0.4 target y). CP = mapped origin. */
-const SCALE = 6.2;
-const CENTER_LIFT = new Vector3(-1.24, -1.46, 0.2);
+/* NEW MODELS (Yash's zeromirror assets, 3 Sep): properly sculpted rigged
+   arms, ~2.9k verts each, Rigify DEF- bones. Scale solved from the measured
+   contact-frame span (1.20 x 0.80 model units) against the same 7.6-unit
+   window height the previous model read well at. */
+const SCALE = 9.44;
+const CENTER_LIFT = new Vector3(-0.19, 0.92, -0.56);
 /* the clasp point (grip world in the authored shot, mapped through the
    transform above) — spark, core and ring all live here */
-const CP = new Vector3(0.0, 0.40, 0.2);  // true touch point: model (0.2, 0.3) through the transform
+const CP = new Vector3(0.0, 0.40, 0.2);  // contact point = assembly centre through the transform
 
 /* the reference's idle-sway constants, decompiled 1:1 */
 const SWAY_FINGERS = ["f_index", "f_middle", "f_ring", "f_pinky", "thumb"];

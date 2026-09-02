@@ -392,6 +392,16 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Also:** the severed arm ends are faded in JS, not Blender — the exporter kept a stale second colour layer, so COLOR_0 was never mine; the loader now derives the fade from geometry (long axis + flat-cap detection: the cut end is a razor-thin vertex slab, the hand end spreads into fingers).
 - **Suites:** journey + verify-reverse green (11/11 identical). Scripts: scratchpad/probe-frame.py, clasp-solve.py, stub-fade.py; source of truth handshake-anim3.blend.
 
+### D-049 — Hand MODELS replaced with Yash's rigged assets (the real fix)
+- **Date:** 2026-09-03 (early hours)
+- **Trigger:** Yash, bluntly, that the hands still didn't look real. He supplied `zeromirror.zip` and confirmed he holds the rights. Root cause of every previous round: the CC0 BlendSwap hand was 1,102 verts of crude geometry — no amount of posing, shading or biomechanics fixed a model that had no knuckles to show.
+- **What shipped:** `fancy_hand_2.glb` (green) + `human_hand_1.glb` (human) from `mirror/assets/models/`. Properly sculpted full arms, 24-bone Rigify rigs, ~2.9k verts each after seam-merge (4,276 raw). Replaces `meet-fistbump.glb`.
+- **Transfer was clean:** both rigs curl on local X exactly like the old rig, so the D-048 pose tables (asymmetric radial→ulnar fist, reach cascade, thumb tables) and the whole succession/overshoot system moved across UNCHANGED. Only the per-rig curl SIGN differs (green −1, human +1) — measured at build time, never assumed.
+- **Build pipeline** (`scratchpad/zm/`): `build_new.py` imports → merges glTF UV seams (2563 boundary edges → 21; unmerged seams crack open under subdivision) → measures each rig's curl axis and its hand-local finger/thumb anatomy axes → places each arm by solving `arm.matrix_world = H_desired @ hand_bone.matrix.inverted()` → keys travel + finger cascade. `finalize.py` paints the green/skin gradient as COLOR_0 vertex colours (no bake needed — the mesh carries real geometric detail now) and exports Draco'd GLB at 2.4 MB.
+- **Site changes:** SCALE 6.2 → 9.44 and CENTER_LIFT re-solved from the measured contact-frame span (1.20 × 0.80 model units); travel distances halved because these arms are ~2× the old forearm-only length. Mesh node is still named `GreenHand`, so the loader's `includes("Green")` matcap branch is untouched.
+- **🔑 Bones are now `DEF-f_index.01.L` style**, which finally matches the sway regex at consultMeet.js:208 — the idle finger micro-sway that has been silently dead since D-044 can now actually bind.
+- **Verified:** isolated full-size renders before any site integration (the lesson from the previous round — judging hands from a blurred frame corner is what let a broken pose ship); suites green; deployed.
+
 ### D-048 — Hand motion rebuilt from measured biomechanics (Yash: "make them move like a real hand")
 - **Date:** 2026-09-02 (night)
 - **Trigger:** Yash: the finger movement "isn't settling", go read how real hands move and build to it. Three research agents swept hand-surgery/ergonomics literature and animation-craft sources; findings applied as numbers, not vibes.
