@@ -49,8 +49,8 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import HANDSHAKE_URL from "../assets/meet-fistbump.glb?url";
-import MATCAP_URL from "../assets/meet-matcap-satin-neutral.png?url";  // satin shading: soft broad highlight (Yash: "a bit more glossy", 2 Sep)
-import SKIN_MATCAP_URL from "../assets/meet-matcap-satin-neutral.png?url";  // satin shading: soft broad highlight (Yash: "a bit more glossy", 2 Sep)
+import MATCAP_URL from "../assets/meet-matcap-gloss-neutral.png?url";  // green: high polish (glossier than the human hand — Yash, 2 Sep)
+import SKIN_MATCAP_URL from "../assets/meet-matcap-soft-neutral.png?url";  // human: soft sheen, deliberately below the green
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
