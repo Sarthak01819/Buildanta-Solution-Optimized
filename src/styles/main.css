@@ -5818,9 +5818,9 @@ canvas.market-camera3d {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 56%, black 84%);
-  -webkit-mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 56%, black 84%);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 48%, black 72%);
+  -webkit-mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 48%, black 72%);
   opacity: var(--meet-bg, 0);
 }
