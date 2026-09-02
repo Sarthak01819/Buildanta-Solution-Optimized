@@ -347,7 +347,7 @@ export function createConsultMeet(scene, _opts = {}) {
   const spark = new Points(sparkGeometry, sparkMaterial);
   spark.frustumCulled = false;
   spark.position.copy(CP);
-  group.add(spark);
+  // group.add(spark);  // contact burst removed (Yash, 2 Sep) — re-add all three to restore the burst
 
   const coreMaterial = new ShaderMaterial({
     transparent: true,
@@ -376,7 +376,7 @@ export function createConsultMeet(scene, _opts = {}) {
   core.position.copy(CP);
   core.renderOrder = 8;
   core.frustumCulled = false;
-  group.add(core);
+  // group.add(core);  // contact burst removed (Yash, 2 Sep)
 
   const ringMaterial = new ShaderMaterial({
     transparent: true,
@@ -408,7 +408,7 @@ export function createConsultMeet(scene, _opts = {}) {
   ring.position.copy(CP);
   ring.renderOrder = 7;
   ring.frustumCulled = false;
-  group.add(ring);
+  // group.add(ring);  // contact burst removed (Yash, 2 Sep)
 
   /* ── radial emerald wash behind the grip — lifts the void off pure black
      (judge floor #073020-ish at the grip, corners keep a whisper) so the
