@@ -47,7 +47,7 @@ import {
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
-import HANDSHAKE_URL from "../assets/meet-handshake.glb?url";
+import HANDSHAKE_URL from "../assets/meet-fistbump.glb?url";
 import MATCAP_URL from "../assets/meet-matcap-lacquer.png?url";
 import SKIN_MATCAP_URL from "../assets/meet-skin-matcap.png?url";
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
@@ -72,11 +72,18 @@ const hash = (n) => {
    stays centred: act_y = SCALE * 1.05 + CL.y = 0.4. The Blender check camera
    in forearm-pose.py mirrors this exact window (fov 32 vert, aspect 1.6) —
    keep the two in sync or the pose renders stop being judged-equivalent. */
-const SCALE = 33.5;
-const CENTER_LIFT = new Vector3(0, 0.4 - 1.05 * SCALE, 0.2);
+/* FIST BUMP swap (Yash, 2 Sep): stylized CC0 hands, 100f @ 24fps, knuckle
+   contact at f75 of the clip — lands within 1 frame of the spark scrub point
+   (0.06 + 0.94 * 0.724 = 0.741 -> f74.1). Unlike the closeup clasp this is a
+   WIDE travelling shot: the contact assembly spans 1.75 x 1.23 model units
+   (measured, f75 bbox), so SCALE fits THAT to ~60% frame height on the 12.75-
+   unit camera window. Contact point = model origin; assembly centre (0.19,
+   0.30) -> CENTER_LIFT = -SCALE*centre (+0.4 target y). CP = mapped origin. */
+const SCALE = 6.2;
+const CENTER_LIFT = new Vector3(-1.24, -1.46, 0.2);
 /* the clasp point (grip world in the authored shot, mapped through the
    transform above) — spark, core and ring all live here */
-const CP = new Vector3(0.0, 0.40, 0.2);
+const CP = new Vector3(0.0, 0.40, 0.2);  // true touch point: model (0.2, 0.3) through the transform
 
 /* the reference's idle-sway constants, decompiled 1:1 */
 const SWAY_FINGERS = ["f_index", "f_middle", "f_ring", "f_pinky", "thumb"];
@@ -216,6 +223,8 @@ export function createConsultMeet(scene, _opts = {}) {
       }
     });
     rigGroup.add(root);
+    if (window.__buildanta) window.__buildanta.meetRoot = root;  // dev bridge
+    if (window.__buildanta) window.__buildanta.meetActions = actions;  // dev bridge
     mixer = new AnimationMixer(root);
     for (const clip of gltf.animations) {
       const a = mixer.clipAction(clip);
@@ -450,7 +459,10 @@ export function createConsultMeet(scene, _opts = {}) {
          ~f48, where both fingertips are >= 15% into the frame (cl .30 used
          to render empty); the clasp (f112) still lands at cl ≈ .630, right
          where the spark fires. */
-      const at = clipDuration * (0.06 + 0.94 * t);
+      /* fist bump: 0.07 start puts the f75 knuckle contact EXACTLY on the
+         spark scroll point (0.07 + 0.94*0.7241 = 0.7507 -> f75.07); the tail
+         clamps harmlessly at the held f100. */
+      const at = clipDuration * (0.07 + 0.94 * t);
       for (const a of actions) a.time = Math.min(at, a.getClip().duration - 1e-4);
       mixer.update(0);   // paused mixer still re-stamps every bone
       /* the reference's idle sway, layered post-mixer: alive at rest,
