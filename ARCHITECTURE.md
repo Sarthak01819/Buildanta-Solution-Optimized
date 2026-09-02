@@ -392,6 +392,17 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Also:** the severed arm ends are faded in JS, not Blender — the exporter kept a stale second colour layer, so COLOR_0 was never mine; the loader now derives the fade from geometry (long axis + flat-cap detection: the cut end is a razor-thin vertex slab, the hand end spreads into fingers).
 - **Suites:** journey + verify-reverse green (11/11 identical). Scripts: scratchpad/probe-frame.py, clasp-solve.py, stub-fade.py; source of truth handshake-anim3.blend.
 
+### D-052 — Paper-tear transition fires on the fist bump
+- **Date:** 2026-09-03
+- **Trigger:** Yash's reference clip: a green-screen crumpled-paper tear. Wanted it to play when the fists touch. Plus a further +20% scroll on the beat (consultStretch 2.1 -> 2.52).
+- **Source:** his mp4 is a PACK OF FOUR tears (coverage sweeps 0->100->0 four times across the 10s). Used the first, frames 7-57, `transpose=1` to landscape so it matches a 16:9 stage instead of being cropped from portrait.
+- **Built as a SCRUBBED SPRITE ATLAS, not a video element** — a `<video>` seeked by scroll janks and, worse, would break verify-reverse. 28 frames in a 4x7 grid at 720x405 (2880x2835, inside the 4096 texture limit), 189 KB webp. Frame index is a pure function of consultLocal, so forward and reverse match exactly.
+- **Keying:** alpha from green dominance `min(g-r, g-b)` feathered over 22 levels, then a morphological CLOSE (MaxFilter 7 -> MinFilter 7) to fill the compression speckle the key punches into the paper, then hard despill `g = min(g, (r+b)/2)`.
+- **🔴 Two things that looked like bugs but were the SOURCE:** (1) the clip idles on a featureless grey white-out for 11 of 28 frames — re-timed the sampling to spend the budget on the wipe-on and the rip-open and only 3 frames on the cover; (2) the paper grades dull grey, so a levels lift `(x-108)*1.72+150` pulls it to real white while keeping the fold shadows. Confirmed via a uniforms probe that the plumbing was already correct (frame 14.5, opacity 1, texture 2880x2835) BEFORE touching the atlas — the pixels were the problem, not the wiring.
+- **CSS handoff:** the veil and edge-blur are DOM layers ON TOP of the canvas and were washing the white paper to grey. consultMeet now writes `--meet-paper` (sin-shaped over the tear window) and both CSS layers multiply by `(1 - var(--meet-paper))`, measured dropping to 0.006 at full cover.
+- **Window:** consultLocal 0.64 -> 0.82, i.e. it starts as the fists meet and finishes before the beat fades.
+- **Still open:** Yash's "double/dollar wheel" and the "WE SCALE top right" asks are still undecoded — asked twice, no reference yet.
+
 ### D-051 — Fists actually touch, and the beat gets +50% scroll
 - **Date:** 2026-09-03
 - **Trigger:** Yash's screenshot: the fists stop short of each other. Plus "increase the scroll time of that particular part by 50%".

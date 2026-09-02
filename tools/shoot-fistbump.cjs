@@ -42,7 +42,10 @@ const OUT = path.join(__dirname, '..', 'shots-fistbump');
     ['b2g-reach', 0.872],   // cl 0.464 both open hands near
     ['b3-contact', 0.908],   // cl 0.625 bump + spark
     ['b3b-spark', 0.9147], // cl 0.655 spark peak
-    ['b4-hold', 0.936],      // cl 0.75 recoil/settle
+    ['b4-hold', 0.936],
+    ['p1-tear-in', 0.9196],   // cl 0.68 paper wiping on
+    ['p2-tear-full', 0.9330], // cl 0.74 covered
+    ['p3-tear-open', 0.9464], // cl 0.80 ripping open      // cl 0.75 recoil/settle
     ['b5-exit', 0.9698],     // cl 0.90 beat fade
   ];
   for (const [name, pTarget] of stops) {
