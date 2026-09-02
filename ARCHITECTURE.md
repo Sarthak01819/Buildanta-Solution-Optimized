@@ -392,6 +392,15 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Also:** the severed arm ends are faded in JS, not Blender — the exporter kept a stale second colour layer, so COLOR_0 was never mine; the loader now derives the fade from geometry (long axis + flat-cap detection: the cut end is a razor-thin vertex slab, the hand end spreads into fingers).
 - **Suites:** journey + verify-reverse green (11/11 identical). Scripts: scratchpad/probe-frame.py, clasp-solve.py, stub-fade.py; source of truth handshake-anim3.blend.
 
+### D-048 — Hand motion rebuilt from measured biomechanics (Yash: "make them move like a real hand")
+- **Date:** 2026-09-02 (night)
+- **Trigger:** Yash: the finger movement "isn't settling", go read how real hands move and build to it. Three research agents swept hand-surgery/ergonomics literature and animation-craft sources; findings applied as numbers, not vibes.
+- **Diagnosed first:** all 20 finger bones on BOTH hands were keyed on the identical 4 frames (1/56/68/100) — every digit moving in perfect lockstep, which is precisely the robotic read. Confirmed by dumping the fcurves before touching anything.
+- **Rules now encoded in `fistbump_site.py`** (each with its source): fist is asymmetric radial→ulnar, max MCP flexion index 62°/middle 77°/ring 82°/little 87° (J Hand Ther) — verified in the rebuilt curves as a settled −54/−67/−71/−75° fist; PIP dominates with MCP:PIP:DIP ≈ 0.57:1.00:0.84 (PubMed 12445611); DIP slaved to PIP at 0.70 (PeerJ PMC9541616); relaxed hand is already curled and cascades index→pinky (JJE 44:436 Table 3) so the reach pose gives every digit a different curl; splay collapses ±35°→±5° with flexion (StatPearls NBK538428) so the reach spreads wide and the fist has none; 3+1 finger grouping with 2–6° Y-roll so digits overlap instead of staying coplanar (AnimSchool).
+- **Timing (Biomimetics 8(2):244, 2023):** thumb starts first and settles last; fingers arrive radial→ulnar at +1 frame per digit; inside each digit PIP leads, DIP +1, MCP finishes last +2; every joint overshoots ~12% two frames past its key and settles back over 3 (one bounce); plus a 4% impact bite at contact releasing over 4 frames.
+- **🔴 Sources disagreed and measurement won:** AnimSchool teaches "pinky closes first, index last"; the glove-measured study finds the opposite (thumb first, little finger arrives last). Went with the measurement and noted the craft convention as stylization.
+- **Verified:** fcurve dump shows per-digit arrival spread over ~6 frames with visible per-joint overshoot; suites green; deployed.
+
 ### D-047 — Handshake replaced by the FIST BUMP (Yash's direct order, fork session)
 - **Date:** 2026-09-02 (afternoon)
 - **Trigger:** Yash iterated a stylized fist-bump animation (CC0 BlendSwap hands, blendswap.com/blend/22269) across a fork chat until the fists read right from every angle, then ordered: "replace current handshake animation with this fist bump" + deploy.
