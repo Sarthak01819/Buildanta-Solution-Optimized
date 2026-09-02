@@ -5767,6 +5767,7 @@ canvas.market-camera3d {
   letter-spacing: 0.01em;
 }
 .consult-meet__title {
+  z-index: 6;
   /* CLOSEUP composition (1 Sep): at frame-filling scale the arms run
      upper-left -> centre -> lower-right, so a centred title sits ON the green
      forearm. The lower-left quadrant is the one area both arms leave empty. */
@@ -5806,4 +5807,20 @@ canvas.market-camera3d {
 .consult-meet__title p em {
   font-style: normal;
   color: #a9ffd3;
+}
+
+
+/* ── meadow beat: soft blur frame on all four screen edges ──
+   backdrop-filter blurs the canvas behind it; the mask keeps the centre
+   sharp. Opacity rides --meet-bg, written per frame by consultMeet. */
+.consult-meet__edgeblur {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 56%, black 84%);
+  -webkit-mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 56%, black 84%);
+  opacity: var(--meet-bg, 0);
 }

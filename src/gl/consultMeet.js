@@ -147,9 +147,9 @@ export function createConsultMeet(scene, _opts = {}) {
   const horizonPlane = new Mesh(new PlaneGeometry(40, 23), horizonMat);
   horizonPlane.position.set(0, 0, -18);
   bgGroup.add(horizonPlane);
-  const skyPlane = mkLayer(SKY_URL, 34, 19.1, 0, 1.2, -16, 0);       // fills frame
-  const cloudsPlane = mkLayer(CLOUDS_URL, 26, 14.6, 0.5, 0.6, -10, 0); // fills the sky's cutout band
-  const landPlane = mkLayer(LAND_URL, 25, 18.75, 0, -3.4, -5, 0);    // meadow fills lower frame edge-to-edge
+  const skyPlane = mkLayer(SKY_URL, 34, 19.1, 0, 2.2, -16, 0);       // fills frame, gradient higher
+  const cloudsPlane = mkLayer(CLOUDS_URL, 19, 10.7, 2.0, 0.9, -10, 0); // zoomed out, mass centre-right like the reference
+  const landPlane = mkLayer(LAND_URL, 22, 16.5, 0, -3.6, -5, 0);   // meadow ~ bottom third, like the reference
 
   const rigGroup = new Group();
   rigGroup.scale.setScalar(SCALE);
@@ -539,15 +539,16 @@ export function createConsultMeet(scene, _opts = {}) {
     /* parallax: far layers barely move, near meadow moves the most */
     const bgOn = on * smooth((p - 0.06) / 0.06);
     horizonMat.opacity = bgOn;
+    document.documentElement.style.setProperty("--meet-bg", bgOn.toFixed(3));
     skyPlane.material.opacity = bgOn;
     cloudsPlane.material.opacity = bgOn;
     landPlane.material.opacity = bgOn;
     skyPlane.position.x = 0 + px * 0.25 - t * 0.4;
-    skyPlane.position.y = 1.2 + py * 0.15;
-    cloudsPlane.position.x = 0.5 + px * 0.7 - t * 1.6;
-    cloudsPlane.position.y = 0.6 + py * 0.35;
-    landPlane.position.x = 0 + px * 1.5 - t * 2.2;
-    landPlane.position.y = -3.4 + py * 0.7 + t * 0.6;
+    skyPlane.position.y = 2.2 + py * 0.15;
+    cloudsPlane.position.x = 2.0 + px * 0.7 - t * 1.2;
+    cloudsPlane.position.y = 0.9 + py * 0.35;
+    landPlane.position.x = 0 + px * 1.2 - t * 1.5;
+    landPlane.position.y = -3.6 + py * 0.7 + t * 0.5;
     rigGroup.rotation.y = Math.sin(t * Math.PI) * 0.02 + px * 0.020;
     rigGroup.rotation.x = -py * 0.014;
     rigGroup.position.x = CENTER_LIFT.x + Math.sin(t * Math.PI * 0.8) * 0.30;
