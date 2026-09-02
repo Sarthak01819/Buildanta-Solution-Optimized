@@ -49,8 +49,8 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import HANDSHAKE_URL from "../assets/meet-fistbump.glb?url";
-import MATCAP_URL from "../assets/meet-matcap-matte-neutral.png?url";  // neutral matte shading — baked albedo carries the color now
-import SKIN_MATCAP_URL from "../assets/meet-matcap-matte-neutral.png?url";  // neutral matte shading — baked albedo carries the color now
+import MATCAP_URL from "../assets/meet-matcap-satin-neutral.png?url";  // satin shading: soft broad highlight (Yash: "a bit more glossy", 2 Sep)
+import SKIN_MATCAP_URL from "../assets/meet-matcap-satin-neutral.png?url";  // satin shading: soft broad highlight (Yash: "a bit more glossy", 2 Sep)
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
