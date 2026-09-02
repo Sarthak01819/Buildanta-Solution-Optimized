@@ -4483,7 +4483,7 @@ html.bh-final .sweep { display: none !important; }
   position: absolute;
   z-index: 7;                            /* over the film, under the machine */
   left: 34%;
-  top: 46%;
+  top: 41%;
   width: 46vw;
   height: 34vh;
   pointer-events: none;
@@ -5768,20 +5768,34 @@ canvas.market-camera3d {
 }
 .consult-meet__title {
   z-index: 6;
-  /* CLOSEUP composition (1 Sep): at frame-filling scale the arms run
-     upper-left -> centre -> lower-right, so a centred title sits ON the green
-     forearm. The lower-left quadrant is the one area both arms leave empty. */
+  /* PARADISE composition (Yash's reference, 2 Sep): title centred between the
+     recoiled fists, like the reference's floating word. */
   position: absolute;
-  left: clamp(1.5rem, 6vw, 7rem);
-  bottom: clamp(4rem, 16vh, 11rem);
-  top: auto;
-  transform: scale(calc(0.94 + var(--meet-title, 0) * 0.06));
-  /* meadow beat: bright parallax sky behind the type — shadow keeps it legible */
-  text-shadow: 0 1px 2px rgba(6, 24, 16, 0.55), 0 4px 18px rgba(6, 24, 16, 0.45);
-  transform-origin: left bottom;
-  text-align: left;
+  left: 50%;
+  top: 41%;
+  bottom: auto;
+  transform: translate(-50%, -50%) scale(calc(0.94 + var(--meet-title, 0) * 0.06));
+  text-shadow: 0 1px 2px rgba(6, 24, 16, 0.35), 0 4px 22px rgba(255, 255, 255, 0.55);
+  transform-origin: center center;
+  text-align: center;
   opacity: var(--meet-title, 0);
-  width: min(80vw, 34rem);
+  width: min(84vw, 40rem);
+}
+
+/* dreamy veil + sun rays from the top-right (static, deterministic) */
+.consult-meet__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  opacity: calc(var(--meet-bg, 0) * 0.85);
+  background:
+    conic-gradient(from 218deg at 88% -6%,
+      rgba(255,255,255,0) 0deg, rgba(255,252,240,0.28) 6deg,
+      rgba(255,255,255,0) 13deg, rgba(255,252,240,0.20) 20deg,
+      rgba(255,255,255,0) 28deg, rgba(255,252,240,0.24) 37deg,
+      rgba(255,255,255,0) 46deg, rgba(255,255,255,0) 360deg),
+    radial-gradient(ellipse 120% 90% at 50% 8%, rgba(255,255,255,0.34), rgba(255,255,255,0.10) 55%, rgba(255,255,255,0.26) 100%);
 }
 .consult-meet__title strong {
   /* the act's own serif voice (matches the opening copy's Instrument

@@ -316,10 +316,11 @@ export function createConsultMeet(scene, _opts = {}) {
         vec3 p = position;
         p.x += sin(uTime * (0.1 + aSeed * 0.12) + aSeed * 40.0) * 0.5;
         p.y += sin(uTime * (0.07 + aSeed * 0.1) + aSeed * 60.0) * 0.35;
+        p.y -= mod(uTime * (0.12 + aSeed * 0.25) + aSeed * 9.0, 9.0) - 4.5;  // petal fall
         vA = 0.25 + 0.75 * (0.5 + 0.5 * sin(uTime * 0.5 + aSeed * 80.0));
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
-        gl_PointSize = (1.0 + aSeed * 2.2) * (uPx / 900.0) * (12.5 / -mv.z);
+        gl_PointSize = (6.0 + aSeed * 9.0) * (uPx / 900.0) * (12.5 / -mv.z);
       }
     `,
     fragmentShader: `
@@ -328,7 +329,7 @@ export function createConsultMeet(scene, _opts = {}) {
       void main() {
         vec2 q = gl_PointCoord - 0.5;
         float m = smoothstep(0.5, 0.1, length(q));
-        gl_FragColor = vec4(vec3(0.35, 0.85, 0.55), m * vA * uOpacity * 0.5);
+        gl_FragColor = vec4(vec3(0.99, 0.66, 0.80), m * vA * uOpacity * 0.95);  // petal pink
       }
     `,
   });
@@ -561,7 +562,7 @@ export function createConsultMeet(scene, _opts = {}) {
 
     const sparkT = smooth((p - 0.625) / 0.06);
     moteMaterial.uniforms.uTime.value = time;
-    moteMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1) * (1 - bgOn * 0.7);
+    moteMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1);  // petals live in the meadow beat
     sparkMaterial.uniforms.uSpark.value = sparkT;
     sparkMaterial.uniforms.uTime.value = time;
     sparkMaterial.uniforms.uOpacity.value = on;
