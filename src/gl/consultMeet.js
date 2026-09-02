@@ -53,8 +53,8 @@ import HANDSHAKE_URL from "../assets/meet-fistbump.glb?url";
 import SKY_URL from "../assets/meet-sky.png?url";
 import LAND_URL from "../assets/meet-land.png?url";
 import CLOUDS_URL from "../assets/meet-clouds.png?url";
-import MATCAP_URL from "../assets/meet-matcap-gloss-neutral.png?url";  // green: high polish (glossier than the human hand — Yash, 2 Sep)
-import SKIN_MATCAP_URL from "../assets/meet-matcap-soft-neutral.png?url";  // human: soft sheen, deliberately below the green
+import MATCAP_URL from "../assets/meet-matcap-hand.webp?url";  // Yash's own hand matcap (zeromirror)  // green: high polish (glossier than the human hand — Yash, 2 Sep)
+import SKIN_URL from "../assets/meet-human-skin.png?url";  // baked skin from the human_hands atlas  // human: soft sheen, deliberately below the green
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -88,8 +88,12 @@ const hash = (n) => {
    arms, ~2.9k verts each, Rigify DEF- bones. Scale solved from the measured
    contact-frame span (1.20 x 0.80 model units) against the same 7.6-unit
    window height the previous model read well at. */
-const SCALE = 9.44;
-const CENTER_LIFT = new Vector3(-0.19, 0.92, -0.56);
+/* Zoomed to Yash's framing (3 Sep): only elbow -> fingertips reads; the
+   upper arm and shoulder run off into the edge blur. Scaled about the
+   CONTACT POINT (model origin, where the fists meet) so the bump stays
+   centred as the arms grow past the frame. */
+const SCALE = 15.5;
+const CENTER_LIFT = new Vector3(0, 0.4, 0.2);
 /* the clasp point (grip world in the authored shot, mapped through the
    transform above) — spark, core and ring all live here */
 const CP = new Vector3(0.0, 0.40, 0.2);  // contact point = assembly centre through the transform
@@ -108,10 +112,11 @@ export function createConsultMeet(scene, _opts = {}) {
   matcapTexture.colorSpace = SRGBColorSpace;
   matcapTexture.generateMipmaps = false;
   matcapTexture.minFilter = LinearFilter;
-  const skinMatcapTexture = new TextureLoader().load(SKIN_MATCAP_URL);
-  skinMatcapTexture.colorSpace = SRGBColorSpace;
-  skinMatcapTexture.generateMipmaps = false;
-  skinMatcapTexture.minFilter = LinearFilter;
+  const skinTexture = new TextureLoader().load(SKIN_URL);
+  skinTexture.flipY = false;   // glTF UV convention
+  skinTexture.colorSpace = SRGBColorSpace;
+  
+  
   /* neutral bright form-shading matcap — multiplies the baked skin texture
      so the human arm keeps 3D form while staying unlit (model-matcap.py) */
   const neutralMatcapTexture = new TextureLoader().load(NEUTRAL_MATCAP_URL);
@@ -235,35 +240,16 @@ export function createConsultMeet(scene, _opts = {}) {
           o.material = new MeshMatcapMaterial({
             matcap: matcapTexture,
             toneMapped: false,
-            /* realism pass (Yash, 2 Sep): baked albedo + tangent normal map
-               ride along from the GLB — the matcap reads the perturbed
-               normals, so pores/creases shade without any lights */
-            side: DoubleSide,  // capped tips + double-sided: no hollow reads at extreme curls
-            map: o.material.map || null,
-            normalMap: o.material.normalMap || null,
-            /* COLOR_0 "Shade" fades the severed forearm end into the act's
-               black so the cut never reads as a cut (stub-fade.py) */
-            vertexColors: !!o.geometry.getAttribute("color"),
+            side: DoubleSide,
           });
         } else {
-          /* photoreal path: the GLB carries a baked skin texture now
-             (albedo x warm AO, model-build/model-fix.py) — show it unlit,
-             same contract as the matcaps. Falls back to the skin matcap
-             if a build ever ships without the bake. */
-          /* ⚠️ THE BAKED SKIN MAP IS NOT USED. Measured on the shipped GLB:
-             67% of that 2048² atlas is black, and the arm's exported UVs land
-             largely outside its islands, so the hand rendered black wherever
-             the palm wasn't. The sculpted nails, tendons, knuckles and veins
-             are GEOMETRY, so a matcap shades them perfectly well and cannot
-             fail this way. Re-enable the map only with a bake whose islands
-             are verified against the exported TEXCOORD_0. */
-          o.material = new MeshMatcapMaterial({
-            matcap: skinMatcapTexture,
+          /* The human arm ships a BAKED lit texture (human_hands.ktx2 tile
+             0,0 — light and shadow already painted in), so it must render
+             UNLIT. Multiplying it by a matcap would double the shading. */
+          o.material = new MeshBasicMaterial({
+            map: skinTexture,
             toneMapped: false,
-            side: DoubleSide,  // capped tips + double-sided: no hollow reads at extreme curls
-            map: o.material.map || null,
-            normalMap: o.material.normalMap || null,
-            vertexColors: !!o.geometry.getAttribute("color"),
+            side: DoubleSide,
           });
         }
       }

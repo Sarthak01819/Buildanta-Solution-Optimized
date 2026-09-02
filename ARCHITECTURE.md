@@ -392,6 +392,16 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Also:** the severed arm ends are faded in JS, not Blender — the exporter kept a stale second colour layer, so COLOR_0 was never mine; the loader now derives the fade from geometry (long axis + flat-cap detection: the cut end is a razor-thin vertex slab, the hand end spreads into fingers).
 - **Suites:** journey + verify-reverse green (11/11 identical). Scripts: scratchpad/probe-frame.py, clasp-solve.py, stub-fade.py; source of truth handshake-anim3.blend.
 
+### D-050 — Yash's own hand textures + reference lighting + elbow-out framing
+- **Date:** 2026-09-03
+- **Trigger:** Yash: match the reference's hand lighting exactly, use the textures already inside his zip, keep the fist bump, and zoom so only elbow→fingertips shows (upper arm hidden by the edge blur).
+- **Textures recovered from the zip** (they are not loose files — both were packed): green hand uses `assets/textures/matcap-hand.webp` (their own hand matcap: warm-yellow key upper-left, saturated mid-green body, cool teal shadow bottom). Human hand uses tile (0,0) of `assets/atlases/human_hands.ktx2` — a 4096² Basis-supercompressed KTX2 holding **16 baked lighting variants** of the arm; tile (0,0) is the neutral warm one (the rest are red-rim stage variants).
+- **🔑 How the KTX2 was extracted with no CLI decoder on this Mac:** served the .ktx2 plus three's basis transcoder from `public/`, loaded it in headless Chrome with `KTX2Loader`, drew it to a WebGLRenderTarget with `repeat 0.25 / offset (0, 0.75)` to isolate the tile, `readRenderTargetPixels` → canvas → PNG. Temp files removed after; nothing basis-related ships.
+- **Material split now mirrors theirs:** green = `MeshMatcapMaterial` with their matcap; human = **`MeshBasicMaterial` (unlit)** because its texture is a BAKED LIGHTMAP — multiplying it by a matcap double-shades it. COLOR_0 vertex colours were flattened to white so they cannot tint either authored texture. `skinTexture.flipY = false` for the glTF UV convention.
+- **Framing:** SCALE 9.44 → 15.5, scaled about the CONTACT POINT (model origin) rather than the bbox centre so the bump stays centred while the arms grow past the frame; CENTER_LIFT therefore becomes the plain target (0, 0.4, 0.2). Travel distances rescaled by the inverse zoom (×0.6) or the hands swing outside the tighter frame during the reach.
+- **Still open (not requested yet):** the reference's Greek columns and pond are separate assets in the zip; `garden-godrays.ktx2` is decoded and available if Yash wants the ray pass deepened.
+- **Verified:** suites green; deployed; live sha + edge asset byte-matched.
+
 ### D-049 — Hand MODELS replaced with Yash's rigged assets (the real fix)
 - **Date:** 2026-09-03 (early hours)
 - **Trigger:** Yash, bluntly, that the hands still didn't look real. He supplied `zeromirror.zip` and confirmed he holds the rights. Root cause of every previous round: the CC0 BlendSwap hand was 1,102 verts of crude geometry — no amount of posing, shading or biomechanics fixed a model that had no knuckles to show.
