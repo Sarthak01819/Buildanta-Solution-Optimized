@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0}</style></head><body>
+<script type="module">
+import * as THREE from "three";
+import LAND from "/src/assets/meet-land.png?url";
+import SKY from "/src/assets/meet-sky.webp?url";
+const r = new THREE.WebGLRenderer();
+r.setSize(900, 500);
+document.body.appendChild(r.domElement);
+const sc = new THREE.Scene();
+sc.background = new THREE.Color(0x333366);
+const cam = new THREE.PerspectiveCamera(32, 900/500, 0.1, 100);
+cam.position.z = 12.5;
+const mk = (url, w, h, x) => {
+  const t = new THREE.TextureLoader().load(url, () => { window.__ready = (window.__ready||0)+1; });
+  t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: t, transparent: true, toneMapped: false }));
+  m.position.x = x; sc.add(m);
+};
+mk(LAND, 6, 4.5, -3.2);
+mk(SKY, 6, 3.4, 3.2);
+(function loop(){ requestAnimationFrame(loop); r.render(sc, cam); })();
+</script></body></html>

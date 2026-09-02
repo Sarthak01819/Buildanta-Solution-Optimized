@@ -49,6 +49,9 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import HANDSHAKE_URL from "../assets/meet-fistbump.glb?url";
+import SKY_URL from "../assets/meet-sky.png?url";
+import LAND_URL from "../assets/meet-land.png?url";
+import CLOUDS_URL from "../assets/meet-clouds.png?url";
 import MATCAP_URL from "../assets/meet-matcap-gloss-neutral.png?url";  // green: high polish (glossier than the human hand — Yash, 2 Sep)
 import SKIN_MATCAP_URL from "../assets/meet-matcap-soft-neutral.png?url";  // human: soft sheen, deliberately below the green
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
@@ -110,6 +113,43 @@ export function createConsultMeet(scene, _opts = {}) {
   neutralMatcapTexture.colorSpace = SRGBColorSpace;
   neutralMatcapTexture.generateMipmaps = false;
   neutralMatcapTexture.minFilter = LinearFilter;
+
+  /* ── PARALLAX MEADOW (Yash, 2 Sep): three alpha-cut layers from his
+     reference — sky (far), clouds (mid), flower hills (near). Each plane
+     sits at its own depth so scroll + pointer move them at different rates;
+     the opaque sky also covers the act's dark backdrop for this beat. */
+  const bgGroup = new Group();
+  bgGroup.renderOrder = 4;   // behind the hands (group is 6)
+  group.add(bgGroup);
+  const loadLayer = (url) => {
+    /* NO sRGB tag: the act's pipeline already decodes once — tagging these
+       double-decodes and crushes the meadow's dark greens to black */
+    return new TextureLoader().load(url);
+  };
+  const mkLayer = (url, w, h, x, y, z, order) => {
+    const m = new MeshBasicMaterial({
+      map: loadLayer(url), transparent: true, toneMapped: false,
+      opacity: 0,
+    });
+    const p = new Mesh(new PlaneGeometry(w, h), m);
+    p.position.set(x, y, z);
+    if (order) p.renderOrder = order;
+    p.frustumCulled = false;
+    bgGroup.add(p);
+    return p;
+  };
+  /* camera: fov 32, z 12.5 — window height at depth d is 2*(12.5+|z|)*tan(16) */
+  /* orders: above the act's own terrain silhouette (which draws late),
+     below the hand meshes (explicitly 11 — renderOrder does NOT inherit) */
+  /* opaque pale backing: anything the cutout layers don't cover reads as
+     bright horizon haze instead of the act's dark backdrop */
+  const horizonMat = new MeshBasicMaterial({ color: 0xdcedf7, transparent: true, opacity: 0, toneMapped: false });
+  const horizonPlane = new Mesh(new PlaneGeometry(40, 23), horizonMat);
+  horizonPlane.position.set(0, 0, -18);
+  bgGroup.add(horizonPlane);
+  const skyPlane = mkLayer(SKY_URL, 34, 19.1, 0, 1.2, -16, 0);       // fills frame
+  const cloudsPlane = mkLayer(CLOUDS_URL, 26, 14.6, 0.5, 0.6, -10, 0); // fills the sky's cutout band
+  const landPlane = mkLayer(LAND_URL, 25, 18.75, 0, -3.4, -5, 0);    // meadow fills lower frame edge-to-edge
 
   const rigGroup = new Group();
   rigGroup.scale.setScalar(SCALE);
@@ -184,6 +224,7 @@ export function createConsultMeet(scene, _opts = {}) {
     root.traverse((o) => {
       if (o.isMesh) {
         o.frustumCulled = false;
+        o.renderOrder = 11;   // above the parallax layers (which are 8-10)
         fadeStub(o);
         if (o.name.includes("Green")) {
           o.material = new MeshMatcapMaterial({
@@ -234,6 +275,7 @@ export function createConsultMeet(scene, _opts = {}) {
     });
     rigGroup.add(root);
     if (window.__buildanta) window.__buildanta.meetRoot = root;  // dev bridge
+    if (window.__buildanta) window.__buildanta.meetBg = bgGroup;  // dev bridge
     if (window.__buildanta) window.__buildanta.meetActions = actions;  // dev bridge
     mixer = new AnimationMixer(root);
     for (const clip of gltf.animations) {
@@ -494,6 +536,18 @@ export function createConsultMeet(scene, _opts = {}) {
        act's shared camera never moves */
     px += (pointerX - px) * 0.05;
     py += (pointerY - py) * 0.05;
+    /* parallax: far layers barely move, near meadow moves the most */
+    const bgOn = on * smooth((p - 0.06) / 0.06);
+    horizonMat.opacity = bgOn;
+    skyPlane.material.opacity = bgOn;
+    cloudsPlane.material.opacity = bgOn;
+    landPlane.material.opacity = bgOn;
+    skyPlane.position.x = 0 + px * 0.25 - t * 0.4;
+    skyPlane.position.y = 1.2 + py * 0.15;
+    cloudsPlane.position.x = 0.5 + px * 0.7 - t * 1.6;
+    cloudsPlane.position.y = 0.6 + py * 0.35;
+    landPlane.position.x = 0 + px * 1.5 - t * 2.2;
+    landPlane.position.y = -3.4 + py * 0.7 + t * 0.6;
     rigGroup.rotation.y = Math.sin(t * Math.PI) * 0.02 + px * 0.020;
     rigGroup.rotation.x = -py * 0.014;
     rigGroup.position.x = CENTER_LIFT.x + Math.sin(t * Math.PI * 0.8) * 0.30;
@@ -504,7 +558,7 @@ export function createConsultMeet(scene, _opts = {}) {
 
     const sparkT = smooth((p - 0.625) / 0.06);
     moteMaterial.uniforms.uTime.value = time;
-    moteMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1);
+    moteMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1) * (1 - bgOn * 0.7);
     sparkMaterial.uniforms.uSpark.value = sparkT;
     sparkMaterial.uniforms.uTime.value = time;
     sparkMaterial.uniforms.uOpacity.value = on;
@@ -512,7 +566,7 @@ export function createConsultMeet(scene, _opts = {}) {
     core.scale.setScalar(1.1 + sparkT * 2.4);
     ringMaterial.uniforms.uSpark.value = sparkT;
     ringMaterial.uniforms.uOpacity.value = on;
-    washMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1);
+    washMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1) * (1 - bgOn);  // meadow replaces the dark wash
 
     lastProgress = p;
     lastTime = time;
