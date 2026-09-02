@@ -28,6 +28,7 @@
 import {
   AdditiveBlending,
   DoubleSide,
+  NoColorSpace,
   BufferGeometry,
   Float32BufferAttribute,
   Group,

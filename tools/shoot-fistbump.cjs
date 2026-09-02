@@ -39,6 +39,7 @@ const OUT = path.join(__dirname, '..', 'shots-fistbump');
   const stops = [
     ['b1-handsin', 0.8016],  // cl 0.15 approach
     ['b2-mid', 0.8688],      // cl 0.45 mid flight
+    ['b2g-reach', 0.872],   // cl 0.464 both open hands near
     ['b3-contact', 0.908],   // cl 0.625 bump + spark
     ['b3b-spark', 0.9147], // cl 0.655 spark peak
     ['b4-hold', 0.936],      // cl 0.75 recoil/settle
