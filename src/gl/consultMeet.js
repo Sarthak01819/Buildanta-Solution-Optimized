@@ -48,8 +48,8 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import HANDSHAKE_URL from "../assets/meet-fistbump.glb?url";
-import MATCAP_URL from "../assets/meet-matcap-matte-green.png?url";  // matte finish (Yash, 2 Sep)
-import SKIN_MATCAP_URL from "../assets/meet-matcap-matte-skin.png?url";  // matte finish (Yash, 2 Sep)
+import MATCAP_URL from "../assets/meet-matcap-matte-neutral.png?url";  // neutral matte shading — baked albedo carries the color now
+import SKIN_MATCAP_URL from "../assets/meet-matcap-matte-neutral.png?url";  // neutral matte shading — baked albedo carries the color now
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -188,6 +188,11 @@ export function createConsultMeet(scene, _opts = {}) {
           o.material = new MeshMatcapMaterial({
             matcap: matcapTexture,
             toneMapped: false,
+            /* realism pass (Yash, 2 Sep): baked albedo + tangent normal map
+               ride along from the GLB — the matcap reads the perturbed
+               normals, so pores/creases shade without any lights */
+            map: o.material.map || null,
+            normalMap: o.material.normalMap || null,
             /* COLOR_0 "Shade" fades the severed forearm end into the act's
                black so the cut never reads as a cut (stub-fade.py) */
             vertexColors: !!o.geometry.getAttribute("color"),
@@ -207,6 +212,8 @@ export function createConsultMeet(scene, _opts = {}) {
           o.material = new MeshMatcapMaterial({
             matcap: skinMatcapTexture,
             toneMapped: false,
+            map: o.material.map || null,
+            normalMap: o.material.normalMap || null,
             vertexColors: !!o.geometry.getAttribute("color"),
           });
         }
