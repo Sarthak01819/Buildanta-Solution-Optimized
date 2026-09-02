@@ -27,6 +27,7 @@
    rig pins time via __bbPinTime, so suites stay deterministic. */
 import {
   AdditiveBlending,
+  DoubleSide,
   BufferGeometry,
   Float32BufferAttribute,
   Group,
@@ -191,6 +192,7 @@ export function createConsultMeet(scene, _opts = {}) {
             /* realism pass (Yash, 2 Sep): baked albedo + tangent normal map
                ride along from the GLB — the matcap reads the perturbed
                normals, so pores/creases shade without any lights */
+            side: DoubleSide,  // capped tips + double-sided: no hollow reads at extreme curls
             map: o.material.map || null,
             normalMap: o.material.normalMap || null,
             /* COLOR_0 "Shade" fades the severed forearm end into the act's
@@ -212,6 +214,7 @@ export function createConsultMeet(scene, _opts = {}) {
           o.material = new MeshMatcapMaterial({
             matcap: skinMatcapTexture,
             toneMapped: false,
+            side: DoubleSide,  // capped tips + double-sided: no hollow reads at extreme curls
             map: o.material.map || null,
             normalMap: o.material.normalMap || null,
             vertexColors: !!o.geometry.getAttribute("color"),
