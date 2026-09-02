@@ -48,8 +48,8 @@ import {
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import HANDSHAKE_URL from "../assets/meet-fistbump.glb?url";
-import MATCAP_URL from "../assets/meet-matcap-lacquer.png?url";
-import SKIN_MATCAP_URL from "../assets/meet-skin-matcap.png?url";
+import MATCAP_URL from "../assets/meet-matcap-matte-green.png?url";  // matte finish (Yash, 2 Sep)
+import SKIN_MATCAP_URL from "../assets/meet-matcap-matte-skin.png?url";  // matte finish (Yash, 2 Sep)
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
