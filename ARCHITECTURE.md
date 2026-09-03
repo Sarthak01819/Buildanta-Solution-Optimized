@@ -392,6 +392,14 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Also:** the severed arm ends are faded in JS, not Blender — the exporter kept a stale second colour layer, so COLOR_0 was never mine; the loader now derives the fade from geometry (long axis + flat-cap detection: the cut end is a razor-thin vertex slab, the hand end spreads into fingers).
 - **Suites:** journey + verify-reverse green (11/11 identical). Scripts: scratchpad/probe-frame.py, clasp-solve.py, stub-fade.py; source of truth handshake-anim3.blend.
 
+### D-054 — Project handed off; this Mac is being formatted
+- **Date:** 2026-09-03
+- **Trigger:** Yash is formatting this Mac and handing the project to an intern. Choices via MCQ: full repo + pipeline + source assets; keep git history; INCLUDE node_modules and dist (self-contained zip); intern's OS unknown (guide written OS-neutral); deploys stay on Yash's Cloudflare; zip to ~/Downloads plus a private GitHub push as the safety copy.
+- **What moved into the repo for survival:** the whole Blender hand pipeline (previously in the session scratchpad, which dies with the format) now lives at `pipeline/hands/` with all absolute paths rewritten to script-relative — validated by running gap.py from the new location (same numbers as the live build). Original source assets preserved under `pipeline/source-assets/`: zeromirror.zip (the rigged hands Yash licensed), the CC0 Hands_Rigged.zip, the old fistbump blend, and the paper-tear reference video.
+- **HANDOFF.md** written for the intern: run/verify/deploy, the map, the pipeline chain and its measured knobs (gap law: 2×OVERLAP+0.003), the seven traps (beat boundaries frozen, unlit lightmap, UV-seam merge, pure-function-of-scroll rule…), and the open items (dollar-wheel + WE-SCALE-top-right still undecoded).
+- **Safety copy:** private GitHub repo under `1710yashraj-builder`.
+- **⚠️ Out of scope but at risk:** everything else on this Mac. Flagged to Yash separately — other project folders in `~/claude code` are NOT in this zip.
+
 ### D-053 — Paper tear REMOVED (Yash reversed the call)
 - **Date:** 2026-09-03
 - **Trigger:** "Remove that paper unwrapping animation" — one turn after it shipped.
