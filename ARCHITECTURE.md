@@ -392,6 +392,13 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **Also:** the severed arm ends are faded in JS, not Blender — the exporter kept a stale second colour layer, so COLOR_0 was never mine; the loader now derives the fade from geometry (long axis + flat-cap detection: the cut end is a razor-thin vertex slab, the hand end spreads into fingers).
 - **Suites:** journey + verify-reverse green (11/11 identical). Scripts: scratchpad/probe-frame.py, clasp-solve.py, stub-fade.py; source of truth handshake-anim3.blend.
 
+### D-053 — Paper tear REMOVED (Yash reversed the call)
+- **Date:** 2026-09-03
+- **Trigger:** "Remove that paper unwrapping animation" — one turn after it shipped.
+- **Removed cleanly, not disabled:** the import, the material/mesh construction and the per-frame drive are gone from consultMeet.js, and the CSS veil + edge-blur are back to plain `var(--meet-bg)` (no `--meet-paper` multiplier). Confirmed `meet-paper-tear.webp` is **out of the built bundle**, so the 189 KB does not ship.
+- **Kept for restore:** the atlas itself stays at `src/assets/meet-paper-tear.webp`, and D-052 documents the exact recipe (source clip is a pack of four; first tear, frames 7-57, `transpose=1`, green key + morphological close + despill, re-timed sampling, levels lift). Restoring is a re-add of one import and one block.
+- **Verified:** suites green after removal; the beat is back to fists-meet-then-hold with the meadow untouched.
+
 ### D-052 — Paper-tear transition fires on the fist bump
 - **Date:** 2026-09-03
 - **Trigger:** Yash's reference clip: a green-screen crumpled-paper tear. Wanted it to play when the fists touch. Plus a further +20% scroll on the beat (consultStretch 2.1 -> 2.52).

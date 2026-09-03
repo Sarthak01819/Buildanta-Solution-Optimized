@@ -5788,7 +5788,7 @@ canvas.market-camera3d {
   inset: 0;
   pointer-events: none;
   z-index: 3;
-  opacity: calc(var(--meet-bg, 0) * 0.85 * (1 - var(--meet-paper, 0)));
+  opacity: calc(var(--meet-bg, 0) * 0.85);
   background:
     conic-gradient(from 218deg at 88% -6%,
       rgba(255,255,255,0) 0deg, rgba(255,252,240,0.28) 6deg,
@@ -5836,5 +5836,5 @@ canvas.market-camera3d {
   -webkit-backdrop-filter: blur(30px);
   mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 48%, black 72%);
   -webkit-mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 48%, black 72%);
-  opacity: calc(var(--meet-bg, 0) * (1 - var(--meet-paper, 0)));
+  opacity: var(--meet-bg, 0);
 }

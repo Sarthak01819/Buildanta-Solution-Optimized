@@ -55,7 +55,8 @@ import LAND_URL from "../assets/meet-land.png?url";
 import CLOUDS_URL from "../assets/meet-clouds.png?url";
 import MATCAP_URL from "../assets/meet-matcap-hand.webp?url";  // Yash's own hand matcap (zeromirror)  // green: high polish (glossier than the human hand — Yash, 2 Sep)
 import SKIN_URL from "../assets/meet-human-skin.png?url";
-import PAPER_URL from "../assets/meet-paper-tear.webp?url";  // 28-frame keyed paper-tear atlas  // baked skin from the human_hands atlas  // human: soft sheen, deliberately below the green
+/* paper-tear atlas import removed 3 Sep (Yash). Asset still on disk at
+   src/assets/meet-paper-tear.webp; full build recipe is in D-052. */
 import NEUTRAL_MATCAP_URL from "../assets/meet-neutral-matcap.png?url";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -166,56 +167,6 @@ export function createConsultMeet(scene, _opts = {}) {
   rigGroup.scale.setScalar(SCALE);
   rigGroup.position.copy(CENTER_LIFT);
   group.add(rigGroup);
-
-  /* ── PAPER TEAR (Yash's reference clip, 3 Sep) ──
-     His video is a pack of FOUR green-screen tears; frames 7-57 of the first
-     one, rotated to landscape, chroma-keyed and despilled into a 7x4 atlas.
-     Scrubbed by scroll (never time-driven) so the beat stays reversible: it
-     wipes on as the fists meet, covers, then rips open and pulls away. */
-  const paperTexture = new TextureLoader().load(PAPER_URL);
-  paperTexture.colorSpace = SRGBColorSpace;
-  paperTexture.flipY = false;          // atlas row 0 is the TOP row
-  paperTexture.generateMipmaps = false;
-  paperTexture.minFilter = LinearFilter;
-  const PAPER_COLS = 4, PAPER_ROWS = 7, PAPER_N = PAPER_COLS * PAPER_ROWS;
-  const paperMaterial = new ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    depthTest: false,
-    uniforms: {
-      uTex: { value: paperTexture },
-      uFrame: { value: 0 },
-      uOpacity: { value: 0 },
-      uRes: { value: new Vector3(1, 1, 1) },
-    },
-    vertexShader: `
-      void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-    `,
-    fragmentShader: `
-      uniform sampler2D uTex;
-      uniform float uFrame;
-      uniform float uOpacity;
-      uniform vec3 uRes;
-      void main() {
-        vec2 uv = gl_FragCoord.xy / uRes.xy;
-        float i = clamp(floor(uFrame), 0.0, 27.0);
-        float col = mod(i, 4.0);
-        float row = floor(i / 4.0);
-        vec2 cell = vec2(1.0 / 4.0, 1.0 / 7.0);
-        vec2 t = (vec2(col, row) + vec2(uv.x, 1.0 - uv.y)) * cell;
-        vec4 c = texture2D(uTex, t);
-        if (c.a * uOpacity < 0.004) discard;
-        gl_FragColor = vec4(c.rgb, c.a * uOpacity);
-      }
-    `,
-  });
-  const paper = new Mesh(new PlaneGeometry(400, 400), paperMaterial);
-  paper.position.set(0, 0, 0);
-  paper.renderOrder = 40;      // above the hands (11)
-  paper.frustumCulled = false;
-  group.add(paper);
-  /* the tear runs from the moment of contact to just before the beat fades */
-  const PAPER_A = 0.64, PAPER_B = 0.82;
 
   let mixer = null;
   let actions = [];
@@ -614,23 +565,6 @@ export function createConsultMeet(scene, _opts = {}) {
     ringMaterial.uniforms.uSpark.value = sparkT;
     ringMaterial.uniforms.uOpacity.value = on;
     washMaterial.uniforms.uOpacity.value = on * smooth((p - 0.06) / 0.1) * (1 - bgOn);  // meadow replaces the dark wash
-
-    if (window.__buildanta && !window.__buildanta.meetPaper)
-      window.__buildanta.meetPaper = paperMaterial;   // dev bridge
-    /* paper tear: pure f(scroll), so forward and reverse match exactly */
-    const paperT = clamp01((p - PAPER_A) / (PAPER_B - PAPER_A));
-    paperMaterial.uniforms.uFrame.value = paperT * (PAPER_N - 1);
-    paperMaterial.uniforms.uOpacity.value =
-      (p > PAPER_A && p < PAPER_B) ? on : 0;
-    /* the veil + edge blur are CSS layers ON TOP of the canvas; without this
-       they wash the white paper to grey. Hand them the coverage so they can
-       yield while the tear owns the frame. */
-    document.documentElement.style.setProperty(
-      "--meet-paper", (paperMaterial.uniforms.uOpacity.value > 0
-        ? Math.sin(clamp01(paperT) * Math.PI) : 0).toFixed(3));
-    paperMaterial.uniforms.uRes.value.set(
-      window.innerWidth * (window.devicePixelRatio || 1),
-      window.innerHeight * (window.devicePixelRatio || 1), 1);
 
     lastProgress = p;
     lastTime = time;
