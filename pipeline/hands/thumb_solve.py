@@ -55,6 +55,8 @@ Usage (headless, from the repo root; always quote blender's path on Windows):
       --green "x,y,z;x,y,z;x,y,z" [--human "x,y,z;x,y,z;x,y,z"]
   blender -b --python pipeline/hands/thumb_solve.py -- --mode final --frame 75
   blender -b --python pipeline/hands/thumb_solve.py -- --mode sweep --f0 56 --f1 80
+  blender -b --python pipeline/hands/thumb_solve.py -- --mode geom --frame 75   (segment geometry in the hand frame)
+  blender -b --python pipeline/hands/thumb_solve.py -- --mode tuck --frame 75   (finger PIP/DIP tightening probe)
 Common: --out DIR (renders + json; default pipeline/hands/out/solve),
         --blend PATH (default out/newhands_site.blend), --frame N (default 100),
         --restarts N, --seed N, --norender, --wjoint F (weight of the transplant
@@ -104,35 +106,48 @@ CLOSING = [HAND] + FINGERS + THUMB   # same set as isClosingBone(), parents firs
 
 # ── joint limits (rad). Flexion is measured along each rig's own flexion sign.
 # Round 2: IP 0..15 deg (was 15..80), MCP flexion <= 55 deg, MCP side/twist
-# <= 0.15 rad, CMC total <= 60 deg. These are also HARD search bounds (LO/HI).
-LIM = dict(cmc_total=math.radians(60), mcp_flex=math.radians(55),
-           mcp_side=0.15, ip_lo=0.0, ip_hi=math.radians(15))
+# <= 0.15 rad. Round 3: CMC total <= 75 deg (was 60: lifting the rod out
+# from under the finger stack onto the index's outside needs the extra
+# abduction; the client judges the look, not the CMC angle) and the CMC may
+# EXTEND a little (x[0] >= -0.3) so the thumb MCP can rise to the knuckle
+# plane. These are also HARD search bounds (LO/HI).
+LIM = dict(cmc_total=math.radians(float(arg("--cmc", 75))), mcp_flex=math.radians(float(arg("--mcp", 55))),
+           mcp_side=0.15, ip_lo=0.0, ip_hi=math.radians(15), cmc_ext=0.3)
 
 # ── score weights (tuned by LOOKING at the renders; see the report in git log)
-# Round 2 adds: straight (bend angle .02 vs .03, rad^2), skin (same on the
-# skin PCA axes), across (rod . index/middle middle-phalanx axes, should be 0),
-# fwd (rod should point toward the knuckles, not dangle down beside the index),
-# xsect (per intersecting face pair, from the BVH census). The nail term is
-# capped at 20 mm so a far thumb does not out-vote the orientation terms.
-# Round-2 weights, settled by looking at solve2/vA..vE (9 Sep 2026): the
-# round-1 nail term (2.5e6) dragged the tip to the bottom of the fist and made
-# the thumb DANGLE (rod 0.63 palmar); at 2.5e5 it still lands 1.7 mm off the
-# nail but the orientation terms decide the pose. ori_perp / ori_ulnar are 0:
-# they measured thumb.03 against the index DISTAL phalanx, which is tucked
-# into the palm in this fist -- unsatisfiable with a straight thumb, and they
-# only distorted the search (reported, not scored). lim=3000 makes the CMC
-# 60 deg limit firm (at 60 it drifted to 64-68 deg).
-W = dict(pen=4.0e6, cap=6.0e6, nail=2.5e5, lat=1.0e5, out=1.0e7,
+# ROUND 3 (9 Sep 2026, after the client chose the 45-deg roll): three judges
+# agreed the round-2 thumb hung as a lobe UNDER the finger stack (thumb.02
+# centroid 44 mm palmar of the knuckle plane, index.02 only 10-32 mm) with an
+# air gap along the shaft, and that the rod must point AT the other fist. So:
+#   pad    pad -> nearest INDEX skin (any index segment; the distal phalanx is
+#          tucked with these finger tables, so index.03 alone was the wrong
+#          target and dragged the tip to the bottom-back of the fist)
+#   shaft  thumb.02 verts -> nearest index.01/.02 or middle.01/.02 skin: the
+#          whole rod lies on the fingers, not just the pad (round-2 air gap)
+#   fwd    rod . F >= 0.80 (was 0.35), down 0.25..0.45, ulnar >= 0.15, all in
+#          an ORTHONORMAL hand frame (the old ulnar axis, index.01 -> pinky.01,
+#          tilted 36 mm backward and 21 mm palmar, so "rod ulnar 0.6" partly
+#          measured "rod backward")
+#   behind thumb tip 6..11 mm behind the knuckle plane (was >= 4, landed 16)
+#   nailout thumb nail faces radial (the camera side after the roll) >= 0.3
+#   across only reported: with these loose middle phalanges (125 deg from F)
+#          a rod perpendicular to them is a rod hanging DOWN, the round-2 look
+# nail/lat/out (index.03 nail terms) are 0: reported only.
+W = dict(pen=4.0e6, cap=6.0e6, nail=0.0, lat=0.0, out=0.0, pad=1.0e6, shaft=1.0e6, shaft1=0.0,
          ori_perp=0.0, ori_ulnar=0.0, lim=3000.0,
-         straight=150.0, skin=0.0, across=10.0, fwd=40.0, rodulnar=300.0, down=800.0,
-         behind=2.0e6, xsect=25.0)
+         straight=150.0, skin=0.0, across=0.0, fwd=800.0, rodulnar=300.0, down=800.0,
+         behind=2.0e6, nailout=300.0, xsect=25.0)
 # skin=0: the .03 skin PCA axis is too noisy on a short bulbous segment (reported only)
 NAIL_CAP = 0.020
-FWD_TARGET = float(arg("--fwd", 0.35))          # rod . F(palm->knuckles) at least this (tip toward the other fist)
+FWD_TARGET = float(arg("--fwd", 0.80))          # rod . F(palm->knuckles) at least this (tip toward the other fist)
 ULNAR_TARGET = float(arg("--ulnar", 0.55))      # thumb.03 axis . ulnar at least this (reported only, weight 0)
-RODULNAR_TARGET = float(arg("--rodulnar", 0.6)) # whole rod . ulnar at least this (across index AND middle)
-DOWN_LO, DOWN_HI = float(arg("--downlo", 0.05)), float(arg("--downhi", 0.25))  # rod . palmar: slightly down, never dorsal
-BEHIND_MM = float(arg("--behind", 4.0))         # thumb tip at least this far behind the knuckle contact plane
+RODULNAR_TARGET = float(arg("--rodulnar", 0.15)) # whole rod . ulnar at least this (leans onto the fingers, not away)
+ACROSS_HI = float(arg("--across", 0.45))        # reported unless W['across'] > 0
+DOWN_LO, DOWN_HI = float(arg("--downlo", 0.25)), float(arg("--downhi", 0.45))  # rod . palmar: slightly down, never dorsal
+BEHIND_MM = float(arg("--behind", 6.0))         # thumb tip at least this far behind the knuckle contact plane
+BEHIND_HI_MM = float(arg("--behindhi", 11.0))   # ... and at most this far (tip just under the knuckle contact line)
+NAILOUT_TARGET = float(arg("--nailout", 0.3))   # thumb nail . radial at least this (nail toward the camera)
+SHAFT_TARGET = float(arg("--shaft", 2.1)) / MM  # cage distance thumb.02 shaft -> index/middle skin to aim for
 if arg("--w"):                                  # e.g. --w nail=2.5e5,down=400  (weight overrides for experiments)
     for kv in str(arg("--w")).split(","):
         k, v = kv.split("="); W[k] = float(v)
@@ -288,20 +303,16 @@ class Rig:
         # produces false "inside" readings (measured: 20 mm phantom depths)
         self.test_idx = np.where((self.w_t[1] > 0.5) | (self.w_t[2] > 0.5))[0]
         self.static_polys = [p for p in self.polys if all(self.w_thumb[i] <= 0.5 for i in p)]
-        # rim = static faces in the thumb blend zone (the edge of the hole the
-        # thumb leaves in the palm). Never a real collision target for the
-        # distal thumb, but their normals face away from thumb.02 verts 12 mm
-        # off and read as phantom "inside" -- so they are skipped
-        self.static_rim = np.array([any(self.w_thumb[i] > 0.05 for i in p) for p in self.static_polys])
         self.idx3_polys = [p for p in self.polys if all(self.w_idx[2][i] > 0.5 for i in p)]
-        # per-segment thumb faces for the face-intersection census
         self.seg_polys = [group_polys(self.polys, self.w_t[j]) for j in range(3)]
         self.flex_sign = self.measure_flex_sign()
         self.rest_bend = with_rest_pose(self.arm, lambda: angle_deg(bone_axis(self.arm, tb(1)), bone_axis(self.arm, tb(2))))
         self.classify_rest()
         self.refresh()
 
-    GROUPS = ("DEF-thumb", tb(0), tb(1), tb(2), fb("f_index", 1), fb("f_index", 2), "DEF-palm", HAND)
+    GROUPS = ("DEF-thumb", tb(0), tb(1), tb(2),
+              fb("f_index", 0), fb("f_index", 1), fb("f_index", 2),
+              fb("f_middle", 0), fb("f_middle", 1), fb("f_middle", 2), "DEF-palm", HAND)
 
     def measure_flex_sign(self):
         """Which sign of a thumb.02 X rotation FLEXES (moves thumb.03 toward the
@@ -345,24 +356,54 @@ class Rig:
         with_rest_pose(self.arm, go)
 
     # geometry that does not move while the thumb is solved -----------------
-    def refresh(self):
-        P = eval_mesh(self.ob)
-        self.P_static = P
+    def build_targets(self, P, polys, W_, pad_idx, nail_idx, cage):
+        """BVH targets on one skin level (cage or subdivided): static skin
+        (everything but the thumb) for the no-penetration term, the index.03
+        nail (reported), the whole INDEX (pad target), the index/middle
+        proximal+middle phalanges (shaft target), per-segment trees for the
+        report, plus the thumb vertex sets on that level."""
         V = [Vector(p) for p in P]
-        self.bvh = BVHTree.FromPolygons(V, self.static_polys, all_triangles=False)
+        w_th = W_["DEF-thumb"]
+        static = [p for p in polys if all(w_th[i] <= 0.5 for i in p)]
+        # rim = static faces in the thumb blend zone (the edge of the hole the
+        # thumb leaves in the palm). Never a real collision target for the
+        # distal thumb, but their normals face away from thumb.02 verts 12 mm
+        # off and read as phantom "inside" -- so they are skipped
+        rim = np.array([any(w_th[i] > 0.05 for i in p) for p in static])
+        def faces(names):
+            return [p for p in polys if all(sum(W_[n][i] for n in names) > 0.5 for i in p)]
+        def tree(fl): return BVHTree.FromPolygons(V, fl, all_triangles=False) if fl else None
+        nail = np.zeros(len(P), dtype=bool); nail[nail_idx] = True
+        i3f = faces([fb("f_index", 2)])
+        npolys = [p for p in i3f if sum(1 for i in p if nail[i]) >= len(p) - 1]
+        segs = (fb("f_index", 0), fb("f_index", 1), fb("f_index", 2), fb("f_middle", 0), fb("f_middle", 1), fb("f_middle", 2))
+        return dict(V=V, static=static, rim=rim, bvh=tree(static), nail=tree(npolys),
+                    index=tree(faces([fb("f_index", 0), fb("f_index", 1), fb("f_index", 2)])),
+                    shaft=tree(faces([fb("f_index", 0), fb("f_index", 1), fb("f_middle", 0), fb("f_middle", 1)])),
+                    seg={bn: tree(faces([bn])) for bn in segs},
+                    seg_polys=[group_polys(polys, W_[tb(j)]) for j in range(3)],
+                    test_idx=np.where((W_[tb(1)] > 0.5) | (W_[tb(2)] > 0.5))[0],
+                    seg1=np.where(W_[tb(0)] > 0.5)[0], seg2=np.where(W_[tb(1)] > 0.5)[0], seg3=np.where(W_[tb(2)] > 0.5)[0],
+                    pad_idx=pad_idx, allow=(ALLOW if cage else 0.0), cage=cage)
+
+    def refresh(self):
+        P, polys, W_ = eval_mesh(self.ob, with_polys=True, groups=self.GROUPS)
+        self.P_static = P
+        self.T = self.build_targets(P, polys, W_, self.pad_idx, self.nail_idx, cage=True)
+        self.bvh = self.T["bvh"]; self.bvh_nail = self.T["nail"]; self.static_rim = self.T["rim"]
         i3 = self.grp[fb("f_index", 2)]; i2 = self.grp[fb("f_index", 1)]
-        self.i3_c = P[i3].mean(axis=0)
-        self.i3_axis = pca_axis(P[i3], self.i3_c - P[i2].mean(axis=0))
+        self.i3_c = P[i3].mean(axis=0); self.i2_c = P[i2].mean(axis=0)
+        self.i3_axis = pca_axis(P[i3], self.i3_c - self.i2_c)
         self.nail_pt = P[self.nail_idx].mean(axis=0)
         self.i3_dorsal = unit(perp(self.nail_pt - self.i3_c, self.i3_axis))
         rel = P[i3] - self.i3_c
         self.i3_radius = float(np.median(np.linalg.norm(rel - np.outer(rel @ self.i3_axis, self.i3_axis), axis=1)))
-        nail_set = set(self.nail_idx.tolist())
-        npolys = [p for p in self.idx3_polys if sum(1 for i in p if i in nail_set) >= len(p) - 1]
-        self.bvh_nail = BVHTree.FromPolygons(V, npolys, all_triangles=False)
-        # across-the-fingers (ulnar) direction at the middle phalanges
-        self.ulnar = unit(P[self.grp[fb("f_pinky", 1)]].mean(axis=0) - P[self.grp[fb("f_index", 1)]].mean(axis=0))
-        # middle-phalanx axes of index and middle (the rod must cross these)
+        # raw across-the-fingers direction at the knuckles (index.01 -> pinky.01).
+        # NOT orthogonal to F: the pinky knuckle sits ~36 mm behind and ~21 mm
+        # palmar of the index knuckle in this fist, so it is only used to SIGN
+        # the orthonormal ulnar axis below
+        self.ulnar_raw = unit(P[self.grp[fb("f_pinky", 0)]].mean(axis=0) - P[self.grp[fb("f_index", 0)]].mean(axis=0))
+        # middle-phalanx axes of index and middle (the rod crosses these)
         def seg_axis(d, j):
             Q = P[self.grp[fb(d, j)]]; prev = P[self.grp[fb(d, j - 1)]].mean(axis=0) if j else P[self.palm_idx].mean(axis=0)
             return pca_axis(Q, Q.mean(axis=0) - prev)
@@ -376,6 +417,19 @@ class Rig:
         p1 = (seg_axis("f_index", 0) + seg_axis("f_middle", 0)) / 2
         self.palmar = unit(perp(p1, self.F))
         self.N = -self.palmar                      # dorsal
+        # orthonormal ulnar: perpendicular to F and palmar, signed toward the pinky
+        u = np.cross(self.F, self.palmar)
+        self.ulnar = u if np.dot(u, self.ulnar_raw) >= 0 else -u
+        self.radial = -self.ulnar
+        # the SITE camera after the client's 45-deg roll (rotateFistFrame in
+        # zeroMirrorStage.js, derived 9 Sep 2026): with x = pinky->index,
+        # y = wrist->knuckles, z = x cross y (= dorsal on these left-hand rigs),
+        # the vector from the fist TOWARD the camera is 0.707x - 0.707z on the
+        # green fist and 0.707x + 0.707z on the human one, i.e. the green is
+        # seen from its radial-PALMAR diagonal and the human from its
+        # radial-DORSAL diagonal; both see the thumb side, neither sees the
+        # knuckle face (the contact axis lies in the camera plane).
+        self.toward = unit(self.radial + (self.palmar if self.key == "green" else self.N))
         # knuckle plane: how far the fist's contact face reaches along F
         k_idx = np.concatenate([self.grp[fb("f_index", 0)], self.grp[fb("f_middle", 0)]])
         self.knuckle_front = float(((P[k_idx] - self.knuckle_c) @ self.F).max())
@@ -389,6 +443,11 @@ class Rig:
                 al = (Q - c) @ a; h = float(np.percentile(np.abs(al), 90))
                 r = float(np.median(np.linalg.norm((Q - c) - np.outer(al, a), axis=1)))
                 self.caps.append((c - a * h, c + a * h, r * 0.8)); prev = c
+        # fingertip tuck (distal segment -> palm skin, vertex-vertex), reported
+        kd = kdtree.KDTree(len(self.palm_idx))
+        for i, q in enumerate(P[self.palm_idx]): kd.insert(Vector(q), i)
+        kd.balance()
+        self.tuck = {d: min(kd.find(Vector(q))[2] for q in P[self.grp[fb(d, 2)]]) for d in DIGITS}
 
     # thumb pose --------------------------------------------------------------
     def get_params(self):
@@ -405,20 +464,14 @@ class Rig:
         return [euler_of(self.arm, tb(j)) for j in range(3)]
 
     # measures ---------------------------------------------------------------
-    def measure(self, P=None, bvh=None, bvh_nail=None, test_idx=None, pad_idx=None, seg3=None, seg2=None, allow=ALLOW, rim=None,
-                seg_polys=None, static_polys=None, V=None):
+    def measure(self, P=None, T=None, detail=False):
+        T = T or self.T
         if P is None: P = eval_mesh(self.ob)
-        bvh = bvh or self.bvh; bvh_nail = bvh_nail or self.bvh_nail
-        rim = self.static_rim if rim is None else rim
-        test_idx = self.test_idx if test_idx is None else test_idx
-        pad_idx = self.pad_idx if pad_idx is None else pad_idx
-        seg3 = self.seg_idx[2] if seg3 is None else seg3
-        seg2 = self.seg_idx[1] if seg2 is None else seg2
-        seg_polys = self.seg_polys if seg_polys is None else seg_polys
-        static_polys = self.static_polys if static_polys is None else static_polys
-        T = P[test_idx]
+        bvh = T["bvh"]; rim = T["rim"]; allow = T["allow"]
+        seg1, seg2, seg3, pad_idx = T["seg1"], T["seg2"], T["seg3"], T["pad_idx"]
+        Tv = P[T["test_idx"]]
         pen = 0.0; minclear = 1e9; n_in = 0; deepest = 0.0; dbg = []
-        for v in T:
+        for v in Tv:
             vv = Vector(v)
             loc, nrm, fi, d = bvh.find_nearest(vv)
             if loc is None or rim[fi]: continue
@@ -437,18 +490,27 @@ class Rig:
                     np.linalg.norm(v - P[seg3].mean(axis=0)) * MM, np.linalg.norm(v - self.nail_pt) * MM))
         cap = 0.0; capdeep = 0.0
         for A, B, r in self.caps:
-            inside = r - seg_dist(T, A, B); m = inside[inside > 0]
+            inside = r - seg_dist(Tv, A, B); m = inside[inside > 0]
             if len(m): cap += float(np.sum(m ** 2)); capdeep = max(capdeep, float(m.max()))
-        dn = 1e9
-        for v in P[pad_idx]:
-            loc, nrm, _, d = bvh_nail.find_nearest(Vector(v))
-            if loc is not None and d < dn: dn = d
-        c3 = P[seg3].mean(axis=0); c2 = P[seg2].mean(axis=0)
+        def dmin(idx, tree):
+            if tree is None or len(idx) == 0: return 1e9
+            best = 1e9
+            for v in P[idx]:
+                loc, nrm, _, d = tree.find_nearest(Vector(v))
+                if loc is not None and d < best: best = d
+            return best
+        dn = dmin(pad_idx, T["nail"])              # pad -> index.03 nail (round-2 target, reported)
+        d_pad = dmin(pad_idx, T["index"])          # pad -> any index skin (round-3 target)
+        d_shaft = dmin(seg2, T["shaft"])           # thumb.02 shaft -> index/middle proximal+middle phalanges
+        c3 = P[seg3].mean(axis=0); c2 = P[seg2].mean(axis=0); c1 = P[seg1].mean(axis=0)
+        a1 = unit(c2 - c1); pr = (P[seg1] - c1) @ a1
+        seg1d = seg1[pr > np.percentile(pr, 67)]   # distal third of the metacarpal/thenar group
+        d_shaft1 = dmin(seg1d, T["shaft"])
         o = c3 - self.nail_pt
         along = float(np.dot(o, self.i3_dorsal))
         lateral = float(np.linalg.norm(o - self.i3_dorsal * along))
         t3_axis = pca_axis(P[seg3], c3 - c2)
-        t2_axis = unit(c3 - P[self.seg_idx[0]].mean(axis=0)) if seg2 is self.seg_idx[1] else unit(c3 - c2)
+        t2_axis = unit(c3 - c1)
         # ── round 2: straightness + rod orientation + face census ──────────
         b2 = bone_axis(self.arm, tb(1)); b3 = bone_axis(self.arm, tb(2))
         bend = angle_deg(b2, b3)                          # world angle .02 vs .03 bone axes
@@ -457,39 +519,63 @@ class Rig:
         rod = pca_axis(P[np.concatenate([seg2, seg3])], c3 - c2)   # the .02-.03 rod, proximal -> tip
         across = float(math.hypot(np.dot(rod, self.i2_axis), np.dot(rod, self.m2_axis)))  # 0 = perpendicular to both
         fwd = float(np.dot(rod, self.F)); down = float(np.dot(rod, self.palmar)); rod_ulnar = float(np.dot(rod, self.ulnar))
+        rodc = unit(c3 - c2)                              # centroid rod, robust to the bulbous pad
         # thumb tip vs the knuckle plane: the tip must stay BEHIND the fist's
         # contact face (the reference leaves a V notch; the thumbs never touch)
         tip_f = float(((P[seg3] - self.knuckle_c) @ self.F).max())
         tip_behind = self.knuckle_front - tip_f
-        if V is None: V = [Vector(p) for p in P]
+        # round 3: where the rod sits relative to the index middle phalanx
+        # (palmar = below it = the round-2 lobe), and which way the nail faces
+        tip_below = float(np.dot(c3 - self.i2_c, self.palmar))
+        shaft_below = float(np.dot(c2 - self.i2_c, self.palmar))
+        pad_dir = unit(perp(P[pad_idx].mean(axis=0) - c3, t3_axis))
+        nail_dir = -pad_dir
+        nail_out = float(np.dot(nail_dir, self.radial))
+        nail_cam = float(np.dot(nail_dir, self.toward))
+        V = T["V"] if not T["cage"] else [Vector(p) for p in P]
+        seg_polys = T["seg_polys"]
         x23 = census(V, seg_polys[1], seg_polys[2]); x12 = census(V, seg_polys[0], seg_polys[1])
-        xst = census(V, seg_polys[1] + seg_polys[2], static_polys)
-        return dict(pen=pen, minclear=minclear, n_in=n_in, deepest=deepest, cap=cap, capdeep=capdeep,
-                    d_nail=dn, along=along, lateral=lateral,
-                    perp=float(np.dot(t3_axis, self.i3_axis)), ulnar=float(np.dot(t3_axis, self.ulnar)),
-                    ulnar2=float(np.dot(t2_axis, self.ulnar)),
-                    bend=bend, skin_bend=skin_bend, across=across, fwd=fwd, down=down, rod_ulnar=rod_ulnar,
-                    tip_behind=tip_behind, nail_palmar=float(np.dot(self.i3_dorsal, self.palmar)),
-                    x23=x23, x12=x12, xst=xst)
+        xst = census(V, seg_polys[1] + seg_polys[2], T["static"])
+        m = dict(pen=pen, minclear=minclear, n_in=n_in, deepest=deepest, cap=cap, capdeep=capdeep,
+                 d_nail=dn, d_pad=d_pad, d_shaft=d_shaft, d_shaft1=d_shaft1, along=along, lateral=lateral,
+                 perp=float(np.dot(t3_axis, self.i3_axis)), ulnar=float(np.dot(t3_axis, self.ulnar)),
+                 ulnar2=float(np.dot(t2_axis, self.ulnar)),
+                 bend=bend, skin_bend=skin_bend, across=across, fwd=fwd, down=down, rod_ulnar=rod_ulnar,
+                 rodc_fwd=float(np.dot(rodc, self.F)), rodc_down=float(np.dot(rodc, self.palmar)), rodc_ulnar=float(np.dot(rodc, self.ulnar)),
+                 rod_cam=float(np.dot(rod, self.toward)),
+                 tip_behind=tip_behind, tip_below=tip_below, shaft_below=shaft_below,
+                 nail_out=nail_out, nail_cam=nail_cam, nail_palmar=float(np.dot(self.i3_dorsal, self.palmar)),
+                 x23=x23, x12=x12, xst=xst)
+        if detail:
+            m["seg_mm"] = {"thumb02_" + k.split("-")[1].split(".")[0].replace("f_", "") + k.split(".")[1]: dmin(seg2, t) * MM
+                           for k, t in T["seg"].items()}
+            m["seg_mm"].update({"thumb03_" + k.split("-")[1].split(".")[0].replace("f_", "") + k.split(".")[1]: dmin(seg3, t) * MM
+                                for k, t in T["seg"].items()})
+            m["tuck_mm"] = {d: self.tuck[d] * MM for d in DIGITS}
+        return m
 
     def score(self, m, x):
         s = W["pen"] * m["pen"] + W["cap"] * m["cap"]
         s += W["nail"] * (min(m["d_nail"], NAIL_CAP) - NAIL_TARGET) ** 2
+        s += W["pad"] * (min(m["d_pad"], NAIL_CAP) - NAIL_TARGET) ** 2
+        s += W["shaft"] * (min(m["d_shaft"], NAIL_CAP) - SHAFT_TARGET) ** 2
+        s += W["shaft1"] * (min(m["d_shaft1"], NAIL_CAP) - SHAFT_TARGET) ** 2
         s += W["lat"] * max(0.0, m["lateral"] - 0.006) ** 2
         s += W["out"] * max(0.0, -m["along"]) ** 2
         s += W["ori_perp"] * m["perp"] ** 2
         s += W["ori_ulnar"] * max(0.0, ULNAR_TARGET - m["ulnar"]) ** 2
-        # round 2: straight rod, across the fingers, pointing at the knuckles
+        # round 2: straight rod; round 3: rod aimed at the other fist, on the fingers
         s += W["straight"] * math.radians(m["bend"]) ** 2
         s += W["skin"] * math.radians(m["skin_bend"]) ** 2
-        s += W["across"] * m["across"] ** 2
+        s += W["across"] * max(0.0, m["across"] - ACROSS_HI) ** 2
         s += W["fwd"] * max(0.0, FWD_TARGET - m["fwd"]) ** 2
         s += W["rodulnar"] * max(0.0, RODULNAR_TARGET - m["rod_ulnar"]) ** 2
         s += W["down"] * (max(0.0, DOWN_LO - m["down"]) ** 2 + max(0.0, m["down"] - DOWN_HI) ** 2)
-        s += W["behind"] * max(0.0, BEHIND_MM / MM - m["tip_behind"]) ** 2
+        s += W["behind"] * (max(0.0, BEHIND_MM / MM - m["tip_behind"]) ** 2 + max(0.0, m["tip_behind"] - BEHIND_HI_MM / MM) ** 2)
+        s += W["nailout"] * max(0.0, NAILOUT_TARGET - m["nail_out"]) ** 2
         s += W["xsect"] * (m["x23"] + m["x12"] + m["xst"])
         cmc = Euler((x[0], x[1], x[2]), "XYZ").to_quaternion().angle
-        lim = max(0.0, cmc - LIM["cmc_total"]) ** 2 + max(0.0, -x[0]) ** 2
+        lim = max(0.0, cmc - LIM["cmc_total"]) ** 2 + max(0.0, -LIM["cmc_ext"] - x[0]) ** 2
         lim += max(0.0, x[3] - LIM["mcp_flex"]) ** 2 + max(0.0, -x[3]) ** 2
         lim += max(0.0, abs(x[4]) - LIM["mcp_side"]) ** 2 + max(0.0, abs(x[5]) - LIM["mcp_side"]) ** 2
         lim += max(0.0, LIM["ip_lo"] - x[6]) ** 2 + max(0.0, x[6] - LIM["ip_hi"]) ** 2
@@ -503,19 +589,23 @@ class Rig:
 
     def report(self, m, x=None, label=""):
         cmc, mcp, ip = self.joints_deg(x) if x is not None else (float("nan"),) * 3
-        log("%-24s d_nail %5.2f mm | clear %+5.2f mm (in %3d, deepest %4.2f) | cap %4.2f | "
-            "along %+5.1f lat %4.1f | perp %+.2f ulnar %+.2f/%+.2f | CMC %4.1f MCP %4.1f IP %4.1f deg"
-            % (label, m["d_nail"] * MM, m["minclear"] * MM, m["n_in"], m["deepest"] * MM, m["capdeep"] * MM,
-               m["along"] * MM, m["lateral"] * MM, m["perp"], m["ulnar"], m["ulnar2"], cmc, mcp, ip))
-        log("%-24s bend %4.1f deg (skin %4.1f, rest %4.1f) | rod: fwd %+.2f down %+.2f ulnar %+.2f across %.2f | "
-            "tip behind knuckles %+.1f mm | xsect 02x03 %d 01x02 %d thumb-x-static %d | nail.palmar %+.2f"
-            % ("", m["bend"], m["skin_bend"], self.rest_bend, m["fwd"], m["down"], m["rod_ulnar"], m["across"],
-               m["tip_behind"] * MM, m["x23"], m["x12"], m["xst"], m["nail_palmar"]))
+        log("%-24s pad->index %5.2f mm (nail %5.2f) | shaft %5.2f mm (mc %5.2f) | clear %+5.2f mm (in %3d, deepest %4.2f) | cap %4.2f | "
+            "CMC %4.1f MCP %4.1f IP %4.1f deg"
+            % (label, m["d_pad"] * MM, m["d_nail"] * MM, m["d_shaft"] * MM, m["d_shaft1"] * MM, m["minclear"] * MM, m["n_in"],
+               m["deepest"] * MM, m["capdeep"] * MM, cmc, mcp, ip))
+        log("%-24s bend %4.1f deg (skin %4.1f, rest %4.1f) | rod: fwd %+.2f down %+.2f ulnar %+.2f across %.2f cam %+.2f (centroid rod %+.2f/%+.2f/%+.2f) | "
+            "tip behind knuckles %+.1f mm, below index.02 %+.1f mm (shaft %+.1f) | nail radial %+.2f cam %+.2f | xsect 02x03 %d 01x02 %d thumb-x-static %d"
+            % ("", m["bend"], m["skin_bend"], self.rest_bend, m["fwd"], m["down"], m["rod_ulnar"], m["across"], m["rod_cam"],
+               m["rodc_fwd"], m["rodc_down"], m["rodc_ulnar"],
+               m["tip_behind"] * MM, m["tip_below"] * MM, m["shaft_below"] * MM, m["nail_out"], m["nail_cam"], m["x23"], m["x12"], m["xst"]))
+        if "seg_mm" in m:
+            log("%-24s segments mm: %s | tuck mm: %s" % ("", {k: round(v, 1) for k, v in m["seg_mm"].items()},
+                                                          {k: round(v, 1) for k, v in m["tuck_mm"].items()}))
 
     # true (subsurf ON) measurement on the subdivided skin, using its own
     # interpolated deform weights (no nearest-vertex transfer: that misfiles
     # nail verts as pad verts once the two skins are 2 mm apart)
-    def measure_true(self):
+    def measure_true(self, detail=True):
         subsurf(True)
         try:
             if not hasattr(self, "_sub_sets"):
@@ -525,20 +615,8 @@ class Rig:
                 self._sub_sets = with_rest_pose(self.arm, go)
             pad_idx, nail_idx = self._sub_sets
             P, polys, W_ = eval_mesh(self.ob, with_polys=True, groups=self.GROUPS)
-            w_th = W_["DEF-thumb"]
-            test_idx = np.where((W_[tb(1)] > 0.5) | (W_[tb(2)] > 0.5))[0]
-            seg3 = np.where(W_[tb(2)] > 0.5)[0]; seg2 = np.where(W_[tb(1)] > 0.5)[0]
-            V = [Vector(p) for p in P]
-            static = [p for p in polys if all(w_th[i] <= 0.5 for i in p)]
-            rim = np.array([any(w_th[i] > 0.05 for i in p) for p in static])
-            bvh = BVHTree.FromPolygons(V, static, all_triangles=False)
-            nail = np.zeros(len(P), dtype=bool); nail[nail_idx] = True
-            npolys = [p for p in polys if sum(1 for i in p if nail[i]) >= len(p) - 1]
-            bvh_nail = BVHTree.FromPolygons(V, npolys, all_triangles=False)
-            seg_polys = [group_polys(polys, W_[tb(j)]) for j in range(3)]
-            return self.measure(P, bvh=bvh, bvh_nail=bvh_nail, test_idx=test_idx, pad_idx=pad_idx,
-                                seg3=seg3, seg2=seg2, allow=0.0, rim=rim,
-                                seg_polys=seg_polys, static_polys=static, V=V)
+            T = self.build_targets(P, polys, W_, pad_idx, nail_idx, cage=False)
+            return self.measure(P, T=T, detail=detail)
         finally:
             subsurf(False)
 
@@ -546,7 +624,7 @@ class Rig:
 # Round 2 HARD bounds: MCP side/twist +-0.15, IP 0..15 deg, MCP flex <= 55 deg
 # (round 1 allowed +-0.35 / 0.20..1.45 / 1.10 -- that is the hook the client
 # rejected). thumb.03 Y and Z are never searched: they stay 0.
-LO = np.array([0.0, -1.1, -1.1, 0.0, -LIM["mcp_side"], -LIM["mcp_side"], LIM["ip_lo"]])
+LO = np.array([-LIM["cmc_ext"], -1.1, -1.1, 0.0, -LIM["mcp_side"], -LIM["mcp_side"], LIM["ip_lo"]])
 HI = np.array([1.15, 1.1, 1.1, LIM["mcp_flex"], LIM["mcp_side"], LIM["mcp_side"], LIM["ip_hi"]])
 
 def coord_descent(f, x0, steps=(0.28, 0.14, 0.07, 0.035, 0.016, 0.007), sweeps=5):
@@ -652,10 +730,36 @@ def aim(cam, at, up):
                                ( r_.z, u.z, -f.z, cam.location.z),
                                (0, 0, 0, 1)))
 
+def site_camera(rig):
+    """The production camera for this hand after the client's 45-deg roll,
+    derived from rotateFistFrame() / prepareSourceFistBump() in
+    src/gl/zeroMirrorStage.js (read 9 Sep 2026), in the hand's BONE frame the
+    stage builds: x = index.01 - pinky.01 (orthogonalised), y = middle.01 -
+    wrist, z = x cross y. With diagonal D = (cos35, -sin35) and diagonalUp
+    dU = (sin35, cos35) in camera (right, up) coordinates and T = toward the
+    camera, the rolled frame is x' = cos45 dU + sin45 T for BOTH hands,
+    y' = +D (green) / -D (human), z' = x' cross y' = -cos45 T + sin45 dU
+    (green) / +cos45 T - sin45 dU (human). Hence, in hand-frame components:
+      toward camera = 0.7071 x - 0.7071 z (green), 0.7071 x + 0.7071 z (human)
+      image up      = 0.5792 x - 0.5736 y + 0.5792 z (green),
+                      0.5792 x + 0.5736 y - 0.5792 z (human)
+    Returns (toward, up) as world-space mathutils Vectors."""
+    arm = rig.arm
+    def head(bn): return Vector(arm.matrix_world @ arm.pose.bones[bn].head)
+    y = (head(fb("f_middle", 0)) - head(HAND)).normalized()
+    x = head(fb("f_index", 0)) - head(fb("f_pinky", 0)); x = (x - y * x.dot(y)).normalized()
+    z = x.cross(y)
+    s = -1.0 if rig.key == "green" else 1.0
+    toward = (x * 0.70711 + z * (0.70711 * s)).normalized()
+    up = x * 0.57922 + y * (0.57358 * s) + z * (-0.57922 * s)
+    return toward, (up - toward * up.dot(toward)).normalized()
+
 def shoot(cam, rig, tag, views=None, solo=True, r=0.40):
-    """6 large clay views of one hand, framed from the SKIN (thumbside, front =
-    fist face, dorsal, palm, thumb45, thumbdorsal45) with the hand's DORSUM as
-    image-up, plus 'pair' (both fists from the thumb side of this one)."""
+    """7 large clay views of one hand, framed from the SKIN (thumbside, front =
+    fist face, dorsal, palm, thumb45, thumbdorsal45, and SITECAM = the
+    production camera direction after the 45-deg roll, see site_camera) with
+    the hand's DORSUM as image-up (sitecam: the site's image-up), plus 'pair'
+    (both fists from the thumb side of this one)."""
     arm = rig.arm
     others = [bpy.data.objects[mn] for an, mn in RIGS.values() if an != arm.name]
     for o in others: o.hide_render = solo
@@ -664,10 +768,12 @@ def shoot(cam, rig, tag, views=None, solo=True, r=0.40):
     K = Vector((P[rig.grp[fb("f_middle", 0)]].mean(axis=0) + P[rig.grp[fb("f_index", 0)]].mean(axis=0)) / 2)
     F = (K - H).normalized()
     N = Vector(rig.N); N = (N - F * N.dot(F)).normalized()      # dorsal (measured from the phalanges)
-    Td = Vector(-rig.ulnar); Td = (Td - F * Td.dot(F) - N * Td.dot(N)).normalized()   # radial = thumb side
+    Td = Vector(rig.radial); Td = (Td - F * Td.dot(F) - N * Td.dot(N)).normalized()   # radial = thumb side
     ctr = (H + K) / 2 + F * 0.02
+    st, su = site_camera(rig)
     all_views = {"thumbside": (Td, N), "front": (F, N), "dorsal": (N, -F), "palm": (-N, F),
-                 "thumb45": ((Td + F).normalized(), N), "thumbdorsal45": ((Td + N).normalized(), N)}
+                 "thumb45": ((Td + F).normalized(), N), "thumbdorsal45": ((Td + N).normalized(), N),
+                 "sitecam": (st, su)}
     out = []
     for name in (views or list(all_views)):
         d, up = all_views[name]
@@ -700,7 +806,7 @@ def full_report(frame, tag, do_render=True):
     green = Rig("green"); human = Rig("human")
     for r in (green, human):
         x = r.get_params()
-        m = r.measure(); r.report(m, x, "%s cage" % r.key)
+        m = r.measure(detail=True); r.report(m, x, "%s cage" % r.key)
         mt = r.measure_true(); r.report(mt, x, "%s SUBSURF" % r.key)
         cmc, mcp, ip = r.joints_deg(x)
         res[r.key] = {"eulers": r.triples(), "cage": m, "true": mt, "rest_bend_deg": r.rest_bend,
@@ -709,7 +815,7 @@ def full_report(frame, tag, do_render=True):
     if TRANSPLANT:
         transplant(human.arm, green.arm, CLOSING)
         ht = Rig("human", tag="human-transplanted")
-        m = ht.measure(); ht.report(m, green.get_params(), "transplant cage")
+        m = ht.measure(detail=True); ht.report(m, green.get_params(), "transplant cage")
         mt = ht.measure_true(); ht.report(mt, green.get_params(), "transplant SUBSURF")
         res["transplanted"] = {"human_eulers_after": ht.triples(), "cage": m, "true": mt}
         if cam: res["transplanted"]["renders"] = shoot(cam, ht, "%s-transplant" % tag)
@@ -727,7 +833,7 @@ if MODE == "probe":
         r = Rig(key)
         log("   thumb test verts %d (segs %s) pad %d nail %d | idx3 radius %.1f mm | flex_sign %+d"
             % (len(r.test_idx), [len(s) for s in r.seg_idx], len(r.pad_idx), len(r.nail_idx), r.i3_radius * MM, r.flex_sign))
-        m = r.measure(); r.report(m, r.get_params(), key + " current")
+        m = r.measure(detail=True); r.report(m, r.get_params(), key + " current")
         base = r.get_params(); tip0 = eval_mesh(r.ob)[r.seg_idx[2]].mean(axis=0)
         for i, nm in enumerate(("cmc.x(flex)", "cmc.y", "cmc.z", "mcp.x(flex)")):
             x = base.copy(); x[i] += 0.3; r.set_params(x)
@@ -778,10 +884,80 @@ elif MODE == "geom":
         x = unit(x - y * np.dot(x, y)); z = np.cross(x, y)
         log("   bone frame vs skin frame: x.radial %+.2f x.F %+.2f x.dorsal %+.2f | y.F %+.2f | z.dorsal %+.2f z.radial %+.2f z.F %+.2f"
             % (np.dot(x, -r.ulnar), np.dot(x, r.F), np.dot(x, r.N), np.dot(y, r.F), np.dot(z, r.N), np.dot(z, -r.ulnar), np.dot(z, r.F)))
-        m = r.measure(); r.report(m, r.get_params(), key + " current")
+        m = r.measure(detail=True); r.report(m, r.get_params(), key + " current")
         out[key] = dict(rows=rows, tuck=tuck, knuckle_front_mm=r.knuckle_front * MM,
                         bone_frame=dict(x_radial=float(np.dot(x, -r.ulnar)), z_dorsal=float(np.dot(z, r.N))))
     dump_json("geom-f%d.json" % FRAME, out)
+
+elif MODE == "tuck":
+    # Round 3 finger-tuck probe (the reference's stated exception to the
+    # frozen D-048 finger tables: "unless a judge finds the fingertips visibly
+    # not tucked" -- three judges did, 9 Sep 2026). Adds a curl DELTA (rad, in
+    # each joint's own curl direction) to every PIP and DIP at this frame and
+    # reports, per finger: distal-segment -> palm distance (tuck), the min
+    # signed distance of all that finger's verts to the rest of the static
+    # skin (penetration if negative), and the thumb's clearance, so the
+    # tightening that closes the hollow without crossing anything is measured.
+    set_frame(FRAME); freeze(); subsurf(False)
+    cands = [tuple(float(v) for v in c.split("/")) for c in str(arg("--cands", "0/0,0.05/0.05,0.10/0.10,0.10/0.15,0.15/0.15,0.15/0.20,0.20/0.20")).split(",")]
+    res = {}
+    for key in RIGS:
+        an, mn = RIGS[key]; arm = bpy.data.objects[an]; ob = bpy.data.objects[mn]
+        base = {bn: arm.pose.bones[bn].rotation_euler.copy() for bn in FINGERS}
+        polys = [tuple(p.vertices) for p in ob.data.polygons]
+        w_th = weights(ob, ["DEF-thumb"])
+        w_f = {d: weights(ob, [fb(d, j) for j in range(3)]) for d in DIGITS}
+        grp = {bn: np.where(weights(ob, [bn]) > 0.5)[0] for bn in FINGERS + THUMB}
+        palm_idx = np.where(weights(ob, ["DEF-palm", HAND]) > 0.5)[0]
+        w_t23 = np.where((weights(ob, [tb(1)]) > 0.5) | (weights(ob, [tb(2)]) > 0.5))[0]
+        static_nt = [p for p in polys if all(w_th[i] <= 0.5 for i in p)]
+        res[key] = []
+        for dp, dd in cands:
+            for d in DIGITS:
+                for j, delta in ((1, dp), (2, dd)):
+                    pb = arm.pose.bones[fb(d, j)]; e = list(base[fb(d, j)])
+                    k = int(np.argmax(np.abs(e))); e[k] += delta * (1.0 if e[k] >= 0 else -1.0)
+                    pb.rotation_euler = tuple(e)
+            bpy.context.view_layer.update()
+            P = eval_mesh(ob); V = [Vector(p) for p in P]
+            kd = kdtree.KDTree(len(palm_idx))
+            for i, q in enumerate(P[palm_idx]): kd.insert(Vector(q), i)
+            kd.balance()
+            row = {"pip": dp, "dip": dd}
+            for d in DIGITS:
+                own = w_f[d]
+                others = [p for p in static_nt if all(own[i] <= 0.5 for i in p)]
+                bvh = BVHTree.FromPolygons(V, others, all_triangles=False)
+                fidx = np.concatenate([grp[fb(d, j)] for j in range(3)])
+                mn_ = 1e9; n_in = 0
+                for v in P[fidx]:
+                    vv = Vector(v); loc, nrm, fi, dist = bvh.find_nearest(vv)
+                    if loc is None: continue
+                    s = dist if (vv - loc).dot(nrm) >= 0 else -dist
+                    if s < -0.012: continue
+                    mn_ = min(mn_, s)
+                    if s < -0.0005: n_in += 1
+                tuck = min(kd.find(Vector(q))[2] for q in P[grp[fb(d, 2)]])
+                row[d] = {"tuck_mm": tuck * MM, "min_mm": mn_ * MM, "n_in": n_in}
+            # thumb (as currently posed) vs the tightened fingers
+            bvh_all = BVHTree.FromPolygons(V, static_nt, all_triangles=False)
+            rim = np.array([any(w_th[i] > 0.05 for i in p) for p in static_nt])
+            tmn = 1e9
+            for v in P[w_t23]:
+                vv = Vector(v); loc, nrm, fi, dist = bvh_all.find_nearest(vv)
+                if loc is None or rim[fi]: continue
+                s = dist if (vv - loc).dot(nrm) >= 0 else -dist
+                if s < -0.012: continue
+                tmn = min(tmn, s)
+            row["thumb_min_mm"] = tmn * MM
+            res[key].append(row)
+            log("%s pip+%.2f dip+%.2f | tuck mm idx %5.1f mid %5.1f ring %5.1f pinky %5.1f | finger min mm idx %+5.2f (%d) mid %+5.2f (%d) ring %+5.2f (%d) pinky %+5.2f (%d) | thumb min %+5.2f"
+                % (key, dp, dd, row["f_index"]["tuck_mm"], row["f_middle"]["tuck_mm"], row["f_ring"]["tuck_mm"], row["f_pinky"]["tuck_mm"],
+                   row["f_index"]["min_mm"], row["f_index"]["n_in"], row["f_middle"]["min_mm"], row["f_middle"]["n_in"],
+                   row["f_ring"]["min_mm"], row["f_ring"]["n_in"], row["f_pinky"]["min_mm"], row["f_pinky"]["n_in"], row["thumb_min_mm"]))
+        for bn, e in base.items(): arm.pose.bones[bn].rotation_euler = e
+        bpy.context.view_layer.update()
+    dump_json("tuck-f%d.json" % FRAME, res)
 
 elif MODE == "solve":
     set_frame(FRAME); freeze(); subsurf(False)
@@ -813,7 +989,7 @@ elif MODE == "solve":
            "weights": W, "lim": LIM, "fwd_target": FWD_TARGET, "ulnar_target": ULNAR_TARGET}
     log("EULERS %s: %s  (CMC %.1f MCP %.1f IP %.1f deg)" % (RIG, res["eulers"], cmc, mcp, ip))
     for r in rigs:
-        m = r.measure(); r.report(m, x, r.tag + " cage")
+        m = r.measure(detail=True); r.report(m, x, r.tag + " cage")
         mt = r.measure_true(); r.report(mt, x, r.tag + " SUBSURF")
         res[r.tag] = {"cage": m, "true": mt, "eulers": r.triples()}
         if cam: res[r.tag]["renders"] = shoot(cam, r, arg("--tag", "solve-" + r.tag) if r is primary else "solve-" + r.tag)

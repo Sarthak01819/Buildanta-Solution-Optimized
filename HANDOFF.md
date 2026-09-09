@@ -107,6 +107,13 @@ Knobs you'll actually touch, all in `build_new.py`:
   overshoot 12% and settle. Don't flatten this; lockstep fingers is what makes
   CG hands look fake (that lesson cost a full day, see D-048/D-049).
 
+- `TH_FIST_G / TH_FIST_H` — the closed-fist thumb as ABSOLUTE per-rig euler
+  triples for `DEF-thumb.01/.02/.03.L` (CMC, MCP, IP), keyed by `_set3()`.
+  Re-derive them with `pipeline/hands/thumb_solve.py` (numeric solver with a
+  face-intersection census); keep IP ≤ 15° and no .02/.03 twist — that is the
+  client's "straight thumb" (D-075). Never scale these; the 0.94 human scale
+  applies to the fingers only.
+
 Diagnostics in the same folder: `prove.py` (pose a rig in isolation and render it
 large — ALWAYS do this before judging a hand in the tiny site frame; see D-049's
 "judging hands from a blurred corner" lesson), `hier.py`, `holes.py`.
@@ -128,6 +135,15 @@ large — ALWAYS do this before judging a hand in the tiny site frame; see D-049
    lie (stale WebGL frames); the tools' PNGs on disk are the truth.
 7. `paper-tear` atlas in src/assets is currently UNUSED (removed in D-053, full
    restore recipe in D-052) — don't delete it without asking.
+8. Production (`src/gl/zeroMirrorStage.js`) borrows each hand's fist pose from
+   its OWN rig in `meet-fistbump.glb` (green ← Hand_Green, human ← Hand_Human).
+   Never copy the green pose onto the human: `human_hand_1.glb`'s bones sit
+   25–65 mm off its skin and the transplant turns the thumb into a claw (D-075).
+9. The fist contact frame has `FIST_FRAME_ROLL_DEG / SPIN / TIP` constants
+   (roll 45 is the client's pick) plus a preview-only URL override
+   `?fistRoll=&fistSpin=&fistTip=` for rendering alternatives. Capture the
+   ending for judging with `node tools/shoot-zero-ending.cjs --tag <name>`
+   (needs the 5303 server; writes `shots-zero-ending/<name>/`, ignored).
 
 ## 7. Open items Yash hasn't resolved yet
 
