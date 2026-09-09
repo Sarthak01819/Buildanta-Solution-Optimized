@@ -63,6 +63,11 @@ export const INTRO = {
 
   scrollPerAct: 1.1,
 
+  /* Reference-copy pacing (D-074). Applied only outside the current WE SCALE
+     entry/hand/bill sequence; those segments keep their existing distances. */
+  scrollDistanceMultiplier: 1.28334375,
+  codeScrollMultiplier: 6.11520611520612,
+
   /**
    * Sound: Web Audio se synthesize hota hai, koi file nahi. Level ab scroll
    * ki raftaar se bandha hai — tez scroll par filter khulta hai.

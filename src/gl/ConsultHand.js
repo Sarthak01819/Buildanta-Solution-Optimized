@@ -46,6 +46,10 @@ function handPixelRatio() {
 import { createConsultNetwork } from "./consultNetwork.js";
 import { createConsultInside } from "./consultInside.js";
 import { createConsultMeet } from "./consultMeet.js";
+import { createZeroMirrorStage } from "./zeroMirrorStage.js";
+import { createZeroSourceHand } from "./zeroSourceHand.js";
+import { USE_ZERO_MIRROR } from "./consultAnimationMode.js";
+import BILL_TEXTURE_URL from "../assets/burning-franklin/bill-franklin.jpg";
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 const smooth = (value) => {
@@ -208,7 +212,7 @@ function makeBurnFragmentGeometry(points, width = 1.82, height = 0.78) {
   };
 }
 
-export function createConsultHand(canvas) {
+export function createConsultHand(canvas, options = {}) {
   if (!canvas) return null;
 
   const renderer = new WebGLRenderer({
@@ -220,6 +224,10 @@ export function createConsultHand(canvas) {
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(handPixelRatio());
   renderer.outputColorSpace = SRGBColorSpace;
+
+  // The production source stage owns the canvas; its archived scene needs no
+  // geometry, textures, materials or shader compilation until legacy is chosen.
+  if (USE_ZERO_MIRROR) return createZeroSourceHand(canvas, renderer, options, handPixelRatio);
 
   const scene = new Scene();
   const camera = new PerspectiveCamera(32, 1, 0.1, 50);
@@ -759,11 +767,18 @@ export function createConsultHand(canvas) {
      see MEET_REPLACES_FUNDED_WORLD below. The human-hand sprite REUSES
      handTexture as a placeholder until the generated photoreal reach lands
      (docs/meet-hand-prompts.md). */
-  const meet = createConsultMeet(scene, { handTexture });
+  // Kept as an opt-in backup, not a second scene underneath ZeroMirror.
+  const meet = USE_ZERO_MIRROR ? null : createConsultMeet(scene, { handTexture });
+  /* ZeroMirror's complete Stage 1 — rigged green + human hands, animated
+     camera, exact logo coins, petals and garden — shares this renderer but
+     owns an isolated scene/camera. No second WebGL context is introduced. */
+  const zeroMirrorStage = createZeroMirrorStage(renderer, {
+    reducedMotion: options.reducedMotion === true,
+  });
 
   const billGeometry = new PlaneGeometry(1.82, 0.78, 5, 2);
   const billTexture = new TextureLoader().load(
-    "https://images.unsplash.com/photo-1636115734305-aac2f83cd8d4?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+    BILL_TEXTURE_URL,
   );
   billTexture.colorSpace = SRGBColorSpace;
   // Crop away the photographed gray surround and retain the banknote only.
@@ -1390,6 +1405,8 @@ export function createConsultHand(canvas) {
   let pointerY = 0;
   let pointerTargetX = 0;
   let pointerTargetY = 0;
+  let entryProgress = 0;
+  let entryVisibility = 0;
 
   const onPointer = (event) => {
     pointerTargetX = (event.clientX / innerWidth) * 2 - 1;
@@ -1405,12 +1422,15 @@ export function createConsultHand(canvas) {
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    meet.resize(height);
+    meet?.resize(height);
+    zeroMirrorStage.resize(width, height);
   }
 
-  function setProgress(value, opacity = 1) {
+  function setProgress(value, opacity = 1, entry = null) {
     progress = clamp01(value);
     visibility = clamp01(opacity);
+    entryProgress = clamp01(entry?.progress ?? 0);
+    entryVisibility = clamp01(entry?.opacity ?? 0);
   }
 
   /* The hand belongs to the last act, but its drawing buffer was resident from
@@ -1429,6 +1449,21 @@ export function createConsultHand(canvas) {
     if (bufferReleased) { bufferReleased = false; resize(); }
     pointerX += (pointerTargetX - pointerX) * 0.04;
     pointerY += (pointerTargetY - pointerY) * 0.04;
+    zeroMirrorStage.update({
+      progress: entryProgress,
+      opacity: entryVisibility,
+      pointerX,
+      pointerY,
+      time,
+    });
+
+    // The source scene owns this canvas for its entire lifetime. Its exit
+    // reveals the portal beneath, never the archived dollar/burn renderer.
+    if (USE_ZERO_MIRROR) {
+      canvas.style.opacity = entryVisibility > 0.001 ? String(visibility) : "0";
+      if (entryVisibility > 0.001) zeroMirrorStage.render({ clear: true });
+      return;
+    }
 
     const enter = smooth((progress - 0.17) / 0.15);
     // WE SCALE opens inside the real 3D globe. The hand follows later as
@@ -1990,9 +2025,23 @@ export function createConsultHand(canvas) {
       && progress < 0.87
       && fundedWorldFade > 0.002;
 
-    /* the meet rides the same progress/visibility contract as everything
-       else in this scene — pure scroll, bows out before the note strip */
-    meet.update(progress, time, visibility * (1 - exit), pointerX, pointerY);
+    /* Original animation, opt-in backup only. Its complete clip, meadow,
+       pointer response, and contact effects are retained. */
+    const meetPointerIn = smooth((progress - 0.10) / 0.04);
+    meet?.update(
+      progress,
+      time,
+      visibility * (1 - exit),
+      pointerX * meetPointerIn,
+      pointerY * meetPointerIn,
+      {
+        hands: true,
+        green: true,
+        human: true,
+        neutralPointer: progress <= 0.10,
+        humanOpacity: 1,
+      },
+    );
 
     canvas.style.opacity = String(visibility * (1 - exit));
     renderer.render(scene, camera);
@@ -2047,7 +2096,8 @@ export function createConsultHand(canvas) {
       globeFumeGeometry.dispose();
       globeFumeMaterial.dispose();
       consultNet?.dispose();
-      meet.dispose();
+      meet?.dispose();
+      zeroMirrorStage.dispose();
       plantAtlasTexture.dispose();
       plantAtlasMaterial.dispose();
       plantAtlasGeometries.forEach((geometry) => geometry.dispose());

@@ -140,6 +140,13 @@ export async function createBlackholeGateBeat(container, opts = {}) {
 
   function render() {
     if (disposed) return;
+    // The flight sky/room can hide this canvas, and Projects covers its host.
+    // Keep advancing t outside this draw guard so a later reveal preserves
+    // the authored gas clock. No visible fraction of a fade is skipped.
+    if (document.documentElement.classList.contains('is-in-world')) return;
+    if (canvas.checkVisibility
+      ? !canvas.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+      : getComputedStyle(canvas).opacity === '0' || getComputedStyle(container).opacity === '0') return;
     engine.render(stateAt(progress, t));
   }
 
@@ -149,6 +156,7 @@ export async function createBlackholeGateBeat(container, opts = {}) {
     return {
       setDive(on) { CONFIG_DIVE = on === true; },
       setProgress(p) { progress = clamp01(p); syncOpacity(); render(); },
+      advance() {},
       tick() {},
       resize() { size(); render(); },
       dispose() { disposed = true; canvas.remove(); },
@@ -156,12 +164,20 @@ export async function createBlackholeGateBeat(container, opts = {}) {
     };
   }
 
+  function advance(dt) {
+    if (disposed || progress <= 0) return;
+    t += Math.min(dt, 0.1);
+  }
+
   return {
     setDive(on) { CONFIG_DIVE = on === true; },
     setProgress(p) { progress = clamp01(p); syncOpacity(); },
+    // Projects preserves its existing clock contribution without submitting
+    // a second raymarch; the shared site ticker remains the render driver.
+    advance,
     tick(dt) {
       if (disposed || progress <= 0) return;
-      t += Math.min(dt, 0.1);           // churn lives on its own clock
+      advance(dt);                    // churn lives on its own clock
       render();
     },
     resize() { size(); },

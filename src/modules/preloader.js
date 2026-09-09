@@ -31,7 +31,7 @@
  * and stuck.
  */
 
-const REVEAL_CAP_MS = 4200;     // hard stop — nothing may trap a visitor here
+const REVEAL_CAP_MS = 12000;    // readiness-first, still bounded on failed networks
 /* ⚠️ A MINIMUM, NOT A DELAY FOR ITS OWN SAKE. Yash: "even if the loader
    updates in less than one second, at least it should take two seconds to
    properly load so that the interaction is smooth, not sudden." On a fast
@@ -52,10 +52,13 @@ export function createPreloader({ onReveal } = {}) {
     '<div class="preload__mark">BUILDANTA <b>SOLUTIONS</b></div>' +
     '<div class="preload__bar"><i></i></div>' +
     '<div class="preload__pct">0</div>' +
+    '<div class="preload__phase">Loading scene assets</div>' +
     '</div>';
 
   const bar = el.querySelector('.preload__bar i');
   const pct = el.querySelector('.preload__pct');
+  const phase = el.querySelector('.preload__phase');
+  let revealReason = null;
 
   let shown = false, done = false, progress = 0, work = 0;
   const t0 = performance.now();
@@ -90,16 +93,21 @@ export function createPreloader({ onReveal } = {}) {
     set(p) {
       work = Math.max(work, Math.min(1, p));
     },
+    phase(label) { if (!done) phase.textContent = label; },
     /** Reveal the site. Safe to call twice; the second call does nothing. */
-    reveal() {
+    reveal(reason = 'ready') {
       if (done) return;
       /* Hold until the minimum has elapsed. The work may well be finished —
          that is the normal case on a fast machine — but the entrance is not. */
       const left = MIN_VISIBLE_MS - (performance.now() - t0);
-      if (left > 0) { setTimeout(() => api.reveal(), left); return; }
+      if (left > 0) { setTimeout(() => api.reveal(reason), left); return; }
       done = true;
+      revealReason = reason;
       cancelAnimationFrame(raf);
-      work = 1; progress = 1; paint();
+      if (reason === 'ready') { work = 1; progress = 1; }
+      phase.textContent = reason === 'ready' ? 'Ready'
+        : reason === 'partial' ? 'Some assets are unavailable' : 'Finishing in the background';
+      paint();
       const finish = () => {
         el.remove();
         onReveal?.(Math.round(performance.now() - t0));
@@ -110,11 +118,12 @@ export function createPreloader({ onReveal } = {}) {
       setTimeout(finish, 520);
     },
     get revealed() { return done; },
+    get state() { return { revealed: done, reason: revealReason, progress }; },
   };
 
   drive();
   /* The hard stop. Nothing may keep a visitor on a loading screen. */
-  setTimeout(() => api.reveal(), REVEAL_CAP_MS);
+  setTimeout(() => api.reveal('timeout'), REVEAL_CAP_MS);
 
   return api;
 }

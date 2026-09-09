@@ -279,7 +279,13 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
            invisible — and from then on the hole moves because it is genuinely
            being viewed from where we are. */
         t += dt;
-        sky.draw(t, ship.skyView());
+        // The flight clock continues inside the room, but its fully covered
+        // sky needs no second raymarch. Preserve every nonzero host fade.
+        const outsideVisible = !document.documentElement.classList.contains("is-in-world")
+          && (blackholeHost.checkVisibility
+            ? blackholeHost.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+            : getComputedStyle(blackholeHost).opacity !== "0");
+        if (outsideVisible) sky.draw(t, ship.skyView());
         sky.setVisible(true);
         if (beatCanvas) beatCanvas.style.opacity = "0";
         bgShifted = true;

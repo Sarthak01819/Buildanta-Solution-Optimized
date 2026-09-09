@@ -1189,6 +1189,11 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     }
     rig.add(model);
     ready = true;
+    // Prepare the unchanged PBR materials while the preceding Code act is
+    // visible. Fetch/compile work no longer lands on the camera entry frame.
+    renderer.compileAsync(scene, camera).catch((error) => {
+      console.info('[marketCamera] asynchronous warm-up skipped:', error?.message || error);
+    });
     render(0);
     /* The site's handler is SCROLL-driven: if the page sits still while the
        GLB loads (a programmatic jump, a slow network), every ready-gated
@@ -1351,7 +1356,12 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       cssW / k, cssH / k);
     canvas.style.opacity = state.opacity.toFixed(3);
 
-    renderer.render(scene, camera);
+    // The iris can finish hiding the camera before the act's broader
+    // visibility window ends. Keep its exact pose/projection for the pupil
+    // latch and reverse scroll, but do not submit an invisible GPU frame.
+    if (state.drawVisible !== false && canvas.style.opacity !== "0" && !document.hidden) {
+      renderer.render(scene, camera);
+    }
   }
 
   /* Driven from the ONE site ticker via setState; renders only when the act

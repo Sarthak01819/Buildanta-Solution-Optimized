@@ -4,6 +4,7 @@
 
 import { CONFIG, SHADER_V } from './config.js';
 import { createGL, compileProgram, makeTarget, disposeTarget, drawFullscreen } from './gl.js';
+import { createUniformCache } from './uniformCache.js';
 
 const D2R = Math.PI / 180;
 
@@ -17,6 +18,7 @@ export async function createBlackhole(canvas, opts = {}) {
   const ctx = createGL(canvas);
   if (!ctx) return null;
   const { gl, hdr } = ctx;
+  const uniforms = createUniformCache(gl);
 
   // Shaders can be injected (bundlers: import with ?raw and pass strings);
   // standalone pages keep the fetch path.
@@ -66,7 +68,7 @@ export async function createBlackhole(canvas, opts = {}) {
   function bindTex(unit, tex, loc) {
     gl.activeTexture(gl.TEXTURE0 + unit);
     gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.uniform1i(loc, unit);
+    uniforms.uniform1i(loc, unit);
   }
 
   // ---- one full frame -----------------------------------------------------
@@ -90,43 +92,43 @@ export async function createBlackhole(canvas, opts = {}) {
     // 1 — scene (HDR)
     bindTarget(T.scene);
     pScene.use();
-    gl.uniform2f(pScene.loc('uRes'), W, H);
-    gl.uniform1f(pScene.loc('uTime'), state.tSec);
-    gl.uniform1i(pScene.loc('uSteps'), C.quality.steps);
-    gl.uniform1f(pScene.loc('uCamDist'),
+    uniforms.uniform2f(pScene.loc('uRes'), W, H);
+    uniforms.uniform1f(pScene.loc('uTime'), state.tSec);
+    uniforms.uniform1i(pScene.loc('uSteps'), C.quality.steps);
+    uniforms.uniform1f(pScene.loc('uCamDist'),
       (C.camera.dist + (state.distOffset || 0)) * (state.distMul || 1));
-    gl.uniform1f(pScene.loc('uFovY'), C.camera.fovYDeg * D2R);
-    gl.uniform1f(pScene.loc('uFrameY'), C.camera.frameY || 0);
-    gl.uniform1f(pScene.loc('uPitch'), C.camera.pitchDeg * D2R + state.pitchRad);
-    gl.uniform1f(pScene.loc('uYaw'), C.camera.yawDeg * D2R + state.yawRad);
-    gl.uniform1f(pScene.loc('uRoll'), C.camera.rollDeg * D2R);
-    gl.uniform1f(pScene.loc('uDiskRIn'), C.disk.rIn);
-    gl.uniform1f(pScene.loc('uDiskROut'), C.disk.rOut);
-    gl.uniform1f(pScene.loc('uDiskGain'), C.disk.gain * breathDisk);
-    gl.uniform1f(pScene.loc('uHotRim'), C.disk.hotRim);
-    gl.uniform1f(pScene.loc('uOmega0'), C.disk.omega0);
-    gl.uniform1f(pScene.loc('uShearPeriod'), C.disk.shearPeriod);
-    gl.uniform1f(pScene.loc('uDoppler'), C.disk.doppler);
-    gl.uniform1f(pScene.loc('uTurbContrast'), C.disk.turbContrast);
-    gl.uniform1f(pScene.loc('uAlphaGain'), C.disk.alphaGain);
-    gl.uniform3fv(pScene.loc('uColHot'), C.colors.hot);
-    gl.uniform3fv(pScene.loc('uColMid'), C.colors.mid);
-    gl.uniform3fv(pScene.loc('uColOuter'), C.colors.outer);
-    gl.uniform3fv(pScene.loc('uColRim'), C.colors.rim);
-    gl.uniform1f(pScene.loc('uRingGain'), C.ring.gain * boost);
-    gl.uniform1f(pScene.loc('uRingWidth'), C.ring.width);
-    gl.uniform1f(pScene.loc('uStarDensity'), C.stars.density);
-    gl.uniform1f(pScene.loc('uStarGain'), C.stars.gain);
-    gl.uniform1f(pScene.loc('uTwinkle'), state.reduced ? 0 : C.stars.twinkle);
-    gl.uniform1f(pScene.loc('uHazeGain'), hazeGain);
+    uniforms.uniform1f(pScene.loc('uFovY'), C.camera.fovYDeg * D2R);
+    uniforms.uniform1f(pScene.loc('uFrameY'), C.camera.frameY || 0);
+    uniforms.uniform1f(pScene.loc('uPitch'), C.camera.pitchDeg * D2R + state.pitchRad);
+    uniforms.uniform1f(pScene.loc('uYaw'), C.camera.yawDeg * D2R + state.yawRad);
+    uniforms.uniform1f(pScene.loc('uRoll'), C.camera.rollDeg * D2R);
+    uniforms.uniform1f(pScene.loc('uDiskRIn'), C.disk.rIn);
+    uniforms.uniform1f(pScene.loc('uDiskROut'), C.disk.rOut);
+    uniforms.uniform1f(pScene.loc('uDiskGain'), C.disk.gain * breathDisk);
+    uniforms.uniform1f(pScene.loc('uHotRim'), C.disk.hotRim);
+    uniforms.uniform1f(pScene.loc('uOmega0'), C.disk.omega0);
+    uniforms.uniform1f(pScene.loc('uShearPeriod'), C.disk.shearPeriod);
+    uniforms.uniform1f(pScene.loc('uDoppler'), C.disk.doppler);
+    uniforms.uniform1f(pScene.loc('uTurbContrast'), C.disk.turbContrast);
+    uniforms.uniform1f(pScene.loc('uAlphaGain'), C.disk.alphaGain);
+    uniforms.uniform3fv(pScene.loc('uColHot'), C.colors.hot);
+    uniforms.uniform3fv(pScene.loc('uColMid'), C.colors.mid);
+    uniforms.uniform3fv(pScene.loc('uColOuter'), C.colors.outer);
+    uniforms.uniform3fv(pScene.loc('uColRim'), C.colors.rim);
+    uniforms.uniform1f(pScene.loc('uRingGain'), C.ring.gain * boost);
+    uniforms.uniform1f(pScene.loc('uRingWidth'), C.ring.width);
+    uniforms.uniform1f(pScene.loc('uStarDensity'), C.stars.density);
+    uniforms.uniform1f(pScene.loc('uStarGain'), C.stars.gain);
+    uniforms.uniform1f(pScene.loc('uTwinkle'), state.reduced ? 0 : C.stars.twinkle);
+    uniforms.uniform1f(pScene.loc('uHazeGain'), hazeGain);
     drawFullscreen(gl);
 
     // 2 — bloom prefilter into mip 0
     bindTarget(T.mips[0]);
     pPre.use();
     bindTex(0, T.scene.tex, pPre.loc('uTex'));
-    gl.uniform1f(pPre.loc('uThreshold'), CONFIG.bloom.threshold);
-    gl.uniform1f(pPre.loc('uKnee'), CONFIG.bloom.knee);
+    uniforms.uniform1f(pPre.loc('uThreshold'), CONFIG.bloom.threshold);
+    uniforms.uniform1f(pPre.loc('uKnee'), CONFIG.bloom.knee);
     drawFullscreen(gl);
 
     // 3 — downsample chain
@@ -134,7 +136,7 @@ export async function createBlackhole(canvas, opts = {}) {
       bindTarget(T.mips[i]);
       pDown.use();
       bindTex(0, T.mips[i - 1].tex, pDown.loc('uTex'));
-      gl.uniform2f(pDown.loc('uTexel'), 1 / T.mips[i - 1].w, 1 / T.mips[i - 1].h);
+      uniforms.uniform2f(pDown.loc('uTexel'), 1 / T.mips[i - 1].w, 1 / T.mips[i - 1].h);
       drawFullscreen(gl);
     }
 
@@ -146,9 +148,9 @@ export async function createBlackhole(canvas, opts = {}) {
       pUp.use();
       bindTex(0, srcTex, pUp.loc('uTex'));
       bindTex(1, T.mips[i].tex, pUp.loc('uAdd'));
-      gl.uniform2f(pUp.loc('uTexel'), 1 / T.ups[i].w, 1 / T.ups[i].h);
-      gl.uniform1f(pUp.loc('uAddWeight'), 1.0);
-      gl.uniform1f(pUp.loc('uTexWeight'), (i === N - 2) ? wideBoost : 1.0);
+      uniforms.uniform2f(pUp.loc('uTexel'), 1 / T.ups[i].w, 1 / T.ups[i].h);
+      uniforms.uniform1f(pUp.loc('uAddWeight'), 1.0);
+      uniforms.uniform1f(pUp.loc('uTexWeight'), (i === N - 2) ? wideBoost : 1.0);
       drawFullscreen(gl);
     }
 
@@ -157,15 +159,15 @@ export async function createBlackhole(canvas, opts = {}) {
     pComp.use();
     bindTex(0, T.scene.tex, pComp.loc('uScene'));
     bindTex(1, T.ups[0].tex, pComp.loc('uBloom'));
-    gl.uniform1f(pComp.loc('uBloomStrength'), bloomStrength * breathBloom * boost);
+    uniforms.uniform1f(pComp.loc('uBloomStrength'), bloomStrength * breathBloom * boost);
     const lean = state.lean || { x: 0, y: 0 };
-    gl.uniform2f(pComp.loc('uLean'), lean.x, lean.y);
-    gl.uniform1f(pComp.loc('uPulse'), (state.pulse || 0) * CONFIG.cursorLight.pulseGain);
-    gl.uniform1f(pComp.loc('uExposure'), CONFIG.post.exposure * (state.exposureMul ?? 1));
-    gl.uniform1f(pComp.loc('uVignette'), CONFIG.post.vignette);
-    gl.uniform1f(pComp.loc('uGrain'), grain);
-    gl.uniform1f(pComp.loc('uTime'), state.tSec);
-    gl.uniform2f(pComp.loc('uRes'), W, H);
+    uniforms.uniform2f(pComp.loc('uLean'), lean.x, lean.y);
+    uniforms.uniform1f(pComp.loc('uPulse'), (state.pulse || 0) * CONFIG.cursorLight.pulseGain);
+    uniforms.uniform1f(pComp.loc('uExposure'), CONFIG.post.exposure * (state.exposureMul ?? 1));
+    uniforms.uniform1f(pComp.loc('uVignette'), CONFIG.post.vignette);
+    uniforms.uniform1f(pComp.loc('uGrain'), grain);
+    uniforms.uniform1f(pComp.loc('uTime'), state.tSec);
+    uniforms.uniform2f(pComp.loc('uRes'), W, H);
     drawFullscreen(gl);
   }
 

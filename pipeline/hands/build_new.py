@@ -78,7 +78,34 @@ FIST_P = [(-0.92, -1.23, -0.86), (-1.14, -1.31, -0.92),
 REACH_P = [(-0.16, -0.22, -0.10), (-0.20, -0.26, -0.10),
            (-0.24, -0.30, -0.11), (-0.28, -0.34, -0.12)]
 FAN_REACH = [-0.20, -0.06, 0.06, 0.18]
-TH_FIST = (-0.45, -0.72, -0.46)
+# 🔴 measured, not assumed (thumb_solve.py, 9 Sep 2026, ROUND 2): a real fist
+# crosses the thumb over the OUTSIDE of the curled index/middle and rests the
+# pad on the index NAIL. The old one-axis curl (-0.45,-0.72,-0.46 on the finger
+# curl axis) left it hanging beside the index (pad->nail 27 mm green / 24 mm
+# human). The pose is a 3-axis CMC solve, keyed as ABSOLUTE pose-bone eulers
+# per rig (CMC, MCP, IP) -- no curl axis/sign, no 0.94 human scale on the thumb.
+# Round 1 (IP 58 deg, hooked to reach the nail) was rejected by the client:
+# "fix upper part of the thumb and make it straight and align it to lower
+# part". Round 2 solves with HARD straightness bounds -- IP 0..15 deg,
+# thumb.03 Y=Z=0, thumb.02 |Y|,|Z| <= 0.15, MCP <= 55 deg, CMC total <= 60 deg
+# -- and rod-orientation terms (across the fingers, tip toward the knuckles,
+# slightly palmar, never dorsal, tip behind the knuckle plane). Each rig is
+# solved IN ITS OWN SPACE: the human rig's bones sit 25-65 mm from its skin,
+# so production must take each hand's closing pose from ITS OWN rig in the
+# GLB (green <- Hand_Green, human <- Hand_Human), not transplant the green.
+# Measured at f75 with subsurf ON (thumb_solve.py --mode final --frame 75):
+#   green own:   CMC 57.8 / MCP 54.7 / IP 15.0 deg, .02-.03 bone bend 14.6 deg
+#                (rest 2.4), pad -> index nail 1.8 mm, thumb tip 17 mm behind
+#                the knuckle plane, rod fwd +0.48 / palmar +0.30 / ulnar +0.36,
+#                zero interpenetration, zero thumb self-fold faces (02x03,
+#                01x02 BVH census), transition f50..f82 never penetrates
+#   human own:   CMC 60.3 / MCP 55.0 / IP 15.0 deg, bend 14.6 deg (rest 2.3),
+#                pad -> nail 1.6 mm, tip 16 mm behind, rod fwd +0.45 /
+#                palmar +0.36 / ulnar +0.34, zero interpenetration, zero folds
+#   fist gap (gap.py): unchanged by the thumb, ~10 mm f75 / 7.5 mm f77,
+#                closest pair still index knuckle <-> index knuckle.
+TH_FIST_G = ((0.5553, 0.7689, 0.6891), (0.9552, 0.1168, 0.1500), (0.2618, 0.0000, 0.0000))
+TH_FIST_H = ((-0.4086, -0.7039, 0.5550), (-0.9599, -0.1498, 0.0972), (-0.2618, 0.0000, 0.0000))
 TH_REACH = (0.06, 0.02, 0.0)
 
 def _set(arm, bn, curl, axis, sign, fan=0.0, frame=None):
@@ -92,19 +119,33 @@ def _set(arm, bn, curl, axis, sign, fan=0.0, frame=None):
     if frame is not None:
         pb.keyframe_insert("rotation_euler", frame=frame)
 
+def _set3(arm, bn, euler, frame=None):
+    """Key a full XYZ euler triple (absolute pose-bone values, all three axes)."""
+    pb = arm.pose.bones[bn]
+    pb.rotation_mode = "XYZ"
+    pb.rotation_euler = tuple(euler)
+    if frame is not None:
+        pb.keyframe_insert("rotation_euler", frame=frame)
+
+def th_fist(arm):
+    return TH_FIST_G if arm is green else TH_FIST_H
+
 def pose(arm, table, fans, thumb, axis, sign, frame=None, scale=1.0):
     for ci, d in enumerate(DIGITS):
         for j in range(3):
             _set(arm, fb(d, j), table[ci][j] * scale, axis, sign,
                  (fans[ci] * scale) if (fans and j == 0) else 0.0, frame)
     for j in range(3):
-        _set(arm, tb(j), thumb[j] * scale, axis, sign, 0.0, frame)
+        if isinstance(thumb[j], tuple):          # absolute triple (fist)
+            _set3(arm, tb(j), thumb[j], frame)
+        else:                                    # curl on the measured axis (reach)
+            _set(arm, tb(j), thumb[j] * scale, axis, sign, 0.0, frame)
 
 def pose_reach(arm, axis, sign, frame=None, scale=1.0):
     pose(arm, REACH_P, FAN_REACH, TH_REACH, axis, sign, frame, scale)
 
 def pose_fist(arm, axis, sign, frame=None, scale=1.0):
-    pose(arm, FIST_P, None, TH_FIST, axis, sign, frame, scale)
+    pose(arm, FIST_P, None, th_fist(arm), axis, sign, frame, scale)
 
 # ── anatomy axes in hand-bone local space (measured on the reach pose) ───
 def anatomy(arm, axis, sign):
@@ -203,11 +244,17 @@ def cascade(arm, axis, sign, complete, scale=1.0):
             _set(arm, fb(d, j), v, axis, sign, 0.0, f)
             _set(arm, fb(d, j), v * OVER, axis, sign, 0.0, f + LAG)
             _set(arm, fb(d, j), v, axis, sign, 0.0, f + LAG + SETTLE)
+    # thumb: absolute triples. Round 2 (measured by thumb_solve.py --mode
+    # sweep): the thumb now folds ACROSS the outside of the curled fingers,
+    # i.e. through the volume the fingertips sweep while they curl, so a
+    # leading thumb (complete-2, round 1) was run through by the fingers at
+    # f62-64 (green, 4.7 mm) / f65-66 (human, 2.9 mm). Real fists close the
+    # fingers first and wrap the thumb last: keyed at complete+5 (f69 green /
+    # f71 human), no overshoot (the 5% MCP overshoot folded the thumb.01/.02
+    # crease for 5 frames, face census), then holds. Production samples
+    # f75.25 and the legacy contact scrub f75.07, so it is settled by f75.
     for j in range(3):
-        f = complete - 2 + j
-        _set(arm, tb(j), TH_FIST[j] * scale, axis, sign, 0.0, f)
-        _set(arm, tb(j), TH_FIST[j] * 1.10 * scale, axis, sign, 0.0, f + 3)
-        _set(arm, tb(j), TH_FIST[j] * scale, axis, sign, 0.0, f + 7)
+        _set3(arm, tb(j), th_fist(arm)[j], complete + 5)
 
 pose_reach(green, G_AXIS, G_SIGN, frame=1);  pose_reach(green, G_AXIS, G_SIGN, frame=50)
 pose_reach(human, H_AXIS, H_SIGN, frame=1, scale=0.85)
@@ -222,7 +269,7 @@ for arm, axis, sign, sc in ((green, G_AXIS, G_SIGN, 1.0), (human, H_AXIS, H_SIGN
             _set(arm, fb(d, j), v * 1.04, axis, sign, 0.0, 77)
             _set(arm, fb(d, j), v, axis, sign, 0.0, 81)
     for j in range(3):
-        _set(arm, tb(j), TH_FIST[j] * sc, axis, sign, 0.0, 100)
+        _set3(arm, tb(j), th_fist(arm)[j], 100)
     for ci, d in enumerate(DIGITS):
         for j in range(3):
             _set(arm, fb(d, j), FIST_P[ci][j] * sc, axis, sign, 0.0, 100)

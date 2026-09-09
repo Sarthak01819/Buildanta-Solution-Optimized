@@ -1,0 +1,11 @@
+/* The portal records its activation point in inline pixels. Those coordinates
+ * can fall outside the screen after rotation (1024px -> 768px was reproduced).
+ * Center only the touch control in the current viewport; preserve its artwork,
+ * size, keyboard focus, and the desktop cursor-following interaction. */
+@media (hover: none) and (pointer: coarse) {
+  .bh-portal {
+    left: 50vw !important;
+    top: 50vh !important;
+    top: 50dvh !important;
+  }
+}

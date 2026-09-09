@@ -427,6 +427,13 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
       }
       metrics.radiusPx = r;
 
+      // Preserve spin, hover, rails and projections while the room/world
+      // covers the ship. Check actual opacity so its CSS fade keeps every
+      // visible frame; only GPU submission is suspended.
+      if (document.documentElement.classList.contains("is-in-world")) return;
+      if (canvas.checkVisibility
+        ? !canvas.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+        : getComputedStyle(canvas).opacity === "0" || getComputedStyle(host).opacity === "0") return;
       renderer.render(scene, camera);
     },
     /** Pixels the far background must move so it tracks the camera's turn. */

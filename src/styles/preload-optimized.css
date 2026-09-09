@@ -1,0 +1,10 @@
+/* Same approved loader identity; real preparation phase and safe viewport fit. */
+.preload__in {
+  max-width: 100%;
+  padding-inline: max(24px, env(safe-area-inset-left), env(safe-area-inset-right));
+}
+.preload__phase {
+  min-height: 1.4em;
+  font: 400 11px/1.4 "Inter", system-ui, sans-serif;
+  color: rgba(36, 28, 23, .65);
+}

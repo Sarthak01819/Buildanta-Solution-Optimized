@@ -1686,6 +1686,129 @@ a { color: inherit; text-decoration: none; }
     --brass: color(display-p3 0.729 0.247 0.173);   /* = #ba3f2c's own numbers */
   }
 }
+
+/* ── EXACT ZEROMIRROR STAGE 1 (D-056) ────────────────────────────────
+   During the imported scroll sequence the shared hand stage is a transparent
+   viewport into its WebGL scene. Legacy WE SCALE furniture is suppressed only
+   for this interval. The old animation is an explicit backup mode only. */
+#intro.source-animation .consult-zero {
+  background: transparent;
+  clip-path: circle(calc(var(--zero-reveal, 0) * 78vmax)
+                    at var(--pupil-x, 50%) var(--pupil-y, 50%));
+}
+#intro.source-animation .consult-meet {
+  display: block;
+}
+/* Reference payoff typography beside the source hands. The requested cozy
+   edge blur filters the existing canvas; no extra scene or veil is mounted. */
+#intro.source-animation .consult-meet__target,
+#intro.source-animation .consult-meet__veil {
+  display: none;
+}
+#intro.source-animation .consult-meet__edgeblur {
+  display: block;
+  opacity: var(--zero-edge-blur, 0);
+}
+#intro.source-animation .consult-meet__title {
+  /* Mint sampled from the user's full WE SCALE design reference. */
+  --zero-title-green: #54f0a5;
+  left: 66%;
+  right: auto;
+  top: 35%;
+  width: 30%;
+  max-width: 30rem;
+  text-align: center;
+  transform: translateY(-50%);
+  text-shadow: 0 1px 2px rgba(6, 24, 16, .35), 0 4px 22px rgba(255, 255, 255, .55);
+}
+#intro.source-animation .consult-meet__title strong {
+  font-size: clamp(3.2rem, 6.4vw, 6.2rem);
+  color: #f2fff7;
+  white-space: nowrap;
+  text-shadow: 0 0 26px rgba(84, 240, 165, .35);
+}
+#intro.source-animation .consult-meet__title strong em {
+  color: var(--zero-title-green);
+  text-shadow: 0 0 26px rgba(84, 240, 165, .6), 0 0 70px rgba(84, 240, 165, .3);
+}
+#intro.source-animation .consult-meet__title p {
+  margin-top: .8rem;
+  font-size: clamp(.85rem, 1.3vw, 1.05rem);
+  line-height: 1.5;
+  letter-spacing: .14em;
+  color: rgba(210, 240, 222, .85);
+}
+#intro.source-animation .consult-meet__title p em {
+  color: #a9ffd3;
+}
+@media (max-width: 768px) and (orientation: portrait) {
+  #intro.source-animation .consult-meet__title {
+    left: 6%;
+    top: max(8%, calc(env(safe-area-inset-top, 0px) + 1.5rem));
+    width: 88%;
+    max-width: none;
+    text-align: center;
+    transform: none;
+  }
+  #intro.source-animation .consult-meet__title strong {
+    font-size: clamp(2.8rem, 14vw, 3.5rem);
+  }
+  #intro.source-animation .consult-meet__title p {
+    margin-top: .6rem;
+    font-size: .875rem;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  #intro.source-animation .consult-meet__title {
+    top: 30%;
+  }
+  #intro.source-animation .consult-meet__title strong {
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+  }
+  #intro.source-animation .consult-meet__title p {
+    margin-top: .5rem;
+    font-size: .75rem;
+  }
+}
+/* Keep the original green rim, with no fill or inner haze over the scene
+   visible through it. The source canvas remains the only hand animation. */
+#intro.source-animation .consult-zero__portal-feather {
+  background: transparent;
+  box-shadow: 0 0 clamp(.8rem,1.7vmax,1.5rem)
+    clamp(.2rem,.4vmax,.4rem) rgba(96,245,156,.38);
+}
+#intro.source-animation .consult-zero .consult-zero__hand-stage {
+  background: transparent;
+}
+#intro.source-animation .consult-zero::after,
+#intro.source-animation .consult-zero .consult-zero__hand-stage::before,
+#intro.source-animation .consult-zero .consult-zero__hand-stage::after {
+  content: none;
+  display: none;
+}
+#intro.source-animation .consult-zero .consult-zero__statue,
+#intro.source-animation .consult-zero .consult-zero__opening-copy,
+#intro.source-animation .consult-zero .consult-zero__wealth-proof,
+#intro.source-animation .consult-zero .consult-zero__cash-bundle,
+#intro.source-animation .consult-zero .consult-zero__capital-line,
+#intro.source-animation .consult-zero .consult-zero__hud {
+  display: none !important;
+}
+#intro.source-animation .consult-zero .consult-zero__hand-canvas {
+  filter: none;
+}
+/* Supplied bill burn: one transparent full-viewport surface, appearing
+   only after WE SCALE. No embedded player chrome or legacy hand layer. */
+#intro .intro__burning-franklin {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 25;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* 02 · TERMINAL — PURE BLACK MATRIX BACKGROUND */
 #intro.t-terminal {
   --paper-src: #000000;
@@ -3321,15 +3444,6 @@ body:has(#intro.consult-zero-live) #progress { opacity:0 !important; pointer-eve
       rotateY(calc(-1.2deg + var(--film-dolly,0) * 1.2deg))
       scale(calc(5.25 - var(--film-dolly,0) * 4.27 + var(--film-t1,0) * .02));
   }
-  .consult-film__shot--think {
-    content:url("/assets/consult-shot-think-wide.webp");
-    object-position:50% 46%;
-    transform:
-      translate3d(-50%,-50%,calc(-150px + var(--film-t2,0) * 150px))
-      rotateY(calc(-7deg + var(--film-t2,0) * 7deg))
-      rotateX(calc(2deg - var(--film-t2,0) * 2deg))
-      scale(calc(1 + var(--film-t2,0) * .025));
-  }
   .consult-film__shot--profile {
     content:url("/assets/consult-shot-profile-wide.webp");
     object-position:50% 46%;
@@ -3339,11 +3453,6 @@ body:has(#intro.consult-zero-live) #progress { opacity:0 !important; pointer-eve
       scale(calc(.995 + var(--film-t3,0) * .025));
   }
   .consult-film__web-scene > img { content:url("/assets/consult-reference-matched-wide.webp"); }
-  .consult-film__final-scene > img {
-    content:url("/assets/consult-shot-cta-wide.webp");
-    object-position:50% 48%;
-    transform:scale(calc(.985 + var(--film-t8,0) * .025));
-  }
 }
 @media (max-width:760px) {
   .consult-zero__hand-stage { --film-width:100vw; }
@@ -3653,55 +3762,8 @@ body * { cursor:none !important; }
   .consult-zero__statue { width:62vw; object-position:58% 10%; }
 }
 
-/* ─── THE CONSULT EPILOGUE FILM (Yash, 15 MCQs 14 Aug 2026) ───
-   The old WE CONSULT film returns INSIDE the black act: the timeline holds at
-   consultLocal .848 while three screens of raw scroll play the film, then the
-   world comes back for one breath and the note departs for the burn.
-   Everything here is scoped to #intro.film-live, which intro.js toggles only
-   while the film's darkness is up — outside that span this block is inert and
-   the act is exactly the approved black world. The film DOM, its words and
-   its variables are the ORIGINAL ones; only the writer was ever missing. */
-#intro.film-live .consult-zero__hand-stage::before {
-  /* the darkness itself — covers world, statue, copy and ticker (z12) */
-  inset:0;
-  z-index:15;
-  opacity:var(--film-bg,0);
-  background:#000;
-  -webkit-mask-image:none;
-  mask-image:none;
-  transform:none;
-}
-/* The desk/laptop-globe page (establish shot, ghost CONSULT, laptop portal)
-   was REMOVED by Yash on 14 Aug 18:31 from his own screenshot of it — the
-   film opens straight into the streaks now. Its DOM stays dormant like the
-   rest of the old film; only these re-display rules were deleted, so putting
-   the page back is re-adding them plus the s1/dolly writes. */
-#intro.film-live .consult-film__lens-bridge { display:block !important; pointer-events:none; }
-/* Clean black frame (Yash, 15 Aug, arrows on the screenshot): the bridge's
-   GREEN furniture — three ring borders (one dashed, turning) and the conic
-   aperture wheel with its green glow — is retired. What stays is neutral:
-   the bridge's own dark vignette, the soft beams baked into the shot, and
-   the white rules that belong to the copy. */
-#intro.film-live .consult-film__lens-bridge i,
-#intro.film-live .consult-film__lens-bridge span { display:none; }
-#intro.film-live .consult-film__shot--think {
-  display:block !important;
-  z-index:20;
-  -webkit-mask-image:radial-gradient(135% 135% at 50% 46%,#000 60%,transparent 98%);
-  mask-image:radial-gradient(135% 135% at 50% 46%,#000 60%,transparent 98%);
-  pointer-events:none;
-}
-#intro.film-live .consult-film__copy--hours { display:block !important; z-index:21; pointer-events:none; }
-#intro.film-live .consult-film__final-scene {
-  display:block !important;
-  z-index:22;
-  pointer-events:none;
-}
-/* No mask on the final shot: the scene is a full-viewport layer with its own
-   grey wall behind the img — a mask would cut windows into the grey, not melt
-   anything. Full-bleed layers have no seam to hide. */
-/* the film ends on the call line ALONE — the idea card stays retired (MCQ) */
-#intro.film-live .consult-film__idea { display:none !important; }
+/* Growth epilogue removed; its original display rules and assets are
+   archived beside the project. See docs/removed-growth-sections.md. */
 
 /* ─── ACCESS GATE / automatic Franklin portrait resolve ─── */
 html.entry-pending,
@@ -5837,4 +5899,207 @@ canvas.market-camera3d {
   mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 48%, black 72%);
   -webkit-mask-image: radial-gradient(ellipse 74% 70% at 50% 50%, transparent 48%, black 72%);
   opacity: var(--meet-bg, 0);
+}
+
+/* ── APERTURE ENTRY / THE NEXT WORLD IS INSIDE THE CIRCLE (D-055) ────
+   The camera and clip-path already form a real hole. The old black disc was
+   the unconditional hand-stage background showing through it before THE MEET
+   began. This layer occupies only that empty window: a frosted Buildanta
+   product constellation below the shared WebGL hand canvas (z5). It is fully
+   painted before the first reveal pixel, then yields once the meadow is up. */
+.consult-zero__entry {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  overflow: hidden;
+  opacity: var(--zero-entry, 0);
+  color: #123f31;
+  background:
+    radial-gradient(ellipse 82% 74% at 50% 113%,
+      #1c4839 0%,
+      #356f5e 19%,
+      #4e9782 37%,
+      #70af9c 55%,
+      #91c7b7 70%,
+      #b3ded1 84%,
+      #d4f6eb 100%);
+  filter: saturate(1.04);
+  pointer-events: none;
+  will-change: opacity;
+}
+.consult-zero__entry-field {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at var(--pupil-x, 50%) var(--pupil-y, 50%),
+      rgba(238,255,248,.58) 0 5%,
+      rgba(198,242,226,.2) 22%,
+      transparent 48%),
+    repeating-linear-gradient(90deg,
+      transparent 0 calc(12.5% - 1px),
+      rgba(18,63,49,.045) calc(12.5% - 1px) 12.5%),
+    repeating-linear-gradient(0deg,
+      transparent 0 calc(12.5% - 1px),
+      rgba(18,63,49,.035) calc(12.5% - 1px) 12.5%);
+}
+.consult-zero__entry-field::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(112deg,
+    rgba(255,255,255,.26),
+    transparent 31% 72%,
+    rgba(10,69,49,.08));
+  mix-blend-mode: soft-light;
+}
+.consult-zero__entry-axis,
+.consult-zero__entry-orbit {
+  position: absolute;
+  left: var(--pupil-x, 50%);
+  top: var(--pupil-y, 50%);
+  width: min(66vmin, 42rem);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%)
+    rotate(calc(-18deg + var(--zero-entry-progress, 0) * 32deg))
+    scale(calc(.78 + var(--zero-entry-progress, 0) * .22));
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+}
+.consult-zero__entry-axis {
+  border: 1px solid rgba(18,63,49,.24);
+  border-radius: 50%;
+  opacity: calc(var(--zero-entry-orbit, 0) * .84);
+  box-shadow:
+    0 0 0 clamp(.8rem, 2.4vmin, 1.5rem) rgba(214,250,237,.08),
+    inset 0 0 4rem rgba(219,255,241,.16);
+}
+.consult-zero__entry-axis::before,
+.consult-zero__entry-axis::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(18,63,49,.14);
+  transform: translate(-50%, -50%);
+}
+.consult-zero__entry-axis::before { width: 118%; height: 1px; }
+.consult-zero__entry-axis::after { width: 1px; height: 118%; }
+.consult-zero__entry-orbit {
+  z-index: 2;
+  opacity: var(--zero-entry-orbit, 0);
+}
+.consult-zero__entry-token {
+  position: absolute;
+  width: clamp(3.8rem, 6.2vmin, 5.4rem);
+  aspect-ratio: 1;
+  display: grid;
+  place-content: center;
+  gap: .08rem;
+  border: 1px solid rgba(21,79,60,.38);
+  border-radius: 50%;
+  color: #174f3c;
+  background: rgba(221,249,238,.48);
+  box-shadow:
+    0 .7rem 2.2rem rgba(18,72,53,.12),
+    inset 0 0 0 .32rem rgba(239,255,249,.15);
+  backdrop-filter: blur(.55rem);
+  -webkit-backdrop-filter: blur(.55rem);
+  text-align: center;
+  transform: translate(-50%, -50%)
+    rotate(calc(18deg - var(--zero-entry-progress, 0) * 32deg));
+}
+.consult-zero__entry-token::after {
+  content: "";
+  position: absolute;
+  inset: .35rem;
+  border: 1px solid rgba(21,79,60,.13);
+  border-radius: inherit;
+}
+.consult-zero__entry-token i {
+  font: italic 400 clamp(1.15rem, 2.1vmin, 1.8rem)/.86 "Instrument Serif", Georgia, serif;
+  letter-spacing: -.04em;
+}
+.consult-zero__entry-token b,
+.consult-zero__entry-token small {
+  position: absolute;
+  left: 50%;
+  width: max-content;
+  transform: translateX(-50%);
+  font: 600 clamp(.38rem, .62vmin, .54rem)/1 "DM Mono", monospace;
+  letter-spacing: .16em;
+  white-space: nowrap;
+}
+.consult-zero__entry-token b { top: calc(100% + .48rem); }
+.consult-zero__entry-token small {
+  top: calc(100% + 1.22rem);
+  color: rgba(18,63,49,.54);
+  font-size: clamp(.32rem, .48vmin, .42rem);
+}
+.consult-zero__entry-token--dhando { left: 50%; top: 0; }
+.consult-zero__entry-token--tap { left: 97.55%; top: 34.55%; }
+.consult-zero__entry-token--munsi { left: 79.39%; top: 90.45%; }
+.consult-zero__entry-token--water { left: 20.61%; top: 90.45%; }
+.consult-zero__entry-token--zimmedari { left: 2.45%; top: 34.55%; }
+.consult-zero__entry-core {
+  position: absolute;
+  z-index: 1;
+  left: var(--pupil-x, 50%);
+  top: var(--pupil-y, 50%);
+  width: clamp(5rem, 11vmin, 8.2rem);
+  aspect-ratio: 1;
+  display: grid;
+  place-content: center;
+  gap: .2rem;
+  border: 1px solid rgba(18,63,49,.2);
+  border-radius: 50%;
+  color: rgba(15,66,48,.72);
+  background: rgba(230,252,244,.18);
+  box-shadow: 0 0 4rem rgba(218,255,241,.28);
+  opacity: calc(.22 + var(--zero-entry-orbit, 0) * .48);
+  text-align: center;
+  transform: translate(-50%, -50%)
+    scale(calc(.82 + var(--zero-entry-progress, 0) * .18));
+}
+.consult-zero__entry-core b {
+  font: italic 400 clamp(2.2rem, 5.2vmin, 4.2rem)/.72 "Instrument Serif", Georgia, serif;
+  letter-spacing: -.08em;
+}
+.consult-zero__entry-core small,
+.consult-zero__entry-core span {
+  font: 600 clamp(.34rem, .55vmin, .48rem)/1 "DM Mono", monospace;
+  letter-spacing: .18em;
+}
+.consult-zero__entry-core span { color: rgba(18,63,49,.48); }
+.consult-zero__entry-hand-fallback {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  left: var(--pupil-x, 50%);
+  top: var(--pupil-y, 50%);
+  width: clamp(8rem, 24vmin, 17rem);
+  fill: #38c97d;
+  filter: drop-shadow(0 1.2rem 2.4rem rgba(8,87,52,.28));
+  transform: translate(-50%, -34%);
+}
+.zero-entry-hand-failed .consult-zero__entry-hand-fallback {
+  display: block;
+}
+@media (max-width: 720px) {
+  .consult-zero__entry-axis,
+  .consult-zero__entry-orbit { width: min(74vmin, 25rem); }
+  .consult-zero__entry-token { width: clamp(2.8rem, 13vmin, 4rem); }
+  .consult-zero__entry-token b { top: calc(100% + .28rem); }
+  .consult-zero__entry-token small { display: none; }
+  .consult-zero__entry-token--water b { font-size: .34rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .consult-zero__entry-axis,
+  .consult-zero__entry-orbit {
+    transform: translate(-50%, -50%);
+  }
+  .consult-zero__entry-token { transform: translate(-50%, -50%); }
+  .consult-zero__entry-hand-fallback {
+    display: block;
+    opacity: .84;
+  }
 }

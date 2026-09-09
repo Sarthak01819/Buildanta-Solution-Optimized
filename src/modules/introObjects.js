@@ -215,6 +215,14 @@ export function buildObjects(host, cls, spec, opts = {}) {
  * text padha jaata rehta hai.
  */
 export function projectObjects(groups, corridor, time) {
+  // Hidden acts inherit visibility:hidden/opacity:0 from their host. Their
+  // projections are absolute functions of the current camera and clock, so
+  // resume directly on the first visible frame; no hidden layout reads or
+  // per-prop DOM writes are necessary while the iris/finale owns the screen.
+  const hidden = (g) => g?.host && (
+    g.host.style.visibility === "hidden" || g.host.style.opacity === "0"
+  );
+  if (!groups.some((g) => g && !hidden(g))) return;
   /* Projection viewport ke coordinates deta hai, par props `.step__objs` ke
      andar baithte hain — jo `.intro__inner` ke padding se shifted hai (naapa:
      1280px par 54px daayein). Isliye layer ka origin ghata dena zaroori hai,
@@ -232,7 +240,7 @@ export function projectObjects(groups, corridor, time) {
   const xCompression = Math.min(1, Math.max(0.34, viewportW / 1100));
 
   for (const g of groups) {
-    if (!g) continue;
+    if (!g || hidden(g)) continue;
 
     /* Duck test ke liye ASLI text ka rect chahiye, `.step__text` ka nahi —
        wo `left:0; right:0` hai, to uska box poori chaudai le leta hai (naapa:

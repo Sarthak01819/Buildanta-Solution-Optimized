@@ -10,7 +10,16 @@
     "preview": "vite preview --configLoader runner",
     "build:single": "node scripts/build-single.mjs",
     "build:we-scale": "node scripts/build-we-scale-standalone.mjs",
-    "verify:props": "node scripts/verify-intro-props.mjs"
+    "verify:props": "node scripts/verify-intro-props.mjs",
+    "verify:zero-stage": "node tools/verify-zero-stage-source.cjs",
+    "verify:zero-stage:dpr": "node tools/verify-zero-stage-dpr.cjs",
+    "verify:zero-stage:portal": "node tools/verify-zero-stage-portal.cjs",
+    "verify:zero-stage:logos": "node tools/verify-zero-stage-logos.cjs",
+    "verify:zero-stage:landscape": "node tools/verify-zero-stage-landscape.cjs",
+    "verify:zero-stage:title": "node tools/verify-zero-stage-title.cjs",
+    "verify:zero-stage:design": "node tools/verify-zero-stage-design.cjs",
+    "verify:zero-stage:background-softness": "node tools/verify-zero-stage-background-softness.cjs",
+    "verify:removed-growth-sections": "node tools/verify-removed-growth-sections.cjs"
   },
   "dependencies": {
     "gsap": "^3.13.0",

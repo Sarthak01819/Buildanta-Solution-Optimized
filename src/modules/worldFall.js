@@ -96,7 +96,8 @@ export function createWorldFall({ getBeat, onMountWorld, onUnmountWorld, reduced
         let prev = t0;
         const hold = (now) => {
           const dt = Math.min((now - prev) / 1000, 0.1); prev = now;
-          beat?.tick?.(dt);
+          if (beat?.advance) beat.advance(dt);
+          else beat?.tick?.(dt);
           if (now - t0 < DISSOLVE_MS) { raf = requestAnimationFrame(hold); return; }
           c.style.transition = "";
           done();
@@ -130,17 +131,13 @@ export function createWorldFall({ getBeat, onMountWorld, onUnmountWorld, reduced
       const e = smooth(p);
       const v = from + (to - from) * e;
       beat?.setProgress?.(v);
-      // tick() IS the render.
-      //
-      // setProgress only stores the value and syncs canvas opacity; the beat
-      // draws from tick(dt), which it expects the site's single ticker to call
-      // ("call from the ONE site ticker" — its own header says so). Driving
-      // setProgress alone gave a canvas at full size and full opacity that had
-      // simply never been painted: the whole fall played out black, with no
-      // error anywhere, which is the worst way for this to fail.
+      // The borrowed beat already renders on the site's GSAP ticker. Preserve
+      // the fall's authored clock contribution without a second full GPU
+      // pass in this RAF. Older/standalone beat adapters retain their fallback.
       const dt = Math.min((now - prev) / 1000, 0.1);
       prev = now;
-      beat?.tick?.(dt);
+      if (beat?.advance) beat.advance(dt);
+      else beat?.tick?.(dt);
       // Black takes over the back half of the approach.
       setVeil(clamp01((v - VEIL_FROM) / (1 - VEIL_FROM)));
       if (p < 1) { raf = requestAnimationFrame(step); return; }
@@ -222,7 +219,8 @@ export function createWorldFall({ getBeat, onMountWorld, onUnmountWorld, reduced
     // the intro must never dive.
     beat?.setDive?.(false);
     beat?.setProgress?.(from0);
-    beat?.tick?.(0.016);
+    if (beat?.advance) beat.advance(0.016);
+    else beat?.tick?.(0.016);
     beat = null;
     onUnmountWorld?.();
     worldApi = null;

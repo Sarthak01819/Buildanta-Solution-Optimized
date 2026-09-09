@@ -7,9 +7,13 @@ import { createScene } from "./gl/Scene.js";
 import { idleGate } from "./gl/visible.js";
 import { mountDiag } from "./modules/diag.js";
 import { createPreloader } from "./modules/preloader.js";
+import { observeAssetReadiness, prepareUpcomingAssets } from "./modules/assetReadiness.js";
+import "./styles/preload-optimized.css";
+import "./styles/responsive-optimized.css";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
+import { USE_ZERO_MIRROR } from "./gl/consultAnimationMode.js";
 import { mountContactRoom, BH_SHADERS } from "./gl/endurance/index.js";
 import { createFinaleRoom } from "./modules/finaleRoom.js";
 import { createEntryGate } from "./modules/entryGate.js";
@@ -20,6 +24,7 @@ import { createWorld } from "./world/world-app.js";
 import { injectWorldMarkup } from "./world/world-markup.js";
 
 gsap.registerPlugin(ScrollTrigger);
+const startupAssets = observeAssetReadiness();
 
 /* FINALE MODE: the black hole ends the experience — the blue site below is
    hidden (kept intact in markup). Set to false to restore the full site;
@@ -501,10 +506,12 @@ function boot() {
          exists for the reduced-motion path below. */
       if (beat.local >= 0.97 && entryGateReady) playHero();
     } else {
-      // Reduced-motion (beat disabled) — purana behaviour, jaisa tha waisa.
+      // The supplied burn also finishes before the reduced-motion handoff.
+      // The old .958 gate would interrupt its manual scroll window.
+      const exitP = USE_ZERO_MIRROR ? 0.9999 : 0.958;
       if (p < 0.94) entryGate?.rearm();
-      if (p > 0.958 && entryGate && !entryGate.completed) entryGate.show();
-      if (p > 0.985 && entryGateReady && (!entryGate || entryGate.completed)) playHero();
+      if (p > exitP && entryGate && !entryGate.completed) entryGate.show();
+      if (p > Math.max(exitP, 0.985) && entryGateReady && (!entryGate || entryGate.completed)) playHero();
     }
   }
 
@@ -512,7 +519,16 @@ function boot() {
      screen while the scenes build — the whole point is that none of the
      warm-up is ever seen. See modules/preloader.js. */
   const preload = createPreloader({
-    onReveal: (ms) => console.info(`[preload] revealed after ${ms}ms`),
+    onReveal: (ms) => {
+      lenis?.start();
+      unsubscribeAssets(); startupAssets.release();
+      console.info(`[preload] revealed after ${ms}ms (${preload.state.reason})`);
+    },
+  });
+  // Keep the visitor at the untouched opening frame while preparation runs.
+  lenis?.stop();
+  const unsubscribeAssets = startupAssets.subscribe(({ completed, total }) => {
+    preload.set(total ? Math.min(0.72, completed / total * 0.72) : 0);
   });
 
   const intro = createIntro({ onProgress: onIntroProgress });
@@ -537,10 +553,32 @@ function boot() {
      shader hitches at no risk. On a phone the trade is a compile hitch versus
      a dead tab — which is Yash's own rule: a crash beats any quality rule. */
   const coarse = matchMedia("(pointer: coarse)").matches;
-  Promise.resolve()
-    .then(() => (coarse ? null : intro.warm?.((p) => preload.set(p * 0.96))))
-    .catch((e) => console.info("[preload] warm-up skipped:", e?.message || e))
-    .finally(() => { preload.set(1); preload.reveal(); });
+  let preparationFailed = false;
+  Promise.all([intro.assetsReady, prepareUpcomingAssets(), document.fonts?.ready])
+    .then(([, upcoming]) => {
+      preparationFailed = upcoming.failed.length > 0;
+      return startupAssets.idle();
+    })
+    .then(async () => {
+      preload.set(0.74);
+      preload.phase('Preparing animation shaders');
+      // Never replay warm-up poses over a page already revealed by timeout.
+      // Phone warm-up compiles materials only; no full-scene render sweep.
+      if (!preload.revealed) await intro.warmSource?.();
+      if (!preload.revealed && !coarse) {
+        await intro.warm?.((p) => preload.set(0.80 + p * 0.16), 2600, () => !preload.revealed);
+      }
+    })
+    .catch((e) => {
+      preparationFailed = true;
+      console.info("[preload] warm-up skipped:", e?.message || e);
+    })
+    .finally(() => {
+      unsubscribeAssets(); startupAssets.release();
+      if (preparationFailed || startupAssets.state.failed) preload.reveal('partial');
+      else { preload.set(1); preload.reveal(); }
+    });
+  window.__buildantaPreparation = { get state() { return { ...startupAssets.state, ...preload.state }; } };
   entryGate = createEntryGate({
     lenis,
     ScrollTrigger,

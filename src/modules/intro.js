@@ -4,9 +4,11 @@ import { INTRO, BRAND } from "../config.js";
 import { splitChars } from "./splitText.js";
 import { createSound } from "./sound.js";
 import { createMusic } from "./music.js";
+import { createZeroStageAudio } from "./zeroStageAudio.js";
 import { createCorridor } from "../gl/Corridor.js";
 import { mountOrbHero } from "../gl/orb-hero/index.js";
 import { createConsultHand } from "../gl/ConsultHand.js";
+import { USE_ZERO_MIRROR } from "../gl/consultAnimationMode.js";
 import { mountBlackholeBeat } from "../gl/blackhole/index.js";
 import { buildObjects, projectObjects } from "./introObjects.js";
 import { SERVICES } from "./services.js";
@@ -168,6 +170,7 @@ export function createIntro({ onProgress } = {}) {
   const lensTakeEl = root.querySelector(".market-lens-takeover");
   const irisEl = root.querySelector(".market-iris");
   const consultZero = root.querySelector(".consult-zero");
+  root.classList.toggle("source-animation", USE_ZERO_MIRROR);
   const lightFrame = root.querySelector(".consult-zero__light-frame");
   const consultHandCanvas = root.querySelector(".consult-zero__hand-canvas");
   const marketPusherEl = root.querySelector(".market-pusher");
@@ -193,12 +196,37 @@ export function createIntro({ onProgress } = {}) {
   const VEL_NORM = 0.21;
   let ribbonPointerOn = false, ribbonHoverAt = 0;
   let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
+  const BURN_START_P = 0.945;       // authored hand choreography is complete
+  const burnTransition = { mode: "scroll", ready: false, failed: false };
+  let burnScene = null, burnPending = false, burnDisposed = false;
+  const burnCanvas = USE_ZERO_MIRROR ? document.createElement("canvas") : null;
+  if (burnCanvas) {
+    burnCanvas.className = "intro__burning-franklin";
+    burnCanvas.setAttribute("aria-hidden", "true");
+    root.append(burnCanvas);
+  }
+  function mountBurnScene() {
+    if (!burnCanvas || burnScene || burnPending || burnDisposed) return;
+    burnPending = true;
+    import("./mirrBillBurn.js").then(async ({ createMirrBillBurn }) => {
+      if (burnDisposed) return;
+      burnScene = createMirrBillBurn(burnCanvas);
+      await burnScene.ready;
+      if (!burnDisposed) { burnTransition.ready = true; applyRaw(lastRaw); }
+    }).catch((error) => {
+      if (burnDisposed) return;
+      burnTransition.failed = true; // never strand the visitor if an asset fails
+      console.error("[intro] supplied mirrbillburn unavailable:", error);
+      applyRaw(lastRaw);
+    });
+  }
   /* where the aperture sat when the blackout took it — the reveal circle
      blooms there (see the pupil latch in the market block) */
   const pupilLatch = { x: 0, y: 0, has: false };
-  const consultHand = !reduced && consultHandCanvas
-    ? createConsultHand(consultHandCanvas)
+  const consultHand = (!reduced || USE_ZERO_MIRROR) && consultHandCanvas
+    ? createConsultHand(consultHandCanvas, { reducedMotion: reduced })
     : null;
+  const zeroStageAudio = !reduced && USE_ZERO_MIRROR ? createZeroStageAudio() : null;
 
   /* ── black-hole exit beat ──
      Note ke burn ke BAAD ka scroll span: aakhri ember ek lensed black hole
@@ -415,6 +443,11 @@ export function createIntro({ onProgress } = {}) {
   let progress = 0;
   let active = 0;
   let ideaLife = 0;
+  /* The authored ZeroMirror prelude parks here while its full 557-key hand
+     choreography is scrubbed. The p boundary is shared with the aperture
+     handoff and stays frozen; extra reading room is added by the scroll map,
+     never by moving this beat. */
+  const ZERO_STAGE_P = 0.788;
 
   function applyProgress(p) {
     progress = p;
@@ -1050,7 +1083,7 @@ export function createIntro({ onProgress } = {}) {
          FACTOR on cameraSpin, so the one-driver law (spin follows the film)
          is untouched from .545 on. approach/push begin at .684 exactly —
          the handoff contract state is the rest state of this block. */
-      if (!marketCam3d && p > 0.40 && marketPusherEl) {
+      if (!marketCam3d && p > 0.25 && marketPusherEl) {
         marketCam3d = mountMarketCamera(marketExperience, {
           reduced,
           /* the handler is scroll-driven; if the model finishes loading
@@ -1150,6 +1183,11 @@ export function createIntro({ onProgress } = {}) {
           + handover * HANDOVER_TURNS) * (reduced ? 1 : spinUp);
         marketCam3d.setState({
           visible: marketOpacity > 0.02 && p > 0.52 && p < 0.79,
+          // At .738 the z6 blackout is fully opaque over the z5 camera.
+          // The source-hand iris opens above it at z7, never through to the
+          // camera. Keep camera math for the pupil latch, but skip its GPU
+          // work until reverse scroll exposes it again.
+          drawVisible: p < 0.738,
           yaw: reduced ? 0 : (1 - turn) * Math.PI / 2,
           opacity: camVis,
           spin: spinA3d,
@@ -1412,14 +1450,39 @@ export function createIntro({ onProgress } = {}) {
          in white-green — the single thing Yash pointed at. The handover is a
          cut to black now, so there is nothing to bleed over the reel. */
       const lightFrame = 0;
-      /* the sphere: the world's own clip-circle, opening AFTER the black beat */
-      const consultReveal = smoothstep((p - 0.738) / 0.050);  // = the --hole window, always
-      const consultOut = 1 - smoothstep((p - 0.992) / 0.008);
-      /* fully painted behind the black before the circle opens, so the circle
-         is the ONLY reveal — a world that also fades in reads as a dissolve,
-         not as something you entered */
-      const consultOpacity = smoothstep((p - 0.732) / 0.010) * consultOut;  // painted before .744
+      /* Restore the original lens-aligned opening over the source scene.
+         The circle is a clear window, not an opaque disc or a second scene.
+         Reduced motion reveals the still directly after the camera beat. */
+      const consultReveal = reduced && USE_ZERO_MIRROR
+        ? (p >= 0.738 ? 1 : 0)
+        : smoothstep((p - 0.738) / 0.050);
+      const waitingForBurn = USE_ZERO_MIRROR && p >= BURN_START_P
+        && !burnTransition.ready && !burnTransition.failed;
+      const consultOut = waitingForBurn ? 1 : 1 - smoothstep((p - 0.992) / 0.008);
+      /* Fully paint the source behind the closed iris before it opens, so
+         even the first small window shows the scene without a dark veil. */
+      const consultOpacity = smoothstep((p - (USE_ZERO_MIRROR ? 0.728 : 0.732)) / 0.010) * consultOut;
       const consultLocal = Math.max(0, Math.min(1, (p - 0.768) / 0.224));
+      /* Source-only replacement: circular entry into original choreography,
+         then a two-source-hand fist bump in the SAME garden. The old meet's
+         scroll space now belongs to this ending, with no second animation.
+         Reduced motion shows a still of the source garden instead. */
+      const zeroStageLead = reduced ? 0 : smoothstep((p - 0.738) / 0.050);
+      const zeroStageProgress = !USE_ZERO_MIRROR ? 0 : reduced
+        ? 0.95
+        : p < ZERO_STAGE_P
+          ? zeroStageLead * 0.08
+          : p <= ZERO_STAGE_P
+            ? 0.08 + zeroStageLocal * 0.87
+            : 0.95 + Math.max(0, Math.min(1, (p - ZERO_STAGE_P) / (0.945 - ZERO_STAGE_P))) * 0.05;
+      const burnLocal = waitingForBurn ? 0
+        : Math.max(0, Math.min(1, (p - BURN_START_P) / (1 - BURN_START_P)));
+      if (USE_ZERO_MIRROR && p > 0.70) mountBurnScene();
+      burnScene?.setProgress(burnLocal, p >= BURN_START_P && p < 1 ? 1 : 0);
+      // The opaque, intact note covers all corners before the underlying
+      // hand scene changes. Burning begins only after this concealed swap.
+      const zeroStageOpacity = USE_ZERO_MIRROR
+        ? 1 - smoothstep((burnLocal - 0.045) / 0.025) : 0;
       /* ── THE MEET's DOM copy + the act title RE-IGNITION (D-042 v2).
          Vars on consultZero so .consult-meet descendants inherit them (the
          D-032/D-034 scope law). The neon serif act title used to burn
@@ -1431,13 +1494,22 @@ export function createIntro({ onProgress } = {}) {
       /* finger beat retired with the Veo footage swap (D-043, Yash's call)
          — the target line never shows; DOM kept for an easy revive */
       const meetL1 = 0;
-      /* title fires at the CLASP: the grip closes at consultLocal ≈ .64
-         (footage frame ~72 of 96 in the .10–.825 window) */
-      const meetTitle = smoothstep((consultLocal - 0.63) / 0.04)
-        * (1 - smoothstep((consultLocal - 0.838) / 0.022));
+      /* Source title joins the hands only after they enter the landscape;
+         it stays beside the diagonal bump, then leaves with the scene. The
+         original backup keeps its old clasp timing. Pure scroll sampling
+         also restores the same title on reverse; reduced motion is a still. */
+      const meetTitle = USE_ZERO_MIRROR
+        ? (reduced ? 1 : smoothstep((zeroStageProgress - 0.72) / 0.10)) * zeroStageOpacity
+        : smoothstep((consultLocal - 0.63) / 0.04)
+          * (1 - smoothstep((consultLocal - 0.838) / 0.022));
       if (consultZero) {
         consultZero.style.setProperty("--meet-l1", meetL1.toFixed(3));
         consultZero.style.setProperty("--meet-title", meetTitle.toFixed(3));
+        // Reuse the original masked edge-blur layer only once the landscape
+        // arrives. The clear center, hand poses and canvas remain untouched.
+        const zeroEdgeBlur = USE_ZERO_MIRROR
+          ? smoothstep((zeroStageProgress - 0.5) / 0.2) * zeroStageOpacity : 0;
+        consultZero.style.setProperty("--zero-edge-blur", zeroEdgeBlur.toFixed(3));
       }
 
       // The same palm globe begins around the camera and zooms out into place.
@@ -1484,18 +1556,14 @@ export function createIntro({ onProgress } = {}) {
       /* Stars reveal THROUGH the burn (Yash, 6 Aug 16:58 — revises the
          earlier 'whole scene' choice): everything stays original until the
          fire; the backdrops dissolve in sync with the burning edge. */
-      /* Order (Yash, 17:04): intact note arrives fullscreen → background
-         swaps to stars BEHIND it (.905–.935) → the burn plays over the
-         stars (.94+). Never stars before the note, never burn before stars. */
-      /* Swap hidden behind the fullscreen note (Yash MCQ 17:24): by .915 the
-         note covers the frame; the world and backdrop dissolve to stars
-         entirely BEHIND it — the visitor only discovers space when the burn
-         opens holes. */
-      const starIn = smoothstep((consultLocal - 0.915) / 0.015);
+      // Source mode reveals stars directly as the completed hand scene exits.
+      // The old note-driven timing remains confined to legacy preview mode.
+      const starIn = USE_ZERO_MIRROR
+        ? 1 - zeroStageOpacity : smoothstep((consultLocal - 0.915) / 0.015);
       consultZero.style.setProperty("--star-in", starIn.toFixed(3));
       /* Note-focus: the bill's canvas must ride ABOVE the fading stage, or
          the stage's half-faded cream veils the note during the swap. */
-      consultZero.classList.toggle("note-focus", consultLocal > 0.913);
+      consultZero.classList.toggle("note-focus", !USE_ZERO_MIRROR && consultLocal > 0.913);
       if (portalOn && portalState === "off") {
         const skyLive = starIn > 0.01;
         if (skyLive && portalWrap.style.opacity) {
@@ -1504,7 +1572,9 @@ export function createIntro({ onProgress } = {}) {
         }
         portalWrap.classList.toggle("bg", skyLive);
         portalWrap.classList.toggle("gone", !skyLive);
-        if (skyLive) mountPortalModule();                // no-op after entering
+        // Prepare the next scene behind the intact fullscreen paper, so its
+        // black hole is revealed through the actual burned-away openings.
+        if (skyLive && (!USE_ZERO_MIRROR || burnLocal >= 0.055)) mountPortalModule();
         else if (portalModule) teardownPortalModule();   // reversible
       }
       root.classList.toggle("consult-zero-live", consultOpacity > 0.002);
@@ -1520,7 +1590,23 @@ export function createIntro({ onProgress } = {}) {
       consultZero.style.setProperty("--zero-hand-pulse", handPulse.toFixed(3));
       consultZero.style.setProperty("--zero-hand-bg", handBg.toFixed(3));
       consultZero.style.setProperty("--zero-hand-copy", handCopy.toFixed(3));
-      consultHand?.setProgress(consultLocal, consultOpacity);
+      consultZero.style.setProperty("--zero-stage", zeroStageOpacity.toFixed(3));
+      consultZero.style.setProperty("--zero-stage-progress", zeroStageProgress.toFixed(4));
+      /* Keep the imported ZeroMirror scene visually clean while it owns the
+         shared canvas. The class is derived from scroll state every frame, so
+         reverse travel restores the same layers at the same position. */
+      consultZero.classList.toggle(
+        "zero-stage-live",
+        USE_ZERO_MIRROR && Boolean(consultHand) && zeroStageOpacity > 0.002,
+      );
+      consultHand?.setProgress(consultLocal, consultOpacity, {
+        progress: zeroStageProgress,
+        opacity: zeroStageOpacity,
+      });
+      zeroStageAudio?.setProgress(
+        zeroStageProgress,
+        consultOpacity > 0.002 && zeroStageOpacity > 0.002,
+      );
       consultZero.style.setProperty("--zero-u1", update1.toFixed(3));
       consultZero.style.setProperty("--zero-u2", update2.toFixed(3));
       consultZero.style.setProperty("--zero-u3", update3.toFixed(3));
@@ -1549,49 +1635,9 @@ export function createIntro({ onProgress } = {}) {
       consultZero.style.setProperty("--film-t8", segmentProgress(consultLocal, 0.835, 1.00).toFixed(3));
       consultZero.style.setProperty("--zero-drift", `${((consultLocal - 0.5) * 5).toFixed(2)}vh`);
 
-      /* ── THE EPILOGUE FILM's writer (Yash, 15 MCQs 14 Aug 2026) ──
-         ⚠️ MUST run AFTER the original --film-* writer above and on the SAME
-         element. The old film's writer was never deleted — it lives just up
-         there, computing zeros in today's timeline, and it cost half a day:
-         my first writer targeted #intro and ran earlier in the frame, so the
-         original's zeros on .consult-zero (a closer ancestor) shadowed every
-         value it wrote. Same element + later write = this one wins.
-         Beats per the MCQs: darkness in → desk + turning laptop-globe under
-         the ghost CONSULT → streaks + "Stop wasting growth hours." → the
-         BOOK A GROWTH CALL card (not a link) → darkness out, world returns
-         for the note's departure. All from filmLocal — scrubs both ways. */
-      {
-        const F = filmLocal;
-        /* Two beats since 14 Aug 18:31 (Yash removed the desk/laptop page from
-           his own screenshot of it): darkness in → streaks + "Stop wasting
-           growth hours." → the BOOK A GROWTH CALL card → darkness out. The
-           desk group's variables (s1/t1/dolly/earth-turn) are simply no longer
-           written — the ORIGINAL writer above zeroes them every frame, which
-           for once is exactly the behaviour we want. */
-        const bg = smoothstep(F / 0.09) * (1 - smoothstep((F - 0.93) / 0.07));
-        const lens = smoothstep((F - 0.08) / 0.09) * (1 - smoothstep((F - 0.46) / 0.07));
-        const s2 = smoothstep((F - 0.10) / 0.08) * (1 - smoothstep((F - 0.48) / 0.06));
-        const t2 = smoothstep((F - 0.10) / 0.34);
-        const s8 = smoothstep((F - 0.47) / 0.08) * (1 - smoothstep((F - 0.93) / 0.06));
-        const t8 = smoothstep((F - 0.47) / 0.24);
-        const cta = smoothstep((F - 0.53) / 0.10) * (1 - smoothstep((F - 0.93) / 0.06));
-        if (F > 0) {
-          consultZero.style.setProperty("--film-bg", bg.toFixed(3));
-          consultZero.style.setProperty("--film-lens", lens.toFixed(3));
-          consultZero.style.setProperty("--film-s2", s2.toFixed(3));
-          consultZero.style.setProperty("--film-t2", t2.toFixed(3));
-          consultZero.style.setProperty("--film-s8", s8.toFixed(3));
-          consultZero.style.setProperty("--film-t8", t8.toFixed(3));
-          consultZero.style.setProperty("--film-cta", cta.toFixed(3));
-        }
-        root.classList.toggle("film-live", bg > 0.001);
-        /* After the card, the world's return is notes-only (Yash, 15 Aug):
-           globe + plant + hand stay dark, the flying dollars and the ground
-           remain. Threshold .90, not .999 — the swap must happen while the
-           film's blackness is still fully opaque in BOTH directions, or the
-           hand pops in/out on screen. */
-        consultHand?.setWorldCut(F >= 0.90);
-      }
+      // Preserve the notes-only ending after removing the epilogue. Derive
+      // the cut from timeline position, so reverse restores the same state.
+      consultHand?.setWorldCut(p >= NOTE_DEPARTURE_P);
     }
 
     /* har act ka text apni khidki se */
@@ -1656,10 +1702,17 @@ export function createIntro({ onProgress } = {}) {
   /* ── ScrollTrigger: pin + scrub ── */
   const perAct = reduced ? 0.6 : (INTRO.scrollPerAct ?? 1.1);
   const baseScrollLength = perAct * n;
+  const scrollDistanceMultiplier = reduced ? 1 : (INTRO.scrollDistanceMultiplier ?? 1);
+  // The first source-hand/iris reveal starts here, inside the camera handover.
+  // Preserve its physical scroll distance along with all of WE SCALE (D-074).
+  const WE_SCALE_SCROLL_START = 0.738;
   /* 1.4 -> 2.1: Yash asked for +50% scroll length on the fist-bump beat
      (3 Sep). This lengthens how far you scroll THROUGH the act; the act's
      p-boundaries are untouched, so no other beat moves. */
   const consultStretch = reduced ? 0 : 2.52;   // +50% then a further +20% (Yash, 3 Sep)
+  /* This hold scrubs the original source choreography. The former meet's
+     following scroll interval now supplies the new source two-hand ending. */
+  const zeroStageStretch = reduced || !USE_ZERO_MIRROR ? 0 : 4.15;
   /* WE MARKET needs room: ten plates each get a readable beat (Yash, 7 Aug).
      Given as EXTRA viewport-heights on that act's own slice of the timeline,
      so every other act keeps exactly the pacing it already had. */
@@ -1675,13 +1728,12 @@ export function createIntro({ onProgress } = {}) {
      slow-down. The reduced ? 0 guards are kept: mapScrollProgress skips
      zero-vh rows, which is how reduced motion collapses the timeline. */
   const arrivalStretch   = reduced ? 0 : 4.3;
-  /* 2.98, was 1.94. The transport row now carries ALL eight slot changes
-     (it used to hand the last ~2 to the handover row), so its scroll cost has
-     to grow to match or the plates would speed up: 8 * 0.403vh = 3.226vh,
-     minus the 0.246vh the span costs at base, leaves 2.98. Per-plate scroll
-     is therefore unchanged at 0.403vh - only WHERE the plates finish moved. */
-  const transportStretch = reduced ? 0 : 2.98;
+  // Match the reference's eight-plate transport cost before its multiplier.
+  const transportStretch = reduced ? 0 : 4.5932;
   const MARKET_P0 = 0.425, MARKET_P1 = 0.684;
+  const CODE_P0 = 0.240;
+  const codeScrollMultiplier = reduced ? 1 : (INTRO.codeScrollMultiplier ?? 1);
+  const codeStretch = (MARKET_P0 - CODE_P0) * baseScrollLength * (codeScrollMultiplier - 1);
   /* NOT a new beat: this is the existing transport start (filmRaw below,
      smoothstep((p - 0.628) / 0.078)), reused as a segment boundary so the
      arrival and the transport can carry different amounts of scroll. */
@@ -1713,59 +1765,72 @@ export function createIntro({ onProgress } = {}) {
      isliye acts/consult ki pacing ko ye chhoota tak nahi. */
   const beatStretch = beatEnabled ? 1.0 : 0;
   const consultTimelineStart = HANDOVER_P1;
-  /* ── THE CONSULT EPILOGUE FILM (Yash, 15 MCQs 14 Aug 2026) ──
-     The old deployment's WE CONSULT film — desk + laptop-globe, "Stop wasting
-     growth hours.", "BOOK A GROWTH CALL ↗" — returns as a film INSIDE the
-     consult act: after the world, before the burn. The timeline p pauses at
-     FILM_P (consultLocal .848, chosen because the hero note is born at .85 —
-     the pause sits one breath BEFORE the sacred note→burn→hole chain, which
-     then runs contiguous and untouched) while raw scroll keeps travelling
-     through a zero-span segment. filmLocal is that segment's own 0→1.
-     ⚠️ The film DOM+CSS were never deleted, only their variable-writer was —
-     the writer below drives the ORIGINAL --film-* variables, so the look and
-     the words are the old film's own. */
-  const FILM_P = 0.768 + 0.848 * 0.224;   // consultLocal .848 in timeline p
-  /* 2.0, was 3.0: Yash removed the desk/laptop-globe page (18:31, from his
-     own screenshot of it) — two beats keep the same dwell each that three had,
-     so the film shortens by the page it lost instead of crawling. */
-  const filmStretch = reduced ? 0 : 2.0;
+  // Preserve the hand pacing before the dedicated supplied-animation ending.
+  const NOTE_DEPARTURE_P = 0.768 + 0.848 * 0.224;
   /* Piecewise timeline: each row is [pFrom, pTo, extra-vh]. The base cost of a
      p-span is span * baseScrollLength; a stretch simply adds vh to that row.
      A row with pFrom === pTo is a HOLD: p stands still while its vh scrolls. */
+  /* Split the old consult row at .788 and distribute its existing stretch in
+     exact proportion to p-span. That preserves its pixels-per-p before and
+     after the new hold; only the named zeroStage row adds distance. */
+  const consultPreludeShare = (ZERO_STAGE_P - HANDOVER_P1) / (NOTE_DEPARTURE_P - HANDOVER_P1);
+  const handFinishStretch = consultStretch * 0.85 * (1 - consultPreludeShare);
+  const cameraHandoverShare = (WE_SCALE_SCROLL_START - MARKET_P1) / (HANDOVER_P1 - MARKET_P1);
   const SEGMENTS = [
-    [0, MARKET_P0, 0],
-    [MARKET_P0, TRANSPORT_P0, arrivalStretch],
-    [TRANSPORT_P0, MARKET_P1, transportStretch],
-    [MARKET_P1, HANDOVER_P1, handoverStretch],
-    [HANDOVER_P1, FILM_P, consultStretch * 0.85],
-    [FILM_P, FILM_P, filmStretch],
-    [FILM_P, 1, consultStretch * 0.15],
-  ].map(([p0, p1, extra]) => ({ p0, p1, vh: (p1 - p0) * baseScrollLength + extra }));
+    [0, CODE_P0, 0, null],
+    [CODE_P0, MARKET_P0, codeStretch, null],
+    [MARKET_P0, TRANSPORT_P0, arrivalStretch, null],
+    [TRANSPORT_P0, MARKET_P1, transportStretch, null],
+    // Split only the scroll budget, not any visual cue: the iris onward keeps
+    // its old pixels-per-progress while the preceding camera matches reference.
+    [MARKET_P1, WE_SCALE_SCROLL_START, handoverStretch * cameraHandoverShare, null],
+    [WE_SCALE_SCROLL_START, HANDOVER_P1, handoverStretch * (1 - cameraHandoverShare), null],
+    [HANDOVER_P1, ZERO_STAGE_P, consultStretch * 0.85 * consultPreludeShare, null],
+    [ZERO_STAGE_P, ZERO_STAGE_P, zeroStageStretch, "zeroStage"],
+    ...(USE_ZERO_MIRROR ? [
+      [ZERO_STAGE_P, BURN_START_P, handFinishStretch * (BURN_START_P - ZERO_STAGE_P) / (NOTE_DEPARTURE_P - ZERO_STAGE_P), null],
+      // Brief full-cover handoff, then immediate scroll response (D-073).
+      [BURN_START_P, 1, reduced ? 0.9 : 1.65, null],
+    ] : [
+      [ZERO_STAGE_P, NOTE_DEPARTURE_P, handFinishStretch, null],
+      [NOTE_DEPARTURE_P, 1, consultStretch * 0.15, null],
+    ]),
+  ].map(([p0, p1, extra, hold]) => ({
+    p0,
+    p1,
+    hold,
+    vh: ((p1 - p0) * baseScrollLength + extra)
+      * (p1 <= WE_SCALE_SCROLL_START ? scrollDistanceMultiplier : 1),
+  }));
   const introScrollLength = SEGMENTS.reduce((a, seg) => a + seg.vh, 0);
-  const totalScrollLength = introScrollLength + beatStretch;
+  const beatScrollLength = beatStretch * scrollDistanceMultiplier;
+  const totalScrollLength = introScrollLength + beatScrollLength;
   const introRawEnd = introScrollLength / totalScrollLength;
-  /* Side-channel from the mapper: how far through the flat film segment the
-     last mapped scroll position was. 0 before it, 1 past it. */
-  let filmLocal = 0;
+  /* Side-channels from the mapper: progress through each named flat segment.
+     They are recomputed from raw on every call, so reverse scroll is the same
+     state function as forward scroll rather than an accumulated animation. */
+  let zeroStageLocal = 0;
   const mapScrollProgress = (raw) => {
     let v = Math.min(raw / introRawEnd, 1) * introScrollLength;   // vh travelled
-    let f = 0;
+    let nextZeroStage = 0;
     for (const seg of SEGMENTS) {
       /* Zero-vh rows (reduced motion sets stretches to 0) would divide 0/0
          below — they occupy no scroll, so they simply don't participate. */
       if (seg.vh <= 0) continue;
       if (v <= seg.vh || seg === SEGMENTS[SEGMENTS.length - 1]) {
-        if (seg.p1 === seg.p0) {          // inside the film's hold
-          filmLocal = Math.min(v / seg.vh, 1);
+        if (seg.p1 === seg.p0) {
+          const local = Math.min(v / seg.vh, 1);
+          if (seg.hold === "zeroStage") nextZeroStage = local;
+          zeroStageLocal = nextZeroStage;
           return seg.p0;
         }
-        filmLocal = f;
+        zeroStageLocal = nextZeroStage;
         return seg.p0 + Math.min(v / seg.vh, 1) * (seg.p1 - seg.p0);
       }
-      if (seg.p1 === seg.p0) f = 1;       // the hold is fully behind us
+      if (seg.hold === "zeroStage") nextZeroStage = 1;
       v -= seg.vh;
     }
-    filmLocal = f;
+    zeroStageLocal = nextZeroStage;
     return 1;
   };
   /* Gargantua sirf ENTER ke baad (Yash, 6 Aug 16:18 MCQ): pehle ka 0.008
@@ -1950,14 +2015,18 @@ export function createIntro({ onProgress } = {}) {
   const onBhEnter = (e) => { e.preventDefault(); ridePortal(); };
   addEventListener("bh:enter", onBhEnter);
 
-  /* Deewar burn ke aakhri embers par hi aati hai — mint tail kabhi nangi
-     nahi dikhti; 900ms ka CSS fade "instant but smooth" deta hai. */
-  const wallRaw = introRawEnd - 0.0105;
+  // The next section cannot interrupt the supplied animation's final embers.
+  // Native scroll positions round to whole pixels; accept the final pixel on
+  // scroll-driven and failed-load paths too.
+  const wallRaw = USE_ZERO_MIRROR
+    ? introRawEnd - 1 / Math.max(1, Math.round(innerHeight * totalScrollLength))
+    : introRawEnd - 0.0105;
   const applyRaw = (raw) => {
     lastRaw = raw;
     beatLocal = beatUnlocked ? Math.min(mapBeatLocal(raw), FINALE_BEAT) : 0;
     if (portalOn) {
-      if (portalState === "off" && raw >= wallRaw && raw < 0.999 &&
+      if ((!USE_ZERO_MIRROR || burnTransition.ready || burnTransition.failed)
+          && portalState === "off" && raw >= wallRaw && raw < 0.999 &&
           performance.now() > portalCooldownUntil) engagePortal();
       if (raw < wallRaw - 0.02) {
         if (portalState === "done") portalState = "off";
@@ -2007,6 +2076,8 @@ export function createIntro({ onProgress } = {}) {
        particles on the wall clock, so the reverse rig pins the clock to make
        fwd/rev comparisons pure state (same __bbPinTime contract). */
     consultHand?.render(window.__bbPinTime ? window.__bbPinTime / 1000 : time);
+    burnScene?.render(time);
+    zeroStageAudio?.tick(dt);
     blackholeBeat?.tick(dt);          // gas churns on its own clock (hybrid)
     projectObjects(groups, corridor, time);
 
@@ -2109,6 +2180,7 @@ export function createIntro({ onProgress } = {}) {
     corridor.resize();
     projector?.resize();
     consultHand?.resize();
+    burnScene?.resize();
     blackholeBeat?.resize();
   };
   addEventListener("resize", onResize, { passive: true });
@@ -2130,11 +2202,8 @@ export function createIntro({ onProgress } = {}) {
   const rawForP = (target) => {
     let v = 0;
     for (const seg of SEGMENTS) {
-      /* The film's hold row spans zero p — no p value lives inside it, and its
-         (p1 - p0) is zero, which the division below cannot meet. rawForP(p)
-         for p past the hold must still CROSS its vh, so it adds and moves on;
-         rawForP(FILM_P) itself resolves to the hold's start, which is the
-         stable convention for tests that scroll "to" a beat. */
+      /* A named hold spans zero p. Cross its scroll distance for later beats
+         without dividing by zero; the Zero stage still uses this mapping. */
       if (seg.p1 === seg.p0) {
         if (target > seg.p0) v += seg.vh;
         continue;
@@ -2148,9 +2217,37 @@ export function createIntro({ onProgress } = {}) {
     return Math.max(0, Math.min(1, (v / introScrollLength) * introRawEnd));
   };
 
+  /* Address a frame inside the Zero stage's zero-span scroll hold. Visual
+     regression tests use this instead of guessing raw page percentages. */
+  const rawForZeroStage = (target) => {
+    const stageLocal = Math.max(0, Math.min(1, target));
+    if (stageLocal <= 0.08) {
+      /* analytic inverse of smoothstep(lead), matching zeroStageLead above */
+      const y = stageLocal / 0.08;
+      const lead = 0.5 - Math.sin(Math.asin(1 - 2 * y) / 3);
+      return rawForP(0.738 + lead * 0.050);
+    }
+    if (stageLocal > 0.95) {
+      return rawForP(ZERO_STAGE_P + ((stageLocal - 0.95) / 0.05) * (0.945 - ZERO_STAGE_P));
+    }
+    const local = (stageLocal - 0.08) / 0.87;
+    let v = 0;
+    for (const seg of SEGMENTS) {
+      if (seg.hold === "zeroStage") {
+        v += seg.vh * local;
+        break;
+      }
+      v += seg.vh;
+    }
+    return Math.max(0, Math.min(1, (v / introScrollLength) * introRawEnd));
+  };
+
   return {
     corridor, sound, music, st,
+    assetsReady: consultHand?.ready ?? Promise.resolve(),
+    warmSource: () => consultHand?.warm?.(),
     rawForP,
+    rawForZeroStage,
     /* The finale's black hole, exposed so Projects can fall through the scene
        the visitor is already looking at instead of overlaying another one.
        A getter, not the value: it is created asynchronously and is still null
@@ -2174,7 +2271,7 @@ export function createIntro({ onProgress } = {}) {
      * Every step is guarded — a scene that will not warm must not stop the
      * site from loading. This is an optimisation, never a gate.
      */
-    async warm(onProgress, budgetMs = 2600) {
+    async warm(onProgress, budgetMs = 2600, shouldContinue = () => true) {
       /* ⚠️ THE LOOP LIMITS ITSELF — a timer cannot. The preloader also holds a
          reveal timer, but a setTimeout only fires when the main thread is
          free, and this loop IS what makes it busy: measured revealing after
@@ -2185,7 +2282,7 @@ export function createIntro({ onProgress } = {}) {
       const started = performance.now();
       const stops = [0.0, 0.08, 0.16, 0.30, 0.50, 0.66, 0.80, 0.92];
       for (let i = 0; i < stops.length; i++) {
-        if (performance.now() - started > budgetMs) {
+        if (!shouldContinue() || performance.now() - started > budgetMs) {
           onProgress?.(1);
           break;
         }
@@ -2195,7 +2292,8 @@ export function createIntro({ onProgress } = {}) {
           corridor.render(i * 0.016);
           if (orbHero.ok) { orbHero.setActProgress(Math.min(1, p / 0.244)); orbHero.render(i * 0.016); }
           projector?.render(i * 0.016);
-          consultHand?.setProgress?.(p);
+          consultHand?.setProgress?.(p, 1, USE_ZERO_MIRROR
+            ? { progress: reduced ? 0.95 : p, opacity: 1 } : null);
           consultHand?.render(i * 0.016);
         } catch (e) {
           console.info("[preload] warm step skipped:", e?.message || e);
@@ -2204,6 +2302,12 @@ export function createIntro({ onProgress } = {}) {
         /* yield so the browser can paint the loader's progress and, on
            engines that compile asynchronously, get on with it in parallel */
         await new Promise((r) => requestAnimationFrame(() => r()));
+      }
+      if (!shouldContinue()) {
+        // The timeout may already have handed scrolling back to the visitor.
+        // Restore THEIR current frame, never the warm-up's last pose or p=0.
+        applyRaw(lastRaw);
+        return;
       }
       /* ⚠️ PUT EVERY SCENE BACK, NOT JUST THE CORRIDOR.
          The first version reset only corridor, so the orb was left at the
@@ -2215,7 +2319,7 @@ export function createIntro({ onProgress } = {}) {
       try {
         corridor.setProgress(0);
         if (orbHero.ok) { orbHero.setActProgress(0); orbHero.setCoreFlash(0, 0); }
-        consultHand?.setProgress?.(0);
+        consultHand?.setProgress?.(0, 0);
       } catch (e) {
         console.info("[preload] rewind skipped:", e?.message || e);
       }
@@ -2232,7 +2336,7 @@ export function createIntro({ onProgress } = {}) {
            unbudgeted it pushed the reveal to 9.5s against a 4.2s cap. The
            settle is a courtesy — a slow machine should skip it, not wait for
            it. Its own frames count toward the same overall budget. */
-        if (performance.now() - started > budgetMs + 400) break;
+        if (!shouldContinue() || performance.now() - started > budgetMs + 400) break;
         try {
           corridor.render(1 + i * 0.016);
           if (orbHero.ok) orbHero.render(1 + i * 0.016);
@@ -2244,7 +2348,12 @@ export function createIntro({ onProgress } = {}) {
     get wallRaw() { return wallRaw; },
     get introRawEnd() { return introRawEnd; },
     get progress() { return progress; },
+    rawForBillTransition: (local) => rawForP(BURN_START_P + Math.max(0, Math.min(1, local)) * (1 - BURN_START_P)),
+    get billTransition() { return { ...burnTransition, scene: burnScene?.state ?? null }; },
     destroy() {
+      burnDisposed = true;
+      burnScene?.dispose();
+      burnCanvas?.remove();
       gsap.ticker.remove(tick);
       removeEventListener("resize", onResize);
       st.kill();
@@ -2254,6 +2363,7 @@ export function createIntro({ onProgress } = {}) {
       corridor.dispose();
       projector?.dispose();
       consultHand?.dispose();
+      zeroStageAudio?.dispose();
       blackholeBeat?.dispose();
       sound.stopAmbient(0.4);
     },

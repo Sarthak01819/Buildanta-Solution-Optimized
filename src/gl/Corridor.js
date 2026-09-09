@@ -370,6 +370,13 @@ export function createCorridor(canvas, opts = {}) {
     frameMat.opacity = visibleFrameOpacity;
     frames.visible = visibleFrameOpacity > 0.004;
 
+    // Camera easing and DOM projections keep updating behind later acts.
+    // Skip only GPU submission at exact zero visibility; every nonzero fade
+    // still draws at the original resolution with the original scene state.
+    if (canvas.checkVisibility
+      ? !canvas.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+      : canvas.style.opacity !== "" && Number(canvas.style.opacity) === 0) return;
+
     renderer.clear();
     renderer.render(scene, camera);
     if (codeBuild && progress < 0.505) {
