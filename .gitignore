@@ -22,3 +22,5 @@ pipeline/hands/out/*.png
 
 shots-bill-transition/
 shots-bill-portal/
+shots-portal-hold/
+ruvector.db

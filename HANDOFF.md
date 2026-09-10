@@ -31,6 +31,8 @@ actively developed recently is the **WE SCALE act** near the end: two arms
 | `src/styles/main.css` | `.consult-meet__*` rules: centred title, dreamy veil + sun rays, 4-edge blur frame |
 | `src/modules/mirrBillBurn.js` + `src/modules/billPortal.js` | The bill beat after the fist bump (D-076): `mirrBillBurn.js` drives the vendored bill scene as a pure function of scroll (phases arrival / portal / settle / burn); `billPortal.js` is the round medallion at the start — our two fists baked as a still, graded to the reference's green, fading out as Franklin appears |
 | `src/gl/lensBlurPass.js` | The reference's lens for that beat: radial Kawase blur + black vignette + saturation, written premultiplied into the alpha canvas |
+| `src/modules/portalHoldButton.js` | The `TAP & HOLD` button that rides the portal's hole (D-077): show-only (`pointer-events: none`), placed every frame from the sealed module's `window.__bhp.state()`; the ring fills with the module's collapse progress. Created in `intro.js` `engagePortal()`, destroyed at teardown / ride |
+| `tools/shoot-portal-hold.cjs` | Frames of that button at rest, following the pointer, mid-hold and armed (`--tag <name>`, `SITE_URL`); writes `shots-portal-hold/<name>/` with a `manifest.json` of hole-vs-button error per frame |
 | `tools/shoot-bill-transition.cjs` | Captures the bill beat at fixed scroll stops (`--tag <name>`, `SITE_URL`); writes `shots-bill-transition/<name>/` with a `manifest.json` of measured state |
 | `src/assets/meet-*` | Everything the beat loads: `meet-fistbump.glb` (the animated hands), meadow/sky/cloud layers, matcaps, skin texture |
 | `ARCHITECTURE.md` | **Read this.** Living map + decision log D-001…D-054. Every "why is it like this?" is answered there or the answer is "not recorded" |
@@ -49,6 +51,8 @@ node tools/verify-journey.cjs     # full-page scroll journey, checks for page er
 node tools/verify-reverse.cjs     # scroll DOWN then UP — forward/reverse must be pixel-identical
 node tools/verify-scroll-bill-transition.cjs   # the bill beat (D-076): pacing, medallion fists + tone, portal fade, lens, sky plate, no copy, exact reverse — 6 cases
 node tools/shoot-bill-transition.cjs --tag <name>  # PNGs of the bill beat at every stop — look at them, then compare against shots-bill-transition/impl-r5 (the approved capture)
+node tools/verify-portal.cjs      # the portal wall (D-077; now runs on Windows — system Chrome + swiftshader): TAP & HOLD rides the hole (≤ 3 px), ring = collapse progress, hold → armed → ENTER ride. Step 4a (Gargantua after scroll-back) is a KNOWN pre-existing red — see ARCHITECTURE D-077
+node tools/shoot-portal-hold.cjs --tag <name>      # PNGs of the TAP & HOLD button: rest / follow / mid-hold / armed, desktop + phone — look at them
 ```
 
 They need the dev server running on **port 5303**:
@@ -155,6 +159,13 @@ large — ALWAYS do this before judging a hand in the tiny site frame; see D-049
     `intro.js` and the font link are all gone on purpose. Don't re-add it; if it is
     ever wanted back, it is restored from the git history of D-076
     (`git log -S intro__bill-copy`), not rebuilt.
+11. The portal renderer `src/effects/blackhole-portal/index.js` is SEALED (a
+    port of black-hole-bg). The `TAP & HOLD` button (D-077) is a separate
+    show-only layer that reads the module's public `window.__bhp.state()`
+    every frame; it never intercepts the press (`pointer-events: none`). If the
+    button ever stops following the hole, the module's state contract changed
+    (`x`, `y`, `size`, `dpr`, `phase`, `c`, `down`) — fix the reader, not the module.
+    The old 4 s `HOLD` whisper is gone on purpose; don't re-add it.
 
 ## 7. Open items Yash hasn't resolved yet
 

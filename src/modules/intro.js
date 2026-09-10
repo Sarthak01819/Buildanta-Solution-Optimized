@@ -14,6 +14,7 @@ import { buildObjects, projectObjects } from "./introObjects.js";
 import { SERVICES } from "./services.js";
 import { createProjector } from "../gl/projector/index.js";
 import { mountMarketCamera } from "../gl/marketCamera.js";
+import { createPortalHoldButton } from "./portalHoldButton.js";
 
 /**
  * SCROLL-DRIVEN INTRO
@@ -1894,8 +1895,8 @@ export function createIntro({ onProgress } = {}) {
   const portalWrap = root.querySelector(".intro__portalwrap");
   const whiteVeil = root.querySelector(".intro__whiteveil");
   const portalOn = beatEnabled && Boolean(portalWrap);
-  let hintTimer = 0;
-  const hideHint = () => { portalWrap?.classList.remove("hint"); };
+  // idle HOLD whisper replaced by the TAP & HOLD button, D-077
+  let portalHold = null;         // show-only, rides the hole; lives wall → teardown
   let portalModule = null;
   let portalState = "off";       // off | active | riding | done
   let portalWheel = null;
@@ -1941,7 +1942,7 @@ export function createIntro({ onProgress } = {}) {
   }
 
   function teardownPortalModule() {
-    clearTimeout(hintTimer); hintTimer = 0; hideHint();
+    portalHold?.destroy(); portalHold = null;
     if (portalWheel) { removeEventListener("wheel", portalWheel); portalWheel = null; }
     portalTimers.forEach(clearTimeout); portalTimers = [];
     portalModule?.destroy(); portalModule = null;
@@ -1962,16 +1963,10 @@ export function createIntro({ onProgress } = {}) {
       if (e.deltaY < -12) dismissPortal(true);
     };
     addEventListener("wheel", portalWheel, { passive: true });
-    /* Idle whisper: if nobody presses within 4s, a dim HOLD fades in and
-       disappears at the first press (Yash: silent whisper after idle). */
-    clearTimeout(hintTimer);
-    hintTimer = setTimeout(() => {
-      const phase = window.__bhp?.state?.().phase;
-      if (portalState === "active" && (phase === "idle" || phase === "winding" || !phase)) {
-        portalWrap.classList.add("hint");
-        addEventListener("pointerdown", hideHint, { once: true, passive: true });
-      }
-    }, 4000);
+    /* TAP & HOLD rides the hole from the moment the wall engages (D-077,
+       replaces the 4s idle whisper): show-only, the module keeps the press. */
+    portalHold?.destroy();
+    portalHold = createPortalHoldButton(portalWrap, { reduced });
   }
 
   function dismissPortal(scrollBack) {
@@ -1995,7 +1990,7 @@ export function createIntro({ onProgress } = {}) {
     portalState = "riding";
     beatUnlocked = true;
     enteredOnce = true;
-    hideHint();
+    portalHold?.destroy(); portalHold = null;   // the door is spent; nothing to hold
 
     /* THE SCORE ARRIVES HERE. ENTER is a genuine user gesture, so the browser
        lets audio start, and it is also the exact dramatic moment the music
