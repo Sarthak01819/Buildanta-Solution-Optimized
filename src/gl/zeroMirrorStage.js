@@ -28,6 +28,7 @@ import {
   InstancedBufferAttribute,
   InstancedBufferGeometry,
   LinearFilter,
+  LinearSRGBColorSpace,
   LoopOnce,
   Matrix4,
   MathUtils,
@@ -2308,6 +2309,109 @@ export function createZeroMirrorStage(renderer, options = {}) {
     renderer.autoClear = previousAutoClear;
   }
 
+  /* ── D-076: bake the fists still for the bill portal ──────────────────
+     ADDITIVE API. Nothing in render()/applyState()/update() changes; this
+     renders the hands' root ONLY (no garden quad, no coins, no petals) at the
+     approved contact hold — bridge 1.0, pointer neutral — with a clone of the
+     live camera whose vertical fov is widened so a SQUARE image covers
+     `heightFraction` of the live viewport height, centred. The bill portal
+     shows that square 1:1 over where the live fists stand, so the arrival
+     dissolve only trades the meadow for the leather.
+
+     Colour: a WebGLRenderTarget receives LINEAR output (three r152+ rule; the
+     stage's own composite encodes sRGB for the same reason) over a transparent
+     black clear, so the bytes read back are linear + PREMULTIPLIED. The caller
+     uploads them as-is (DataTexture, LinearSRGBColorSpace, flipY false — row 0
+     is the bottom, as readRenderTargetPixels returns it).
+
+     Saves and restores every piece of state it touches, then re-applies the
+     saved state, so the live frame that follows is byte-identical to the one
+     that would have followed without the bake. One-off GPU stall; the host
+     calls it well before the beat and again only on resize. */
+  function bakePortalStill({ size = 1024, heightFraction = 1 } = {}) {
+    if (disposed || !state.ready || !state.bridgeReady) return null;
+    const bakeSize = Math.max(64, Math.min(2048, Math.round(size) || 1024));
+    const saved = {
+      progress: state.progress,
+      opacity: state.opacity,
+      sourceProgress: state.sourceProgress,
+      bridgeProgress: state.bridgeProgress,
+      bridgeActive: state.bridgeActive,
+      pointerX: state.pointerX,
+      pointerY: state.pointerY,
+      backgroundPointerX: state.backgroundPointerX,
+      backgroundPointerY: state.backgroundPointerY,
+      coinRingVisible: coinRing ? coinRing.group.visible : null,
+      petalsVisible: petals ? petals.group.visible : null,
+    };
+
+    state.progress = 1;
+    state.opacity = 1;
+    state.sourceProgress = Math.min(ZERO_STAGE_SOURCE_END, 1 / ZERO_STAGE_BRIDGE_START * ZERO_STAGE_SOURCE_END);
+    state.bridgeProgress = 1;
+    state.bridgeActive = true;
+    state.pointerX = 0;
+    state.pointerY = 0;
+    state.backgroundPointerX = 0;
+    state.backgroundPointerY = 0;
+    applyState();
+    if (coinRing) coinRing.group.visible = false;
+    if (petals) petals.group.visible = false;
+
+    const bakeCamera = camera.clone();
+    bakeCamera.aspect = 1;
+    bakeCamera.fov = 2 * Math.atan(heightFraction * Math.tan(camera.fov * Math.PI / 360)) * 180 / Math.PI;
+    bakeCamera.updateProjectionMatrix();
+    bakeCamera.updateMatrixWorld(true);
+
+    const target = new WebGLRenderTarget(bakeSize, bakeSize, { depthBuffer: true, stencilBuffer: false });
+    target.texture.colorSpace = LinearSRGBColorSpace;
+    const previousTarget = renderer.getRenderTarget();
+    const previousAutoClear = renderer.autoClear;
+    const previousScissorTest = renderer.getScissorTest();
+    const previousClearAlpha = renderer.getClearAlpha();
+    renderer.getClearColor(savedClearColor);
+    let data = null;
+    try {
+      renderer.autoClear = false;
+      renderer.setRenderTarget(target);
+      renderer.setScissorTest(false);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, true, true);
+      renderer.render(scene, bakeCamera);
+      data = new Uint8Array(bakeSize * bakeSize * 4);
+      renderer.readRenderTargetPixels(target, 0, 0, bakeSize, bakeSize, data);
+    } finally {
+      renderer.setRenderTarget(previousTarget);
+      renderer.setScissorTest(previousScissorTest);
+      renderer.setClearColor(savedClearColor, previousClearAlpha);
+      renderer.autoClear = previousAutoClear;
+      target.dispose();
+
+      if (coinRing && saved.coinRingVisible !== null) coinRing.group.visible = saved.coinRingVisible;
+      if (petals && saved.petalsVisible !== null) petals.group.visible = saved.petalsVisible;
+      state.progress = saved.progress;
+      state.opacity = saved.opacity;
+      state.sourceProgress = saved.sourceProgress;
+      state.bridgeProgress = saved.bridgeProgress;
+      state.bridgeActive = saved.bridgeActive;
+      state.pointerX = saved.pointerX;
+      state.pointerY = saved.pointerY;
+      state.backgroundPointerX = saved.backgroundPointerX;
+      state.backgroundPointerY = saved.backgroundPointerY;
+      applyState();
+    }
+    if (!data) return null;
+    return {
+      data,
+      size: bakeSize,
+      premultiplied: true,
+      linear: true,
+      fovUsed: bakeCamera.fov,
+      heightFraction,
+    };
+  }
+
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -2443,6 +2547,7 @@ export function createZeroMirrorStage(renderer, options = {}) {
     render,
     resize,
     dispose,
+    bakePortalStill,
     ready: null,
     warm,
     setProgress(progress) {

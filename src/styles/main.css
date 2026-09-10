@@ -1808,6 +1808,7 @@ a { color: inherit; text-decoration: none; }
   opacity: 0;
   pointer-events: none;
 }
+/* bill copy removed 10 Sep 2026 at the client's request; D-076 */
 
 /* 02 · TERMINAL — PURE BLACK MATRIX BACKGROUND */
 #intro.t-terminal {
@@ -4293,6 +4294,23 @@ html.bh-final .sweep { display: none !important; }
   z-index: 6;
   pointer-events: none;
   transition: opacity 700ms ease;
+}
+/* D-076 r2: until the hero note burns, the sky sits behind a dark plate in
+   the mirror's chalkboard tone (its stage3_background1 averages #262f27;
+   the lens vignette darkens the corners over it exactly as it does the
+   board), so the black hole is revealed through burned openings as before
+   and not through the gaps between whole notes at the reference lens.
+   --bill-sky is written per frame on #intro from scroll (0 through F5, 1
+   from hero burn .1) — no transition, so reverse scroll restores the plate
+   at the same position. Sits above the canvas, hint and credit (z 2). */
+.intro__portalwrap.bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: #1c221c;
+  opacity: calc(1 - var(--bill-sky, 1));
+  pointer-events: none;
 }
 
 /* The WE SCALE HUD yields to the stars (Yash: gone with the stars). */

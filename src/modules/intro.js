@@ -220,6 +220,22 @@ export function createIntro({ onProgress } = {}) {
       applyRaw(lastRaw);
     });
   }
+  /* D-076: the bill portal's fists still. Baked ONCE by the zero stage (a
+     hands-only render at bridge 1.0, pointer neutral) as soon as both the
+     bill scene and the fist-bump rig are ready, on a tick past p .70 — well
+     before .945, so the one-off readback stall never lands inside the beat.
+     Re-baked after a resize (the live fists' screen placement depends on the
+     aspect, and the phone/desktop lens switch rides the same path). Until a
+     still exists the portal draws leather only and the beat still completes. */
+  let portalStillBaked = false;
+  let portalStillTimer = 0;
+  function bakePortalStill() {
+    if (portalStillBaked || !burnScene || !burnTransition.ready || !consultHand?.bridgeReady) return;
+    const bake = consultHand.bakePortalStill?.(burnScene.stillRequest);
+    if (!bake) return;
+    burnScene.setPortalStill(bake);
+    portalStillBaked = true;
+  }
   /* where the aperture sat when the blackout took it — the reveal circle
      blooms there (see the pupil latch in the market block) */
   const pupilLatch = { x: 0, y: 0, has: false };
@@ -1477,12 +1493,32 @@ export function createIntro({ onProgress } = {}) {
             : 0.95 + Math.max(0, Math.min(1, (p - ZERO_STAGE_P) / (0.945 - ZERO_STAGE_P))) * 0.05;
       const burnLocal = waitingForBurn ? 0
         : Math.max(0, Math.min(1, (p - BURN_START_P) / (1 - BURN_START_P)));
-      if (USE_ZERO_MIRROR && p > 0.70) mountBurnScene();
+      if (USE_ZERO_MIRROR && p > 0.70) { mountBurnScene(); bakePortalStill(); }
       burnScene?.setProgress(burnLocal, p >= BURN_START_P && p < 1 ? 1 : 0);
-      // The opaque, intact note covers all corners before the underlying
-      // hand scene changes. Burning begins only after this concealed swap.
+      /* D-076: the note stands at the reference's t = 0 close-up from the
+         first frame; the canvas dissolves in over the fists until b .03
+         (the baked fists sit inside the portal circle, 1:1 over the live
+         ones), then the underlying stage swaps for the stars beneath the
+         opaque paper in a tiny window [.030, .036] — tiny because on phones
+         (fov 40) the note stops covering the viewport height at t ~.006. */
       const zeroStageOpacity = USE_ZERO_MIRROR
-        ? 1 - smoothstep((burnLocal - 0.045) / 0.025) : 0;
+        ? 1 - smoothstep((burnLocal - 0.030) / 0.006) : 0;
+      /* bill copy removed 10 Sep 2026 at the client's request; D-076 */
+      /* t = the mirror's stage-local progress, .4 * (b - .03) / .97 — the
+         same mapping mirrBillBurn feeds the vendored path; used below for
+         the hero-burn law that drives the sky plate. */
+      const billT = Math.max(0, Math.min(1, (burnLocal - 0.03) / 0.97)) * 0.4;
+      /* D-076 r2: the sky (the star wrap and the black-hole lens inside it)
+         stays behind a dark chalkboard-toned plate until the HERO note
+         burns, so it is revealed through burned openings as before (Yash,
+         6 Aug) and not through the gaps the reference lens opens between
+         whole notes from b ~.08 on. Hero burn = iv(r, .30, 1.50) with
+         r = t / .35 — the vendored BILL_SPECS[0] / BURN_PHASE numbers,
+         cross-checked against the scene's own burnProgress by the suite.
+         0 -> 1 over hero burn 0 -> .1 (b .285 -> .386). */
+      const heroBurn = Math.max(0, Math.min(1, (Math.min(billT / 0.35, 1) - 0.30) / 1.20));
+      const billSky = USE_ZERO_MIRROR ? smoothstep(heroBurn / 0.1) : 1;
+      root.style.setProperty("--bill-sky", billSky.toFixed(4));
       /* ── THE MEET's DOM copy + the act title RE-IGNITION (D-042 v2).
          Vars on consultZero so .consult-meet descendants inherit them (the
          D-032/D-034 scope law). The neon serif act title used to burn
@@ -1574,7 +1610,7 @@ export function createIntro({ onProgress } = {}) {
         portalWrap.classList.toggle("gone", !skyLive);
         // Prepare the next scene behind the intact fullscreen paper, so its
         // black hole is revealed through the actual burned-away openings.
-        if (skyLive && (!USE_ZERO_MIRROR || burnLocal >= 0.055)) mountPortalModule();
+        if (skyLive && (!USE_ZERO_MIRROR || burnLocal >= 0.03)) mountPortalModule();
         else if (portalModule) teardownPortalModule();   // reversible
       }
       root.classList.toggle("consult-zero-live", consultOpacity > 0.002);
@@ -1789,8 +1825,14 @@ export function createIntro({ onProgress } = {}) {
     [ZERO_STAGE_P, ZERO_STAGE_P, zeroStageStretch, "zeroStage"],
     ...(USE_ZERO_MIRROR ? [
       [ZERO_STAGE_P, BURN_START_P, handFinishStretch * (BURN_START_P - ZERO_STAGE_P) / (NOTE_DEPARTURE_P - ZERO_STAGE_P), null],
-      // Brief full-cover handoff, then immediate scroll response (D-073).
-      [BURN_START_P, 1, reduced ? 0.9 : 1.65, null],
+      /* D-076: the reference's own pacing for its bill stage. Its t 0 -> .4
+         (F1 .. bills culled) costs 0.4 * 325 mirror-vh / 35 wheel gain =
+         3.714 native vh; our row is 0.055 * 4.4 base + 3.58 = 3.822 vh, of
+         which the .97 after the arrival dissolve is 3.707 vh (0.2 % off).
+         Reduced motion keeps today's ~0.53 ratio (2.032 vh). The p-boundary
+         .945 does NOT move: this is extra vh on the row, never a beat edge.
+         verify-reference-scroll-pacing.cjs pins these numbers. */
+      [BURN_START_P, 1, reduced ? 1.90 : 3.58, null],
     ] : [
       [ZERO_STAGE_P, NOTE_DEPARTURE_P, handFinishStretch, null],
       [NOTE_DEPARTURE_P, 1, consultStretch * 0.15, null],
@@ -2182,6 +2224,12 @@ export function createIntro({ onProgress } = {}) {
     consultHand?.resize();
     burnScene?.resize();
     blackholeBeat?.resize();
+    /* D-076: the portal still is framed for the viewport it was baked in */
+    clearTimeout(portalStillTimer);
+    portalStillTimer = setTimeout(() => {
+      portalStillBaked = false;
+      if (progress > 0.70) bakePortalStill();
+    }, 250);
   };
   addEventListener("resize", onResize, { passive: true });
 
@@ -2349,9 +2397,17 @@ export function createIntro({ onProgress } = {}) {
     get introRawEnd() { return introRawEnd; },
     get progress() { return progress; },
     rawForBillTransition: (local) => rawForP(BURN_START_P + Math.max(0, Math.min(1, local)) * (1 - BURN_START_P)),
-    get billTransition() { return { ...burnTransition, scene: burnScene?.state ?? null }; },
+    get billTransition() {
+      return {
+        ...burnTransition,
+        scene: burnScene?.state ?? null,
+        sky: Number(root.style.getPropertyValue("--bill-sky")) || 0,
+        portalStillBaked,
+      };
+    },
     destroy() {
       burnDisposed = true;
+      clearTimeout(portalStillTimer);
       burnScene?.dispose();
       burnCanvas?.remove();
       gsap.ticker.remove(tick);

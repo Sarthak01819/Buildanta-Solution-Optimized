@@ -19,3 +19,6 @@ shots-zero-ending/
 pipeline/hands/out/newhands.glb
 pipeline/hands/out/*.blend1
 pipeline/hands/out/*.png
+
+shots-bill-transition/
+shots-bill-portal/

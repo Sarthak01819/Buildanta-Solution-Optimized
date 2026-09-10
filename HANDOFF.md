@@ -29,6 +29,9 @@ actively developed recently is the **WE SCALE act** near the end: two arms
 | `src/gl/consultMeet.js` | THE file for the fist-bump beat: hand loading, materials, choreography drive, parallax meadow layers, petals |
 | `src/modules/intro.js` | Scroll timeline for the whole page. `consultStretch` (~line 1659) sets how much scroll the WE SCALE act takes |
 | `src/styles/main.css` | `.consult-meet__*` rules: centred title, dreamy veil + sun rays, 4-edge blur frame |
+| `src/modules/mirrBillBurn.js` + `src/modules/billPortal.js` | The bill beat after the fist bump (D-076): `mirrBillBurn.js` drives the vendored bill scene as a pure function of scroll (phases arrival / portal / settle / burn); `billPortal.js` is the round medallion at the start — our two fists baked as a still, graded to the reference's green, fading out as Franklin appears |
+| `src/gl/lensBlurPass.js` | The reference's lens for that beat: radial Kawase blur + black vignette + saturation, written premultiplied into the alpha canvas |
+| `tools/shoot-bill-transition.cjs` | Captures the bill beat at fixed scroll stops (`--tag <name>`, `SITE_URL`); writes `shots-bill-transition/<name>/` with a `manifest.json` of measured state |
 | `src/assets/meet-*` | Everything the beat loads: `meet-fistbump.glb` (the animated hands), meadow/sky/cloud layers, matcaps, skin texture |
 | `ARCHITECTURE.md` | **Read this.** Living map + decision log D-001…D-054. Every "why is it like this?" is answered there or the answer is "not recorded" |
 | `dashboard.html` | The same map rendered as a page — open it in a browser |
@@ -44,6 +47,8 @@ the act, and look at the screenshots they produce:
 node tools/shoot-fistbump.cjs     # screenshots of every beat of the fist bump
 node tools/verify-journey.cjs     # full-page scroll journey, checks for page errors
 node tools/verify-reverse.cjs     # scroll DOWN then UP — forward/reverse must be pixel-identical
+node tools/verify-scroll-bill-transition.cjs   # the bill beat (D-076): pacing, medallion fists + tone, portal fade, lens, sky plate, no copy, exact reverse — 6 cases
+node tools/shoot-bill-transition.cjs --tag <name>  # PNGs of the bill beat at every stop — look at them, then compare against shots-bill-transition/impl-r5 (the approved capture)
 ```
 
 They need the dev server running on **port 5303**:
@@ -144,6 +149,12 @@ large — ALWAYS do this before judging a hand in the tiny site frame; see D-049
    `?fistRoll=&fistSpin=&fistTip=` for rendering alternatives. Capture the
    ending for judging with `node tools/shoot-zero-ending.cjs --tag <name>`
    (needs the 5303 server; writes `shots-zero-ending/<name>/`, ignored).
+10. The bill beat (D-076) once carried a `WE scale.` copy lockup (serif + script,
+    bottom-left, WindSong from Google Fonts). Yash had it REMOVED at the 10 Sep 2026
+    approval — the `.intro__bill-copy` block, its CSS, the `--bill-copy` driver in
+    `intro.js` and the font link are all gone on purpose. Don't re-add it; if it is
+    ever wanted back, it is restored from the git history of D-076
+    (`git log -S intro__bill-copy`), not rebuilt.
 
 ## 7. Open items Yash hasn't resolved yet
 

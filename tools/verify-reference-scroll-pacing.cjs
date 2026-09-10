@@ -2,6 +2,9 @@
  * Usage: node tools/verify-reference-scroll-pacing.cjs [reference checkout]
  * The frozen baseline below was captured from this checkout BEFORE retiming
  * on 6 Sep 2026. Distances are viewport heights, independent of screen size.
+ * D-076 (10 Sep 2026) re-pinned ONLY the [.945, 1] row: 1.892 -> 3.822 vh
+ * (reduced 1.032 -> 2.032), the reference's own bill-stage pacing. Every
+ * earlier row and every beat boundary is unchanged.
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -15,12 +18,12 @@ const BASELINE = {
   normal: [
     [0, .425, 1.87], [.425, .628, 5.1932], [.628, .684, 3.2264],
     [.684, .768, 3.9696], [.768, .788, .31353066037735877],
-    [.788, .788, 4.15], [.788, .945, 2.461215683962263], [.945, 1, 1.892],
+    [.788, .788, 4.15], [.788, .945, 2.461215683962263], [.945, 1, 3.822],
   ],
   reduced: [
     [0, .425, 1.02], [.425, .628, .4872], [.628, .684, .1344],
     [.684, .768, .2016], [.768, .788, .048],
-    [.788, .788, 0], [.788, .945, .3768], [.945, 1, 1.032],
+    [.788, .788, 0], [.788, .945, .3768], [.945, 1, 2.032],
   ],
 };
 
@@ -119,7 +122,7 @@ for (const [from, to, expected] of [
   close((current.rawForZeroStage(to) - current.rawForZeroStage(from)) * current.totalScrollLength,
     expected, `Source hand progress ${from}→${to}`);
 }
-close(distance(current, .945, 1), 1.892, 'Dollar transition');
+close(distance(current, .945, 1), 3.822, 'Dollar transition');
 close(current.totalScrollLength - current.introScrollLength, 1.28334375, 'Blackhole distance');
 close(current.totalScrollLength - current.introScrollLength,
   reference.totalScrollLength - reference.introScrollLength, 'Reference blackhole distance');
@@ -130,7 +133,7 @@ for (const p of Array.from({ length: 1001 }, (_, i) => i / 1000)) {
   close(distance(reduced, 0, p), baselinePosition(BASELINE.reduced, p),
     `Reduced motion remains unchanged at ${p}`);
 }
-close(reduced.totalScrollLength, 3.3, 'Reduced total');
+close(reduced.totalScrollLength, 4.3, 'Reduced total');
 close(reduced.SEGMENTS.find(segment => segment.hold === 'zeroStage').vh, 0, 'Reduced hold');
 checkMappers(reduced, 'Reduced');
 // The optional legacy rendering mode must also retain finite, reversible math.

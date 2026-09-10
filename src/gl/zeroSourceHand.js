@@ -67,6 +67,15 @@ export function createZeroSourceHand(canvas, renderer, options, handPixelRatio) 
     resize,
     // This flag affects only the archived scene in ConsultHand.
     setWorldCut() {},
+    /* D-076: the bill portal's fists still — a hands-only render at the
+       approved contact hold, produced by the stage's additive bake API. Null
+       until the fist-bump rig is ready; the renderer's canvas size does not
+       matter (it renders to an offscreen target). */
+    bakePortalStill(options) {
+      if (disposed) return null;
+      return zeroMirrorStage.bakePortalStill?.(options) ?? null;
+    },
+    get bridgeReady() { return !disposed && zeroMirrorStage.bridgeReady === true; },
     ready: null,
     async warm() {
       await api.ready;

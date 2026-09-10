@@ -2076,6 +2076,11 @@ export function createConsultHand(canvas, options = {}) {
     setProgress,
     render,
     resize,
+    /* D-076: the bill portal's fists still — a hands-only render at the
+       approved contact hold, produced by the zero stage (additive API). Null
+       until the fist-bump rig is ready. */
+    bakePortalStill: (options) => zeroMirrorStage.bakePortalStill?.(options) ?? null,
+    get bridgeReady() { return zeroMirrorStage.bridgeReady === true; },
     /* The film decides when the world stays dark — driven from intro.js with
        filmLocal ≥ .90, i.e. while the epilogue's blackness is still opaque in
        BOTH scroll directions, so the swap itself is never on screen. */

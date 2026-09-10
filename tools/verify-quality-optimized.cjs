@@ -143,7 +143,7 @@ async function observe(page) {
       portal: window.__bhp?.state?.() ?? null,
       scroll: { total: intro.st.end - intro.st.start, stopped: window.__buildanta.lenis.isStopped,
         zero: [0, .3, .9, 1].map(progress => intro.rawForZeroStage(progress) * (intro.st.end - intro.st.start)),
-        bill: [0, .04, .075, .5, 1].map(progress => intro.rawForBillTransition(progress) * (intro.st.end - intro.st.start)),
+        bill: [0, .03, .166, .5, 1].map(progress => intro.rawForBillTransition(progress) * (intro.st.end - intro.st.start)),
         timeline: [0, .24, .425, .628, .684, .768, .945, 1].map(progress => intro.rawForP(progress) * (intro.st.end - intro.st.start)) },
       resourceTiming: performance.getEntriesByType('resource').map(entry => ({
         url: entry.name.replace(location.origin, ''), initiatorType: entry.initiatorType,
