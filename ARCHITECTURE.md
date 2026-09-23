@@ -473,6 +473,9 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-084 — Particle sound softened ("so it doesn't hurt the ears")
+- `public/assets/hero-particles.mp3` re-rendered from `art-source/audio/hero-particles-original.mp3`: pass 2 (client: "smoother"): `highpass=80, lowpass=4500 ×2, equalizer 3 kHz -8 dB, highshelf 6 kHz -9 dB, acompressor -26 dB 4:1 (30/400 ms), aecho 0.8:0.6:40:0.25 (a touch of room to round transients), volume +7 dB, alimiter 0.6` — mean ≈ first pass, peaks lower. Attack of the in-page fade slowed 0.1 → 0.3 s time constant.
+
 ### D-082 — Hero particle texture sound (+ D-081 Sound button = score mute, EQ reads the score)
 - **Date:** 2026-09-23 (working tree). `public/assets/hero-particles.mp3` (client-supplied, 30 s) layered over the -100 BZ score, only while the cursor moves AND the hero particle orb is on screen (fades with it over p .200 → .245). `src/modules/heroParticleSound.js`: base `BASE_VOLUME` 0.08 (client will tune), cursor speed adds at most +50 % (`MAX_BOOST`), fade in ~0.1 s / out ~0.25 s, pauses 1.5 s after silence so the next stir resumes in place; unlocked at the loader ENTER; the bottom-left Sound button mutes it too. Verified: idle paused, moving gain ≈ .08, stopped → paused at its position.
 

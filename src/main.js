@@ -514,7 +514,12 @@ function boot() {
   const heroParticles = createHeroParticleSound();   // D-082
   const preload = createPreloader({
     // the loader's ENTER is the gesture that lets the score play (D-079)
-    onEnter: () => { introScore.unlock(); heroParticles.unlock(); },
+    // "Enter without sound" arrives muted; the Sound button can still unmute
+    onEnter: (withSound) => {
+      introScore.setMuted(!withSound);
+      introScore.unlock(); heroParticles.unlock();
+      paintSound();
+    },
     onReveal: (ms) => {
       lenis?.start();
       sectionNav?.reveal();

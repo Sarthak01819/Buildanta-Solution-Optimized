@@ -1,7 +1,8 @@
 /**
  * The hero particles' texture sound (D-082, 23 Sep 2026).
  *
- * "Softer Texture Particles" (client-supplied, 30 s) plays ON TOP of the
+ * "Softer Texture Particles" (client-supplied, 30 s; softened D-084 — original
+ * in art-source/audio/, filter chain in ARCHITECTURE.md) plays ON TOP of the
  * -100 BZ score, only while the cursor is stirring the hero's particle orb —
  * from the first frame until the orb hands off to We code (p .200 → .245).
  * It fades in when the cursor moves, rises with cursor speed (never more than
@@ -61,8 +62,8 @@ export function createHeroParticleSound() {
       if (!moving) speed *= 0.9;
       const boost = 1 + MAX_BOOST * Math.min(1, speed / SPEED_FULL);
       const target = moving && !muted ? BASE_VOLUME * boost * presence : 0;
-      // quick in, gentle out
-      gain.gain.setTargetAtTime(target, ctx.currentTime, target > gain.gain.value ? 0.1 : 0.25);
+      // soft in, gentle out — a fast attack read as a jab in the ear (D-084)
+      gain.gain.setTargetAtTime(target, ctx.currentTime, target > gain.gain.value ? 0.3 : 0.35);
       if (target > 0) {
         quietSince = 0;
         if (audio.paused) audio.play().catch(() => {});

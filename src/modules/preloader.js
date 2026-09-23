@@ -51,7 +51,10 @@ export function createPreloader({ onReveal, onEnter } = {}) {
     '<div class="preload__mark">BUILDANTA <b>SOLUTIONS</b></div>' +
     '<div class="preload__bar"><i></i></div>' +
     '<div class="preload__pct">0</div>' +
-    '<button type="button" class="preload__enter" hidden>Enter</button>' +
+    '<div class="preload__enters" hidden>' +
+    '<button type="button" class="preload__enter preload__enter--sound"><span class="preload__enter-roll"><span class="preload__enter-label">Enter</span><span class="preload__enter-label" aria-hidden="true">Enter</span></span></button>' +
+    '<button type="button" class="preload__enter preload__enter--mute"><span class="preload__enter-roll"><span class="preload__enter-label">Enter without sound</span><span class="preload__enter-label" aria-hidden="true">Enter without sound</span></span></button>' +
+    '</div>' +
     '<div class="preload__phase">Loading scene assets</div>' +
     '</div>';
 
@@ -120,19 +123,21 @@ export function createPreloader({ onReveal, onEnter } = {}) {
       /* D-079: the entrance waits for ENTER. It is the gesture browsers
          require before sound, so the -100 BZ score can start with the site.
          Shown at 100 % only. */
-      const enter = el.querySelector('.preload__enter');
-      enter.hidden = false;
-      requestAnimationFrame(() => enter.classList.add('preload__enter--on'));
-      enter.focus({ preventScroll: true });
-      enter.addEventListener('click', () => {
-        enter.disabled = true;
-        onEnter?.();
+      const enters = el.querySelector('.preload__enters');
+      enters.hidden = false;
+      requestAnimationFrame(() => enters.classList.add('preload__enters--on'));
+      const go = (withSound) => {
+        enters.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+        onEnter?.(withSound);
         el.classList.add('preload--gone');
         /* matches the CSS transition; also fires if the transition never does */
         setTimeout(finish, 1220);
-      }, { once: true });
+      };
+      const sound = enters.querySelector('.preload__enter--sound');
+      sound.addEventListener('click', () => go(true), { once: true });
+      enters.querySelector('.preload__enter--mute').addEventListener('click', () => go(false), { once: true });
       // automated browsers (the verify/shoot tools) walk straight through
-      if (navigator.webdriver) enter.click();
+      if (navigator.webdriver) sound.click();
     },
     get revealed() { return done; },
     get state() { return { revealed: done, reason: revealReason, progress }; },

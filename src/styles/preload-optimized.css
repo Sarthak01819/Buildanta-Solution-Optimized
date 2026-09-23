@@ -9,31 +9,44 @@
   color: rgba(36, 28, 23, .65);
 }
 
-/* D-079: ENTER under the counter — the loader's own mono type; the underline
-   draws in on hover. It is the gesture that unlocks the -100 BZ score. */
+/* D-079 / D-083: the two ENTERs, after unseen.co's loader button — a white
+   pill (client: transparent, 2px black border, no arrow), dark ink; on hover a dark fill sweeps up and the label rolls to white.
+   Neue Montreal is theirs; Inter (already loaded) stands in. */
+.preload__enters {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px;
+  opacity: 0; transform: translateY(6px); transition: opacity .5s ease, transform .5s ease;
+}
+.preload__enters--on { opacity: 1; transform: none; }
 .preload__enter {
-  display: block; margin: 14px auto 0; padding: 6px 2px; position: relative;
-  background: none; border: 0; cursor: var(--cur-hand);
-  font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing: .32em; text-indent: .32em; text-transform: uppercase;
-  color: rgba(36, 28, 23, .8);
-  opacity: 0; transform: translateY(6px);
-  transition: opacity .5s ease, transform .5s ease, color .25s ease, letter-spacing .35s ease;
+  position: relative; overflow: hidden; isolation: isolate;
+  padding: calc(.8rem - 4px) calc(1.5rem - 2px); border: 2px solid #000; border-radius: 1.5rem;
+  background: transparent; color: #212121;
+  font: 400 1.05rem/1 "Inter", system-ui, sans-serif; letter-spacing: 0;
 }
-.preload__enter--on { opacity: 1; transform: none; }
-.preload__enter::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
-  background: currentColor; transform: scaleX(0); transform-origin: left;
-  transition: transform .35s ease;
+.preload__enter::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: #212121; transform: translateY(101%);
+  transition: transform .5s cubic-bezier(.65, 0, .35, 1);
 }
-.preload__enter:hover, .preload__enter:focus-visible { color: rgba(36, 28, 23, 1); letter-spacing: .4em; }
-.preload__enter:hover::after, .preload__enter:focus-visible::after { transform: scaleX(1); }
-.preload__enter:focus-visible { outline: none; }
-@media (prefers-reduced-motion: reduce) { .preload__enter, .preload__enter::after { transition: none; } }
+.preload__enter-roll { display: grid; height: 1em; overflow: hidden; }
+.preload__enter-label {
+  grid-area: 1 / 1; display: inline-flex; align-items: flex-end; gap: .55rem; height: 1em;
+  transition: transform .5s cubic-bezier(.65, 0, .35, 1);
+}
+.preload__enter-label + .preload__enter-label { color: #fff; transform: translateY(-120%); }
+.preload__enter:hover::before, .preload__enter:focus-visible::before { transform: none; }
+.preload__enter:hover .preload__enter-label, .preload__enter:focus-visible .preload__enter-label { transform: translateY(120%); }
+.preload__enter:hover .preload__enter-label + .preload__enter-label,
+.preload__enter:focus-visible .preload__enter-label + .preload__enter-label { transform: none; }
+.preload__enter:focus-visible { outline: 1px solid #212121; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .preload__enters, .preload__enter::before, .preload__enter-label { transition: none; }
+}
 
 /* The site hides the system cursor for its own crosshair (z 90), which sits
    under the loader (z 9000) — so the loader gets real cursors of its own, in
    the client's cursor-pack style: arrow over the screen, hand on ENTER.
    D-080: now the site-wide pack variables. */
 body .preload, body .preload * { cursor: var(--cur-arrow); }
-body .preload .preload__enter { cursor: var(--cur-hand); }
+/* the button's inner label spans too, or they fall back to the arrow */
+body .preload .preload__enter, body .preload .preload__enter * { cursor: var(--cur-hand); }
