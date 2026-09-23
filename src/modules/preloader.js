@@ -25,13 +25,12 @@
  * show-only-when-needed rule — on a fast machine the work finishes in a couple
  * of hundred milliseconds and a loader that flashes past reads as a fault.
  *
- * ⚠️ It reveals on a TIMER as well as on completion. A warm-up that hangs —
- * a texture that never decodes, a context that never comes back — must never
- * be able to trap someone on a loading screen. Late and running beats perfect
- * and stuck.
+ * D-079 (23 Sep 2026): the reveal is now ENTER, shown only at a real 100 %
+ * (the client removed the old timeout reveal). The warm-up in main.js is
+ * budgeted and its promise chain always settles (partial on failures), so
+ * loading still cannot hang forever.
  */
 
-const REVEAL_CAP_MS = 12000;    // readiness-first, still bounded on failed networks
 /* ⚠️ A MINIMUM, NOT A DELAY FOR ITS OWN SAKE. Yash: "even if the loader
    updates in less than one second, at least it should take two seconds to
    properly load so that the interaction is smooth, not sudden." On a fast
@@ -42,7 +41,7 @@ const REVEAL_CAP_MS = 12000;    // readiness-first, still bounded on failed netw
    chose the deliberate entrance. */
 const MIN_VISIBLE_MS = 2000;
 
-export function createPreloader({ onReveal } = {}) {
+export function createPreloader({ onReveal, onEnter } = {}) {
   const el = document.createElement('div');
   el.className = 'preload';
   el.setAttribute('role', 'status');
@@ -52,6 +51,7 @@ export function createPreloader({ onReveal } = {}) {
     '<div class="preload__mark">BUILDANTA <b>SOLUTIONS</b></div>' +
     '<div class="preload__bar"><i></i></div>' +
     '<div class="preload__pct">0</div>' +
+    '<button type="button" class="preload__enter" hidden>Enter</button>' +
     '<div class="preload__phase">Loading scene assets</div>' +
     '</div>';
 
@@ -97,6 +97,10 @@ export function createPreloader({ onReveal } = {}) {
     /** Reveal the site. Safe to call twice; the second call does nothing. */
     reveal(reason = 'ready') {
       if (done) return;
+      /* D-079: ENTER only ever appears once loading has really finished
+         (client's call, 23 Sep) — the old reveal cap is gone. 'partial'
+         still counts: loading did finish, some files failed. main.js's
+         warm-up is budgeted and always settles, so this is always reached. */
       /* Hold until the minimum has elapsed. The work may well be finished —
          that is the normal case on a fast machine — but the entrance is not. */
       const left = MIN_VISIBLE_MS - (performance.now() - t0);
@@ -104,7 +108,7 @@ export function createPreloader({ onReveal } = {}) {
       done = true;
       revealReason = reason;
       cancelAnimationFrame(raf);
-      if (reason === 'ready') { work = 1; progress = 1; }
+      work = 1; progress = 1;
       phase.textContent = reason === 'ready' ? 'Ready'
         : reason === 'partial' ? 'Some assets are unavailable' : 'Finishing in the background';
       paint();
@@ -113,17 +117,28 @@ export function createPreloader({ onReveal } = {}) {
         onReveal?.(Math.round(performance.now() - t0));
       };
       if (!shown) { finish(); return; }
-      el.classList.add('preload--gone');
-      /* matches the CSS transition; also fires if the transition never does */
-      setTimeout(finish, 520);
+      /* D-079: the entrance waits for ENTER. It is the gesture browsers
+         require before sound, so the -100 BZ score can start with the site.
+         Shown at 100 % only. */
+      const enter = el.querySelector('.preload__enter');
+      enter.hidden = false;
+      requestAnimationFrame(() => enter.classList.add('preload__enter--on'));
+      enter.focus({ preventScroll: true });
+      enter.addEventListener('click', () => {
+        enter.disabled = true;
+        onEnter?.();
+        el.classList.add('preload--gone');
+        /* matches the CSS transition; also fires if the transition never does */
+        setTimeout(finish, 1220);
+      }, { once: true });
+      // automated browsers (the verify/shoot tools) walk straight through
+      if (navigator.webdriver) enter.click();
     },
     get revealed() { return done; },
     get state() { return { revealed: done, reason: revealReason, progress }; },
   };
 
   drive();
-  /* The hard stop. Nothing may keep a visitor on a loading screen. */
-  setTimeout(() => api.reveal('timeout'), REVEAL_CAP_MS);
 
   return api;
 }

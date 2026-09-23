@@ -135,17 +135,17 @@
   font-size: 10px;
   letter-spacing: .12em;
   text-transform: uppercase;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   transition: color .2s;
 }
 .bz-ruler__nav-btn:hover,
 .bz-ruler__nav-btn:focus-visible { color: #fff; }
 .bz-ruler__nav-btn:disabled {
-  cursor: default;
+  cursor: var(--cur-arrow);
   opacity: .55;
 }
 .bz-ruler__nav-btn.is-static {
-  cursor: default;
+  cursor: var(--cur-arrow);
   pointer-events: none;
   opacity: .5;
 }
@@ -318,7 +318,7 @@
   padding: 8px 2px;
   border: none;
   background: 0 0;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 .bz-mtl-menu__item::before {
   content: "";
@@ -343,7 +343,7 @@
 .bz-mtl-menu__item.is-active .bz-mtl-menu__label { color: #fff; }
 .bz-mtl-menu__item:disabled {
   opacity: .55;
-  cursor: default;
+  cursor: var(--cur-arrow);
 }
 .bz-mtl-menu__spinner {
   position: absolute;

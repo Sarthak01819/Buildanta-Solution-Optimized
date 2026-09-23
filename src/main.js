@@ -9,6 +9,8 @@ import { mountDiag } from "./modules/diag.js";
 import { createPreloader } from "./modules/preloader.js";
 import { observeAssetReadiness, prepareUpcomingAssets } from "./modules/assetReadiness.js";
 import { createSectionNav } from "./modules/sectionNav.js";
+import { createIntroScore } from "./modules/introScore.js";
+import { createHeroParticleSound } from "./modules/heroParticleSound.js";
 import "./styles/preload-optimized.css";
 import "./styles/responsive-optimized.css";
 import "./styles/scroll-ruler.css";
@@ -19,7 +21,7 @@ import { USE_ZERO_MIRROR } from "./gl/consultAnimationMode.js";
 import { mountContactRoom, BH_SHADERS } from "./gl/endurance/index.js";
 import { createFinaleRoom } from "./modules/finaleRoom.js";
 import { createEntryGate } from "./modules/entryGate.js";
-import { initCursor, initMagnetic, countUp } from "./modules/interactions.js";
+import { initMagnetic, countUp } from "./modules/interactions.js";
 import "lenis/dist/lenis.css";
 import { createWorldFall } from "./modules/worldFall.js";
 import { createWorld } from "./world/world-app.js";
@@ -372,7 +374,6 @@ function boot() {
   // Skip button ko Lenis chahiye, isliye ye handle global rakhte hain.
   window.__lenis = lenis;
 
-  initCursor();
   initMagnetic();
   initHUD();
 
@@ -509,7 +510,11 @@ function boot() {
      screen while the scenes build — the whole point is that none of the
      warm-up is ever seen. See modules/preloader.js. */
   let sectionNav = null;   // the BZ navbar (D-078), built right after the intro
+  const introScore = createIntroScore();
+  const heroParticles = createHeroParticleSound();   // D-082
   const preload = createPreloader({
+    // the loader's ENTER is the gesture that lets the score play (D-079)
+    onEnter: () => { introScore.unlock(); heroParticles.unlock(); },
     onReveal: (ms) => {
       lenis?.start();
       sectionNav?.reveal();
@@ -527,13 +532,28 @@ function boot() {
     onProgress: onIntroProgress,
     // "Skip intro" is the navbar's -25 BZ jump (D-078)
     onSkip: () => sectionNav?.go("s4"),
+    soundLevel: () => introScore.level(),
   });
   liveIntro = intro;   // the production-safe bridge (see its declaration)
   sectionNav = createSectionNav({ intro, lenis });
-  if (sectionNav) {
-    gsap.ticker.add(sectionNav.tick);
-    if (preload.revealed) sectionNav.reveal();
-  }
+  if (sectionNav) gsap.ticker.add(sectionNav.tick);
+  // bottom-left Sound button = mute for the score (D-081)
+  const soundBtn = $("[data-sound]");
+  const soundLabel = $("[data-sound-label]");
+  const paintSound = () => {
+    soundBtn?.setAttribute("aria-pressed", introScore.muted ? "false" : "true");
+    if (soundLabel) soundLabel.textContent = introScore.muted ? "Sound off" : "Sound";
+  };
+  soundBtn?.addEventListener("click", () => { introScore.setMuted(!introScore.muted); paintSound(); });
+  paintSound();
+  // the -100 BZ score (D-079): plays while the visitor is inside -100 BZ
+  gsap.ticker.add(() => introScore.setActive(intro.sectionIndexAt(intro.raw) === 0));
+  // particle texture sound: only while the hero orb is on screen (it hands
+  // off to We code over p .200 → .245, the same curve intro.js fades it on)
+  gsap.ticker.add(() => {
+    const k = Math.min(1, Math.max(0, (intro.progress - 0.2) / 0.045));
+    heroParticles.update(1 - k * k * (3 - 2 * k), introScore.muted);
+  });
 
   /* Warm every shader behind the entrance, then reveal. Guarded and capped:
      the preloader reveals on its own timer regardless, so a warm-up that

@@ -46,7 +46,6 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
 }
-@media (hover: hover) and (pointer: fine) { body { cursor: none; } }
 a { color: inherit; text-decoration: none; }
 
 /* ─────────── fixed layers ─────────── */
@@ -1533,7 +1532,6 @@ body {
   line-height: 1.6;
   overflow-x: hidden;
 }
-@media (hover: hover) and (pointer: fine) { body { cursor: none; } }
 a { color: inherit; text-decoration: none; }
 
 /* ─────────── fixed layers ─────────── */
@@ -1568,16 +1566,6 @@ a { color: inherit; text-decoration: none; }
   background: radial-gradient(ellipse at 50% 42%, transparent 22%, rgba(4,6,10,0.86) 100%);
 }
 
-/* ─────────── cursor: crosshair reticle ─────────── */
-#cursor, #cursor-ring { position: fixed; top: 0; left: 0; z-index: 90; pointer-events: none; will-change: transform; }
-#cursor { width: 5px; height: 5px; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
-#cursor-ring {
-  width: 34px; height: 34px; border: 1px solid var(--cyan-dim); border-radius: 0;
-  clip-path: polygon(0 0, 34% 0, 34% 4%, 4% 4%, 4% 34%, 0 34%,
-                     0 100%, 34% 100%, 34% 96%, 4% 96%, 4% 66%, 0 66%,
-                     100% 100%, 66% 100%, 66% 96%, 96% 96%, 96% 66%, 100% 66%,
-                     100% 0, 66% 0, 66% 4%, 96% 4%, 96% 34%, 100% 34%);
-}
 
 /* ─────────── HUD corners ─────────── */
 .hud {
@@ -2283,7 +2271,7 @@ em.coral-italic {
 
 .intro__skip {
   background: none; border: 0; color: var(--muted); font: inherit; letter-spacing: 0.16em;
-  text-transform: uppercase; cursor: none; padding: 4px 0;
+  text-transform: uppercase; cursor: var(--cur-hand); padding: 4px 0;
   border-bottom: 1px solid transparent;
   transition: color 0.35s var(--ease), border-color 0.35s var(--ease);
 }
@@ -2291,7 +2279,7 @@ em.coral-italic {
 
 .intro__sound {
   background: none; border: 1px solid transparent; font: inherit; color: var(--muted);
-  cursor: none; display: inline-flex; align-items: center; gap: 9px;
+  cursor: var(--cur-hand); display: inline-flex; align-items: center; gap: 9px;
   letter-spacing: 0.16em; text-transform: uppercase;
   padding: 9px 16px; border-radius: 999px; min-height: 40px;
   transition: color 0.35s var(--ease), border-color 0.35s var(--ease);
@@ -2364,14 +2352,6 @@ em.coral-italic {
    palette moved to Pink. Kept as a LITERAL, not a var(): per the note above the
    cursor lives outside #intro and cannot reach its tokens, so a var() would
    silently fall back. Keep in step with #intro's --brass-src. */
-html.t-ember #cursor { background: #ba3f2c; box-shadow: none; mix-blend-mode: normal; }
-html.t-ember #cursor-ring { border-color: rgba(36, 28, 23, 0.34); }
-html.t-terminal #cursor { background: #6dc9ff; box-shadow: none; }
-html.t-terminal #cursor-ring { border-color: rgba(238, 245, 255, 0.3); }
-html.t-indigo #cursor { background: #ffab79; box-shadow: none; }
-html.t-indigo #cursor-ring { border-color: rgba(255, 243, 235, 0.3); }
-html.t-forest #cursor { background: #d8b46c; box-shadow: none; }
-html.t-forest #cursor-ring { border-color: rgba(242, 242, 233, 0.3); }
 
 /* Site ke atmosphere layers aur nav intro ke dauraan chhupe rehte hain aur
    uske aakhri 14% mein aate hain. JS sirf `--site-in` (0…1) likhta hai;
@@ -3483,8 +3463,6 @@ body:has(#intro.consult-zero-live) .hud { opacity:0 !important; pointer-events:n
   .sweep, .nav__dot, .btn i, .product__status::before { animation: none !important; }
   .char { transform: none !important; opacity: 1 !important; }
   [data-reveal] { opacity: 1 !important; transform: none !important; }
-  #cursor, #cursor-ring { display: none; }
-  body { cursor: none; }
   * { transition-duration: 0.01ms !important; }
   .consult-film__earth-globe,
   .consult-film__earth-halo,
@@ -3492,11 +3470,6 @@ body:has(#intro.consult-zero-live) .hud { opacity:0 !important; pointer-events:n
   .consult-film__lens-bridge { transform:none !important; }
 }
 
-/* The experience supplies its own reticle. Never let a native OS cursor leak
-   through a section, control, reduced-motion override, or browser media mode. */
-html,
-body,
-body * { cursor:none !important; }
 
 /* ─── ACT 04 / restored mint hand world ─── */
 .market-camera__portal {
@@ -3779,7 +3752,7 @@ html.entry-pending body {
   isolation:isolate;
   color:#eef7e9;
   background:#09100b;
-  cursor:none;
+  cursor:var(--cur-arrow);
   perspective:1400px;
   visibility:hidden;
   opacity:0;
@@ -3953,7 +3926,7 @@ html.entry-pending body {
   transform:translate(-50%,-50%) scale(.9);
   -webkit-backdrop-filter:none;
   backdrop-filter:none;
-  cursor:none;
+  cursor:var(--cur-hand);
   will-change:transform,opacity;
 }
 
@@ -3991,12 +3964,8 @@ html.entry-pending body {
   outline-offset:5px;
 }
 
-.entry-gate__capsule:disabled { cursor:none; }
+.entry-gate__capsule:disabled { cursor:var(--cur-arrow); }
 
-@media (hover:hover) and (pointer:fine) {
-  .entry-gate,
-  .entry-gate * { cursor:none !important; }
-}
 
 .entry-gate__capsule > span,
 .entry-gate__capsule > i {
@@ -4227,7 +4196,7 @@ html.entry-pending body {
   font: 600 12px/1 "DM Mono", ui-monospace, monospace;
   letter-spacing: 0.26em;
   text-indent: 0.26em;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   --bh-near: 0;
   will-change: transform;
   box-shadow: 0 0 34px rgba(242, 200, 148, 0.28), inset 0 0 22px rgba(242, 200, 148, 0.14);
@@ -4560,7 +4529,7 @@ html.bh-final .sweep { display: none !important; }
 .room__pill {
   border: 1px solid rgba(239,232,218,.4); border-radius: 999px; padding: 12px 26px;
   font: inherit; font-size: 12px; letter-spacing: .1em; color: #efe8da;
-  background: rgba(6,8,13,.42); cursor: pointer; text-decoration: none;
+  background: rgba(6,8,13,.42); cursor: var(--cur-hand); text-decoration: none;
 }
 .room__pill:hover { border-color: var(--amber); }
 .room__pill span { margin-left: 8px; color: var(--amber); }
@@ -4583,10 +4552,10 @@ html.bh-final .sweep { display: none !important; }
 .room__drawer button[type="submit"] {
   background: var(--amber); color: #191104; border: 0; border-radius: 7px;
   padding: 11px 22px; font: inherit; font-size: 12px; letter-spacing: .12em;
-  font-weight: 700; cursor: pointer; margin-top: 6px;
+  font-weight: 700; cursor: var(--cur-hand); margin-top: 6px;
 }
 .room__close { position: absolute; top: 16px; right: 18px; background: none;
-  border: 0; color: var(--dim); font-size: 26px; line-height: 1; cursor: pointer; }
+  border: 0; color: var(--dim); font-size: 26px; line-height: 1; cursor: var(--cur-hand); }
 
 /* Portrait shows only ~25% of a cover-sized plate's width — less than the
    window alone spans — so no pan can frame the glass. Scale and offset the
@@ -4797,7 +4766,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 .finale-cta {
   position: fixed; z-index: 330; left: 50%; bottom: clamp(30px, 6vh, 64px);
   transform: translateX(-50%) translateY(14px);
-  padding: 13px 30px; border-radius: 999px; cursor: pointer;
+  padding: 13px 30px; border-radius: 999px; cursor: var(--cur-hand);
   border: 1px solid rgba(255, 217, 160, .45); background: rgba(6, 8, 13, .55);
   color: #ffd9a0; font: inherit; font-size: 12px; letter-spacing: .18em;
   text-transform: uppercase;
@@ -4904,7 +4873,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 .service-sheet__close {
   position: absolute; top: .6rem; right: .6rem; width: 40px; height: 40px;
   background: none; border: 1px solid rgba(255,255,255,.18); color: #d9c9ff;
-  font-size: 15px; cursor: pointer;
+  font-size: 15px; cursor: var(--cur-hand);
 }
 .service-sheet__close:focus-visible,
 .service-sheet__cta:focus-visible { outline: 2px solid #b9a8ff; outline-offset: 3px; }
@@ -4913,7 +4882,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 
 /* The reel is real content, not scenery: plates take clicks and focus. */
 .market-film { pointer-events: none; }
-.market-frame--plate { pointer-events: auto; cursor: pointer; }
+.market-frame--plate { pointer-events: auto; cursor: var(--cur-hand); }
 .service-sheet { pointer-events: none; }
 .service-sheet.on { pointer-events: auto; }
 
@@ -4926,7 +4895,6 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
 /* The site draws its own reticle (native cursors are suppressed globally), so
    it must sit above EVERY overlay — the finale room and its control paint at
    320/330, and anything above the cursor makes the pointer simply vanish. */
-#cursor, #cursor-ring { z-index: 400 !important; }
 /* The finale stage was a second Gargantua; the site's own beat is the one the
    visitor rides into, so the stage is gone. */
 
@@ -5483,7 +5451,7 @@ html.finale-inside .intro__blackhole { pointer-events: none; }
   opacity: 0; transition: opacity .28s var(--ease, ease);
 }
 .preload--on { opacity: 1; }
-.preload--gone { opacity: 0; transition: opacity .5s var(--ease, ease); }
+.preload--gone { opacity: 0; transition: opacity 1.2s ease-in-out; pointer-events: none; }  /* D-079: slow dissolve after ENTER */
 .preload__in {
   display: flex; flex-direction: column; align-items: center; gap: 16px;
   padding: 0 24px; text-align: center;
@@ -5604,7 +5572,7 @@ html.is-falling .world-fall__veil { pointer-events: auto; }
   color: #fff;
   font: inherit;
   font-size: 0.86rem;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   opacity: 0;
   visibility: hidden;
   transition: opacity 300ms ease 400ms;
@@ -5629,9 +5597,8 @@ html.finale-inside .finale-ship-exit { opacity: 1; visibility: visible; }
 
 /* Give the cursor back, inside the world only.
 
-   The site hides it site-wide — `html, body, body * { cursor: none !important }`
-   in the head, because it draws its own. Inside the world that leaves every
-   control looking dead and the drag hands invisible.
+   (History: the site once hid it site-wide for its own reticle; D-080 replaced
+   that with the cursor pack. The world keeps its own ported drag hands.)
 
    `inherit`, not `auto`. The host carries the hand (set inline-with-important
    by cursor.js) and every descendant inherits it, so the hand survives wherever
@@ -5645,7 +5612,7 @@ html.is-in-world .world-host a,
 html.is-in-world .world-host button,
 html.is-in-world #world-exit,
 html.is-in-world .world-details__hit,
-html.is-in-world .world-details__nav { cursor: pointer !important; }
+html.is-in-world .world-details__nav { cursor: var(--cur-hand) !important; }
 
 /* Split headings: shabd ke beech se line na toote.
    Har character apne inline-block span mein hai, aur browser do inline-block ke
@@ -5655,10 +5622,8 @@ html.is-in-world .world-details__nav { cursor: pointer !important; }
    hota hai. */
 .word { white-space: nowrap; }
 
-/* ─── SOUND REMOVED (Yash, 15 Aug 2026) ───
-   The audio module is an inert stub (see modules/sound.js); this hides its
-   control everywhere so no dead "Tap for sound" button survives (D2). */
-.intro__sound { display:none !important; }
+/* ─── SOUND (Yash removed the old ambient, 15 Aug; D-081 23 Sep) ───
+   The bottom-left button is back as the mute for the -100 BZ score. */
 
 /* ── THE CAMERA'S ZOOM IS OPTICAL NOW (Yash, 19 Aug 21:22) ──────────────
    His screenshot: the push at scale ~13 was a mush of giant pixels. A
@@ -6201,3 +6166,18 @@ canvas.market-camera3d {
     opacity: .84;
   }
 }
+
+/* ── D-080: the cursor pack, site-wide (client, 23 Sep 2026) ──────────────
+   Replaces the cyan crosshair reticle (#cursor / #cursor-ring, removed).
+   Black-glyph / white-outline family from the supplied pack: arrow, pointing
+   hand, open + closed hand, I-beam. Every `cursor:` in the site reads these. */
+:root {
+  --cur-arrow: url(/assets/cursors/arrow.svg) 5 3, default;
+  --cur-hand: url(/assets/cursors/hand.svg) 11 3, pointer;
+  --cur-grab: url(/assets/cursors/grab.svg) 16 12, grab;
+  --cur-grabbing: url(/assets/cursors/grabbing.svg) 16 14, grabbing;
+  --cur-text: url(/assets/cursors/text.svg) 16 16, text;
+}
+html, body { cursor: var(--cur-arrow); }
+a[href], button:not(:disabled), [role="button"], label[for], summary, select { cursor: var(--cur-hand); }
+input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"] { cursor: var(--cur-text); }

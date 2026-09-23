@@ -1,52 +1,5 @@
 import { gsap } from "gsap";
 
-/**
- * Custom cursor — do layers, alag lerp speed.
- * Ring dot ke peeche trail karta hai kyunki uska duration zyada hai.
- * Yahi "do speed" wali trick depth ka illusion deti hai.
- */
-export function initCursor() {
-  if (!matchMedia("(hover: hover) and (pointer: fine)").matches) return { setHover() {} };
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return { setHover() {} };
-
-  const dot = document.getElementById("cursor");
-  const ring = document.getElementById("cursor-ring");
-  if (!dot || !ring) return { setHover() {} };
-
-  // quickTo = ek hi reusable tween. Har mousemove pe naya gsap.to() banana
-  // 60fps par garbage collector ko maar deta hai.
-  const dx = gsap.quickTo(dot, "x", { duration: 0.18, ease: "power3" });
-  const dy = gsap.quickTo(dot, "y", { duration: 0.18, ease: "power3" });
-  const rx = gsap.quickTo(ring, "x", { duration: 0.55, ease: "power3" });
-  const ry = gsap.quickTo(ring, "y", { duration: 0.55, ease: "power3" });
-
-  gsap.set([dot, ring], { xPercent: -50, yPercent: -50 });
-
-  addEventListener("pointermove", (e) => {
-    dx(e.clientX); dy(e.clientY);
-    rx(e.clientX); ry(e.clientY);
-  }, { passive: true });
-
-  let hovering = false;
-  const setHover = (on) => {
-    if (on === hovering) return;
-    hovering = on;
-    // reticle lock-on: hover par phailta hai aur cyan tez ho jaata hai
-    gsap.to(ring, {
-      scale: on ? 1.75 : 1, rotate: on ? 45 : 0,
-      borderColor: on ? "rgba(74,224,245,1)" : "rgba(74,224,245,.42)",
-      duration: 0.45, ease: "power3",
-    });
-    gsap.to(dot, { scale: on ? 0.45 : 1, duration: 0.45, ease: "power3" });
-  };
-
-  document.querySelectorAll("a, button, [data-magnetic]").forEach((el) => {
-    el.addEventListener("pointerenter", () => setHover(true));
-    el.addEventListener("pointerleave", () => setHover(false));
-  });
-
-  return { setHover };
-}
 
 /**
  * Magnetic elements.

@@ -33,7 +33,7 @@ import { createPortalHoldButton } from "./portalHoldButton.js";
  * Progress ka poora ganit `peaks` par tika hai: act i ka station theek
  * p = (i + 0.5) / n par hai. Text uske aas-paas ki khidki mein dikhta hai.
  */
-export function createIntro({ onProgress, onSkip } = {}) {
+export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
   const root = document.getElementById("intro");
   if (!root) return null;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -385,33 +385,8 @@ export function createIntro({ onProgress, onSkip } = {}) {
   /* The finale score. Nothing is fetched until ENTER. */
   const music = createMusic();
   const soundBtn = root.querySelector("[data-sound]");
-  const soundLabel = root.querySelector("[data-sound-label]");
-  const paintSound = () => {
-    const live = sound.enabled && sound.running;
-    const armed = sound.enabled && !sound.running;
-    soundBtn.setAttribute("aria-pressed", live ? "true" : "false");
-    soundBtn.setAttribute("data-armed", armed ? "true" : "false");
-    soundLabel.textContent = !sound.enabled ? "Sound off" : live ? "Sound" : "Tap for sound";
-  };
-  paintSound();
-
-  // Teen haalat hain, do nahi — `enabled` shuru se true hota hai par browser
-  // ne audio allow nahi kiya hota.
-  soundBtn.addEventListener("click", async () => {
-    if (!sound.enabled) { sound.setEnabled(true); await sound.unlock(); sound.startAmbient(); }
-    else if (!sound.running) { await sound.unlock(); sound.startAmbient(); }
-    else sound.setEnabled(false);
-    paintSound();
-  });
-  /* `wheel` Chrome mein AudioContext unlock karne ke liye valid gesture NAHI
-     hai — sirf pointer/touch/key hain. Isliye scroll se sound apne aap chalu
-     nahi hoga aur toggle ka rehna zaroori hai. */
-  ["pointerdown", "touchstart", "keydown"].forEach((ev) =>
-    addEventListener(ev, async () => {
-      if (!sound.enabled) return;
-      await sound.unlock(); sound.startAmbient(); paintSound();
-    }, { once: true, passive: true })
-  );
+  /* D-081: the button now mutes the -100 BZ score — wired in main.js
+     (introScore). The old ambient stub's toggle / gesture unlock are gone. */
 
   const eqBars = [...soundBtn.querySelectorAll(".intro__eq i")];
 
@@ -1132,7 +1107,7 @@ export function createIntro({ onProgress, onSkip } = {}) {
           if (now - ribbonHoverAt < 80) return;
           ribbonHoverAt = now;
           marketCam3d.canvas.style.cursor =
-            marketCam3d.plateAt(e.clientX, e.clientY) >= 0 ? "pointer" : "";
+            marketCam3d.plateAt(e.clientX, e.clientY) >= 0 ? "var(--cur-hand)" : "";
         }, { passive: true });
       }
       if (marketCam3d) {
@@ -2163,10 +2138,10 @@ export function createIntro({ onProgress, onSkip } = {}) {
     sound.setIntensity(Math.min(1, v / 2600));
 
     if (eqBars.length) {
-      const lv = sound.level();
+      const lv = soundLevel ? soundLevel() : sound.level();   // D-081: the -100 BZ score
       eqBars.forEach((b, i) => {
         const k = 0.55 + 0.45 * Math.sin(performance.now() / (180 + i * 55));
-        b.style.height = (3 + lv * 30 * k).toFixed(1) + "px";
+        b.style.height = (3 + lv * 11 * k).toFixed(1) + "px";   // fills the 14px .intro__eq
       });
     }
 
