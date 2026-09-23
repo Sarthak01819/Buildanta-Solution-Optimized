@@ -32,6 +32,9 @@ actively developed recently is the **WE SCALE act** near the end: two arms
 | `src/modules/mirrBillBurn.js` + `src/modules/billPortal.js` | The bill beat after the fist bump (D-076): `mirrBillBurn.js` drives the vendored bill scene as a pure function of scroll (phases arrival / portal / settle / burn); `billPortal.js` is the round medallion at the start — our two fists baked as a still, graded to the reference's green, fading out as Franklin appears |
 | `src/gl/lensBlurPass.js` | The reference's lens for that beat: radial Kawase blur + black vignette + saturation, written premultiplied into the alpha canvas |
 | `src/modules/portalHoldButton.js` | The `TAP & HOLD` button that rides the portal's hole (D-077): show-only (`pointer-events: none`), placed every frame from the sealed module's `window.__bhp.state()`; the ring fills with the module's collapse progress. Created in `intro.js` `engagePortal()`, destroyed at teardown / ride |
+| `src/modules/sectionNav.js` | The BZ section navbar's brain (D-078): the five sections (-100 → 0 BZ), the back-scroll LOCK (wheel via Lenis `virtualScroll`, keys, touch, a scroll backstop; sticky floor lowered only by a navbar jump), the white-overlay jump, ruler theme/visibility. Sections themselves are defined in `intro.js` (`SECTIONS` / `sectionRaws()` / `goToSection()`) |
+| `src/modules/scrollRuler.js` + `src/styles/scroll-ruler.css` | The ruler UI — a port of the Zero reference's scroll ruler (desktop ticks + hover labels; phone bars + counter + menu; the white jump overlay). DM Mono, `bz-` classes, no ids |
+| `tools/verify-section-nav.cjs` | Suite for D-078: sections, back-lock (wheel/keys/touch), hover nav, jumps, TAP & HOLD in the burn, ENTER circle, ride, Leave the Ship, world, re-arm, ink theme, skip, phone |
 | `tools/shoot-portal-hold.cjs` | Frames of that button at rest, following the pointer, mid-hold and armed (`--tag <name>`, `SITE_URL`); writes `shots-portal-hold/<name>/` with a `manifest.json` of hole-vs-button error per frame |
 | `tools/shoot-bill-transition.cjs` | Captures the bill beat at fixed scroll stops (`--tag <name>`, `SITE_URL`); writes `shots-bill-transition/<name>/` with a `manifest.json` of measured state |
 | `src/assets/meet-*` | Everything the beat loads: `meet-fistbump.glb` (the animated hands), meadow/sky/cloud layers, matcaps, skin texture |
@@ -53,6 +56,7 @@ node tools/verify-scroll-bill-transition.cjs   # the bill beat (D-076): pacing, 
 node tools/shoot-bill-transition.cjs --tag <name>  # PNGs of the bill beat at every stop — look at them, then compare against shots-bill-transition/impl-r5 (the approved capture)
 node tools/verify-portal.cjs      # the portal wall (D-077; now runs on Windows — system Chrome + swiftshader): TAP & HOLD rides the hole (≤ 3 px), ring = collapse progress, hold → armed → ENTER ride. Step 4a (Gargantua after scroll-back) is a KNOWN pre-existing red — see ARCHITECTURE D-077
 node tools/shoot-portal-hold.cjs --tag <name>      # PNGs of the TAP & HOLD button: rest / follow / mid-hold / armed, desktop + phone — look at them
+node tools/verify-section-nav.cjs --tag <name>     # the BZ navbar (D-078): back-lock, jumps, wall re-arm, ENTER circle, Leave the Ship, phone — shots-section-nav/<name>/
 ```
 
 They need the dev server running on **port 5303**:
@@ -166,6 +170,23 @@ large — ALWAYS do this before judging a hand in the tiny site frame; see D-049
     button ever stops following the hole, the module's state contract changed
     (`x`, `y`, `size`, `dpr`, `phase`, `c`, `down`) — fix the reader, not the module.
     The old 4 s `HOLD` whisper is gone on purpose; don't re-add it.
+12. **Back-scroll is LOCKED per section (D-078).** Once past a section's start
+    (-100 / -75 / -50 / -25 / 0 BZ) the visitor cannot scroll above it; only
+    the BZ navbar goes back. So there is no "scroll back out of the wall" any
+    more (the old wheel-up / Esc dismissal was removed) and no wheel-up exit
+    from the ship ("← Leave the Ship" or Esc). The section positions only
+    READ the timeline (`rawForP(.543)`, `rawForP(.738)`, the wall, the ride
+    end) — if a beat ever moves (with Yash's yes), check they still land on
+    the frames picked on 23 Sep: camera entering / black before the circle.
+13. A navbar jump back past the wall RE-ARMS the door (`resetDoor()` in
+    intro.js): `enteredOnce` is reset, `solid` comes off the black hole (the
+    finale's Contact / Projects leave with it) and the score fades out
+    (`music.leave()`); it rises again at the next ENTER. Jumping to 0 BZ
+    enters without the door (`enterWithoutDoor()`), under the white overlay.
+14. `tools/scope-world-css.cjs` now scopes the world's `a:focus-visible,
+    button:focus-visible` rule too. Unscoped, its `border-radius: 2px` squared
+    the portal's ENTER circle (and every other site button's focus ring).
+    Re-run the tool after any world CSS re-port.
 
 ## 7. Open items Yash hasn't resolved yet
 

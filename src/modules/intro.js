@@ -33,7 +33,7 @@ import { createPortalHoldButton } from "./portalHoldButton.js";
  * Progress ka poora ganit `peaks` par tika hai: act i ka station theek
  * p = (i + 0.5) / n par hai. Text uske aas-paas ki khidki mein dikhta hai.
  */
-export function createIntro({ onProgress } = {}) {
+export function createIntro({ onProgress, onSkip } = {}) {
   const root = document.getElementById("intro");
   if (!root) return null;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -197,6 +197,7 @@ export function createIntro({ onProgress } = {}) {
   const VEL_NORM = 0.21;
   let ribbonPointerOn = false, ribbonHoverAt = 0;
   let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
+  let lightBackdrop = false;       // is the BZ ruler over the pale meadow? (D-078)
   const BURN_START_P = 0.945;       // authored hand choreography is complete
   const burnTransition = { mode: "scroll", ready: false, failed: false };
   let burnScene = null, burnPending = false, burnDisposed = false;
@@ -1504,6 +1505,15 @@ export function createIntro({ onProgress } = {}) {
          (fov 40) the note stops covering the viewport height at t ~.006. */
       const zeroStageOpacity = USE_ZERO_MIRROR
         ? 1 - smoothstep((burnLocal - 0.030) / 0.006) : 0;
+      /* D-078: the BZ ruler (top centre, ~30px down) reads in dark ink while
+         it sits over the pale meadow: from the frame the reveal circle's rim
+         (radius zeroReveal·78vmax around the pupil) passes it, until the
+         bill takes the frame. */
+      const rimX = pupilLatch.has ? pupilLatch.x : innerWidth / 2;
+      const rimY = pupilLatch.has ? pupilLatch.y : innerHeight / 2;
+      lightBackdrop = zeroStageOpacity > 0.5 && consultOpacity > 0.5
+        && consultReveal * 0.78 * Math.max(innerWidth, innerHeight)
+          > Math.hypot(innerWidth / 2 - rimX, 30 - rimY);
       /* bill copy removed 10 Sep 2026 at the client's request; D-076 */
       /* t = the mirror's stage-local progress, .4 * (b - .03) / .97 — the
          same mapping mirrBillBurn feeds the vendored path; used below for
@@ -1611,8 +1621,10 @@ export function createIntro({ onProgress } = {}) {
         portalWrap.classList.toggle("gone", !skyLive);
         // Prepare the next scene behind the intact fullscreen paper, so its
         // black hole is revealed through the actual burned-away openings.
-        if (skyLive && (!USE_ZERO_MIRROR || burnLocal >= 0.03)) mountPortalModule();
-        else if (portalModule) teardownPortalModule();   // reversible
+        if (skyLive && (!USE_ZERO_MIRROR || burnLocal >= 0.03)) {
+          mountPortalModule();
+          ensurePortalHold();   // D-078: TAP & HOLD rides the hole through the burn
+        } else if (portalModule) teardownPortalModule();   // reversible
       }
       root.classList.toggle("consult-zero-live", consultOpacity > 0.002);
       consultZero.style.setProperty("--zero-opacity", consultOpacity.toFixed(3));
@@ -1886,25 +1898,26 @@ export function createIntro({ onProgress } = {}) {
   /* FINALE (Yash, 6 Aug): the site ENDS on the living hole — the beat holds
      at full presence (drift + churn continue) and never swallows to white. */
   const FINALE_BEAT = 0.58;
+  // where the ENTER ride lands — also the 0 BZ section's start (D-078)
+  const RIDE_RAW = beatRawStart + FINALE_BEAT * (1 - beatRawStart);
   /* ── the PORTAL wall (sealed black-hole-bg module) ──
      Burn khatam → scroll ek deewar par rukta hai, starfield + cursor-hole
      aata hai. Hold-to-collapse se ENTER ka darwaza banta hai; enter karne par
-     Gargantua beat auto-ride hota hai. Wheel-up (bina arm kiye) wapas consult
-     world mein chhod deta hai. LENIS landmine: stop on engage, start on EVERY
-     exit path — return, Esc, dismiss, ride, destroy. */
+     Gargantua beat auto-ride hota hai. D-078: the wall is the -25 BZ section,
+     so nothing scrolls back out of it any more — the old wheel-up / Esc
+     dismissal is gone; only the BZ navbar leaves (resetDoor). LENIS landmine:
+     stop on engage, start on EVERY exit path — ride, navbar jump, destroy. */
   const portalWrap = root.querySelector(".intro__portalwrap");
   const whiteVeil = root.querySelector(".intro__whiteveil");
   const portalOn = beatEnabled && Boolean(portalWrap);
   // idle HOLD whisper replaced by the TAP & HOLD button, D-077
-  let portalHold = null;         // show-only, rides the hole; lives wall → teardown
+  let portalHold = null;         // show-only, rides the hole; burn (D-078) → teardown
   let portalModule = null;
   let portalState = "off";       // off | active | riding | done
-  let portalWheel = null;
   let portalTimers = [];
-  let portalCooldownUntil = 0;   // dismissal scroll-back crosses the engage
-                                 // zone — without a cooldown it re-engages mid-flight
   let portalMounting = false;
-  let enteredOnce = false;   // the door exists once per visit (Yash MCQ)
+  let enteredOnce = false;   // the door exists once per visit (Yash MCQ);
+                             // a navbar jump back re-arms it (resetDoor)
 
   /* Mount EARLY and LOCKED (Yash, 6 Aug 20:19 MCQ): the portal becomes the sky
      behind the burning note — holes burned through the paper reveal a sky that
@@ -1934,7 +1947,11 @@ export function createIntro({ onProgress } = {}) {
             : "/assets/starfield.jpg",
           locked: () => portalState !== "active",   // no collapse until the wall
           holdOnEnter: true,                        // never re-grow the universe
-          onReturn: () => dismissPortal(true),
+          /* Esc / wheel-back on an armed door: the module closes ENTER and
+             re-grows the hole to idle on its own. It used to scroll the
+             visitor back into the burn; the back-lock (D-078) keeps them at
+             the wall, free to hold again. */
+          onReturn: () => {},
         });
         portalModule.init();
       })
@@ -1943,10 +1960,17 @@ export function createIntro({ onProgress } = {}) {
 
   function teardownPortalModule() {
     portalHold?.destroy(); portalHold = null;
-    if (portalWheel) { removeEventListener("wheel", portalWheel); portalWheel = null; }
     portalTimers.forEach(clearTimeout); portalTimers = [];
     portalModule?.destroy(); portalModule = null;
     portalWrap?.classList.remove("on");
+  }
+
+  /* TAP & HOLD rides the hole (D-077, replaces the 4s idle whisper):
+     show-only, the module keeps the press. Created with the burn's sky
+     (D-078) and kept through the wall, so it never blinks at the handover. */
+  function ensurePortalHold() {
+    if (!portalOn || portalHold || enteredOnce) return;
+    portalHold = createPortalHoldButton(portalWrap, { reduced });
   }
 
   function engagePortal() {
@@ -1956,32 +1980,42 @@ export function createIntro({ onProgress } = {}) {
     portalWrap.classList.remove("bg", "gone");   // bg pins z6 + pointer-events
     portalWrap.classList.add("on");
     mountPortalModule();                 // already mounted during the burn
-    portalWheel = (e) => {
-      if (portalState !== "active") return;
-      const phase = window.__bhp?.state?.().phase;
-      if (phase === "armed" || phase === "entering") return; // the door owns the wheel
-      if (e.deltaY < -12) dismissPortal(true);
-    };
-    addEventListener("wheel", portalWheel, { passive: true });
-    /* TAP & HOLD rides the hole from the moment the wall engages (D-077,
-       replaces the 4s idle whisper): show-only, the module keeps the press. */
-    portalHold?.destroy();
-    portalHold = createPortalHoldButton(portalWrap, { reduced });
+    ensurePortalHold();
   }
 
-  function dismissPortal(scrollBack) {
-    // Only a LIVE portal can dismiss. During the ride the module's own
-    // internal return (0.6s after enter) fires onReturn — honoring it there
-    // yanked the scroll backwards mid-flight (measured: landed at raw .90).
-    if (portalState !== "active") return;
-    portalState = "off";
-    portalCooldownUntil = performance.now() + 1500;
+  /* A BZ navbar jump back to the film (D-078). The door is spent once
+     entered, but the navbar is an explicit return, so it re-arms: the portal
+     and its button go, the entered state and the black stage are dropped
+     (the finale's Contact / Projects leave with `solid`), the score steps
+     back. Scroll state is untouched — the caller moves the scroll. */
+  function resetDoor() {
     teardownPortalModule();
-    window.__lenis?.start();
-    if (scrollBack) {
-      const y = st.start + (st.end - st.start) * (introRawEnd - 0.06);
-      if (window.__lenis) window.__lenis.scrollTo(y, { duration: 0.9, force: true });
-      else scrollTo(0, y);
+    portalState = "off";
+    enteredOnce = false;
+    beatUnlocked = false;
+    if (portalWrap) { portalWrap.style.transition = ""; portalWrap.style.opacity = ""; }
+    if (blackholeHost) {
+      blackholeHost.classList.remove("solid");
+      blackholeHost.style.transition = "none";
+      blackholeHost.style.transform = "";
+    }
+    music.leave();
+  }
+
+  /* 0 BZ without the door: what ENTER leaves behind, minus the ride. Used
+     only under the navbar's white overlay, so no flare or growth is needed. */
+  function enterWithoutDoor() {
+    teardownPortalModule();
+    portalWrap?.classList.remove("bg", "on");
+    portalWrap?.classList.add("gone");
+    portalState = "done";
+    enteredOnce = true;
+    beatUnlocked = true;
+    music.enter();
+    if (blackholeHost) {
+      blackholeHost.classList.add("solid");
+      blackholeHost.style.transition = "none";
+      blackholeHost.style.transform = "";
     }
   }
 
@@ -2022,8 +2056,7 @@ export function createIntro({ onProgress } = {}) {
     // Steady growth (linear), starting as the supernova flare peaks.
     portalTimers.push(setTimeout(() => {
       window.__lenis?.start();
-      const rideRaw = beatRawStart + FINALE_BEAT * (1 - beatRawStart);
-      const y = st.start + (st.end - st.start) * rideRaw;
+      const y = st.start + (st.end - st.start) * RIDE_RAW;
       if (window.__lenis) window.__lenis.scrollTo(y, { duration: 3.0, force: true, lock: true, easing: (t) => t });
       else scrollTo(0, y);
     }, 260));
@@ -2063,8 +2096,7 @@ export function createIntro({ onProgress } = {}) {
     beatLocal = beatUnlocked ? Math.min(mapBeatLocal(raw), FINALE_BEAT) : 0;
     if (portalOn) {
       if ((!USE_ZERO_MIRROR || burnTransition.ready || burnTransition.failed)
-          && portalState === "off" && raw >= wallRaw && raw < 0.999 &&
-          performance.now() > portalCooldownUntil) engagePortal();
+          && portalState === "off" && raw >= wallRaw && raw < 0.999) engagePortal();
       if (raw < wallRaw - 0.02) {
         if (portalState === "done") portalState = "off";
         if (!enteredOnce) beatUnlocked = false;   // after entering the wall is
@@ -2230,12 +2262,74 @@ export function createIntro({ onProgress } = {}) {
 
   /* Skip: intro ke end tak scroll kar do. Ye "band karo" nahi hai — scroll
      position hi sach hai, isliye skip bhi usi ko aage badhata hai. Warna do
-     alag states ban jaate hain aur wapas scroll karne par sab tootta hai. */
+     alag states ban jaate hain aur wapas scroll karne par sab tootta hai.
+     D-078: with the BZ navbar wired, skip is its -25 BZ jump (onSkip) — the
+     old scroll to st.end ran past the wall without ever engaging it. */
   skipBtn?.addEventListener("click", () => {
+    if (onSkip) { onSkip(); return; }
     const y = st.end;
     if (window.__lenis) window.__lenis.scrollTo(y, { duration: 1.1 });
     else scrollTo({ top: y, behavior: "smooth" });
   });
+
+  /* ── BZ SECTIONS (D-078, 23 Sep 2026) ──────────────────────────────────
+     Five stops on the film for the ruler navbar. They only READ the
+     timeline — rawForP's inverse and the portal wall — so no beat boundary
+     moves. -75 BZ is p .543 (the We market title has cleared, the camera is
+     driving in); -50 BZ is p .738 (the lens' black, before the circle
+     opens); -25 BZ is the TAP & HOLD wall; 0 BZ is where ENTER's ride lands,
+     and only counts once the visitor has entered. */
+  const SECTIONS = [
+    { id: "s1", label: "-100 BZ" },
+    { id: "s2", label: "-75 BZ" },
+    { id: "s3", label: "-50 BZ" },
+    { id: "s4", label: "-25 BZ" },
+    { id: "s5", label: "0 BZ" },
+  ];
+  const sectionRaws = () => [0, rawForP(0.543), rawForP(0.738), wallRaw, RIDE_RAW];
+  const yForRaw = (raw) => st.start + (st.end - st.start) * raw;
+  /* Which section a raw position is in. Scroll lands on whole pixels, so a
+     boundary is accepted 1.5px early; 0 BZ needs the door to have been used
+     (or no door at all — reduced motion has no portal). */
+  function sectionIndexAt(raw) {
+    const r = sectionRaws();
+    const eps = 1.5 / Math.max(1, st.end - st.start);
+    let i = 0;
+    for (let k = 1; k < r.length; k++) if (raw >= r[k] - eps) i = k;
+    if (i === 4 && portalOn && !enteredOnce) i = 3;
+    return i;
+  }
+  const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+  const waitFor = async (ok, ms) => {
+    const until = performance.now() + ms;
+    while (!ok() && performance.now() < until) await nextFrame();
+  };
+  /* The navbar's jump, run under its white overlay. Puts the door in the
+     right state for where we land, moves the scroll immediately, then waits
+     until the destination has actually drawn (capped — a scene that will not
+     load must never trap the visitor behind the overlay). */
+  async function goToSection(id) {
+    const i = SECTIONS.findIndex((s) => s.id === id);
+    if (i < 0) return;
+    closeSheet();
+    const toFinale = i === 4 && portalOn;
+    if (toFinale) enterWithoutDoor();
+    else resetDoor();
+    const lenis = window.__lenis;
+    lenis?.start();
+    // the wall is 1px before the intro's end: land ON it, never a pixel short
+    const y = i === 3 ? Math.ceil(yForRaw(wallRaw)) : Math.round(yForRaw(sectionRaws()[i]));
+    if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
+    else scrollTo(0, y);
+    ScrollTrigger.update();
+    if (i >= 2) await waitFor(() => Boolean(consultHand?.bridgeReady ?? true), 4000);
+    if (i === 3 && portalOn) {
+      await waitFor(() => burnTransition.failed
+        || (portalState === "active" && window.__bhp?.ready === true), 8000);
+    }
+    if (toFinale) await waitFor(() => Boolean(blackholeBeat), 5000);
+    await nextFrame(); await nextFrame();
+  }
 
   applyProgress(0);
 
@@ -2391,6 +2485,16 @@ export function createIntro({ onProgress } = {}) {
     get wallRaw() { return wallRaw; },
     get introRawEnd() { return introRawEnd; },
     get progress() { return progress; },
+    // D-078: the BZ navbar's view of the film
+    sections: SECTIONS,
+    sectionRaws,
+    sectionIndexAt,
+    yForRaw,
+    goToSection,
+    get raw() { return lastRaw; },
+    get totalScrollLength() { return totalScrollLength; },
+    get lightBackdrop() { return lightBackdrop; },
+    get portalRiding() { return portalState === "riding"; },
     rawForBillTransition: (local) => rawForP(BURN_START_P + Math.max(0, Math.min(1, local)) * (1 - BURN_START_P)),
     get billTransition() {
       return {

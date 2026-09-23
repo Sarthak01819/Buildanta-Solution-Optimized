@@ -3,8 +3,7 @@
  *
  * The Endurance orbits beside Gargantua once the beat has settled; a Contact
  * control flies you into it, and the ship's sitting module becomes the site's
- * final surface. Scrolling up flies you back out, like everything else in
- * this intro.
+ * final surface. "← Leave the Ship" (or Esc) flies you back out (D-078).
  *
  * The room's markup is the SAME `#contact` section the normal site uses — in
  * finale mode this module relocates that node to <body> and switches it to a
@@ -83,6 +82,16 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
   flash.setAttribute("aria-hidden", "true");
   document.body.appendChild(flash);
 
+  /* The way back out of the ship, twin of the world's "← Leave the world"
+     (D-078): same spot, same look, and the same destination — back outside at
+     the black hole with Contact and Projects. It is the ONLY way out besides
+     Esc now; the old wheel-up / drag-down exit was retired on request. */
+  const shipExit = document.createElement("button");
+  shipExit.type = "button";
+  shipExit.className = "finale-ship-exit";
+  shipExit.textContent = "← Leave the Ship";
+  document.body.appendChild(shipExit);
+
   const ship = reduced ? null : createShip(blackholeHost, { reducedMotion: reduced, lite });
 
   /* What holds the screen at the end of this flow is the PORTAL — its own
@@ -119,38 +128,25 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
     startFlight(1, FLIGHT_SECONDS);
   });
 
-  /* Getting out. While the room owns the screen the page must not scroll —
-     the intro is pinned behind it, and a stray scroll would rewind the black
-     hole underneath the room. So wheel-up drives the flight backwards
-     instead, and only releases once we are outside again. */
+  /* While the room owns the screen the page must not scroll — the intro is
+     pinned behind it, and a stray scroll would rewind the black hole
+     underneath the room. Leaving is the button's job (or Esc), not the
+     wheel's: wheel-up / drag-down used to fly you out, retired with D-078. */
   const onWheel = (e) => {
     if (flight <= 0.0001) return;
     e.preventDefault();
-    if (e.deltaY < 0) {                       // scrolling up = leave
-      tweening = false;
-      applyFlight(flight + e.deltaY * 0.0016);
-    }
   };
   addEventListener("wheel", onWheel, { passive: false });
 
+  /* 2.4 s read as a rewind, not a voyage back out; 7.6 s per the client
+     (23 Sep 2026), slower than the world's 4.6 s rise. */
+  const LEAVE_SECONDS = 7.6;
+  const leave = () => { if (flight > 0.0001) startFlight(0, LEAVE_SECONDS); };
+  shipExit.addEventListener("click", leave);
   const onKey = (e) => {
-    if (flight > 0.0001 && e.key === "Escape" &&
-        !roomSection.classList.contains("room--drawer")) {
-      startFlight(0, 2.4);
-    }
+    if (e.key === "Escape" && !roomSection.classList.contains("room--drawer")) leave();
   };
   addEventListener("keydown", onKey);
-
-  // Touch: a downward drag inside the room means "take me back out"
-  let touchY = null;
-  addEventListener("touchstart", (e) => { touchY = e.touches[0]?.clientY ?? null; }, { passive: true });
-  addEventListener("touchmove", (e) => {
-    if (flight <= 0.0001 || touchY === null) return;
-    const y = e.touches[0]?.clientY ?? touchY;
-    const dy = y - touchY;
-    touchY = y;
-    if (dy > 0) { tweening = false; applyFlight(flight - dy * 0.0022); }
-  }, { passive: true });
 
   function applyFlight(v) {
     const was = flight;
@@ -196,6 +192,8 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
     cta.classList.toggle("finale-cta--gone", flight > 0.02);
     worldCta.classList.toggle("finale-cta--gone", flight > 0.02);
     document.documentElement.classList.toggle("finale-inside", roomFade > 0.85);
+    // any part of the voyage: the BZ ruler steps aside for it (D-078)
+    document.documentElement.classList.toggle("finale-flight", flight > 0.0005);
   }
 
   function syncBeat() {
@@ -314,6 +312,7 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
       sky?.dispose();
       ship?.dispose();
       cta.remove();
+      shipExit.remove();
       flash.remove();
     },
   };

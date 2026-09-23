@@ -60,9 +60,17 @@ export function createMusic() {
     return loading;
   }
 
+  /* The BZ navbar can take the visitor back to the film after ENTER (D-078).
+     The score steps away then — the film has its own sound — and rises again,
+     the same 6s swell, the next time they come through the door. */
+  let away = false;
+
   /** Called at ENTER. Starts silent and rises — the ride does the swelling. */
   async function enter() {
-    if (started) return;
+    if (started) {
+      if (away && master) { away = false; ramp(master.gain, muted ? 0.0001 : 0.62, 6.0); }
+      return;
+    }
     started = true;
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -100,7 +108,7 @@ export function createMusic() {
    * @param state "finale" | "falling" | "world" | "endurance"
    */
   function setScene(state) {
-    if (!ctx || muted) return;
+    if (!ctx || muted || away) return;
     if (state === "falling") {
       ramp(master.gain, 0.78, 1.2);        // swell as you fall in
       ramp(tone.frequency, 20000, 1.2);
@@ -119,11 +127,19 @@ export function createMusic() {
   function setMuted(v) {
     muted = !!v;
     if (!ctx) return;
-    ramp(master.gain, muted ? 0.0001 : 0.62, 0.35);
+    ramp(master.gain, muted || away ? 0.0001 : 0.62, 0.35);
+  }
+
+  /** A navbar jump back before the door: fade out, keep the context. */
+  function leave() {
+    if (!master || away) return;
+    away = true;
+    ramp(master.gain, 0.0001, 1.2);
   }
 
   return {
     enter,
+    leave,
     setScene,
     setMuted,
     get muted() { return muted; },

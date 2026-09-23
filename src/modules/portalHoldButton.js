@@ -21,6 +21,11 @@
  *     and the label brightens; released early, the ring empties as `c`
  *     returns — it is a pure function of the module's state, never of time.
  *
+ *   · D-078: it also rides the hole while the bill still burns (the wrap is
+ *     `.bg`, the sky behind the paper), so the visitor sees the instruction
+ *     before the wall. The module is `locked` then, so a hold does nothing
+ *     until the wall; CSS fades it with the sky plate (--bill-sky).
+ *
  * Reduced motion: no pulse, no fades (CSS); the ring is still direct state.
  * Element ids: none — class-scoped under .intro__portalwrap (page rule).
  */
@@ -73,7 +78,7 @@ export function createPortalHoldButton(portalWrap, { reduced = false } = {}) {
     raf = 0;
     if (dead) return;
     const bhp = window.__bhp;
-    const live = portalWrap.classList.contains("on")
+    const live = (portalWrap.classList.contains("on") || portalWrap.classList.contains("bg"))
       && bhp && bhp.ready === true && typeof bhp.state === "function";
     if (!live) { setOff(true); setHold(false); schedule(); return; }
 

@@ -1568,11 +1568,6 @@ a { color: inherit; text-decoration: none; }
   background: radial-gradient(ellipse at 50% 42%, transparent 22%, rgba(4,6,10,0.86) 100%);
 }
 
-#progress {
-  position: fixed; top: 0; left: 0; height: 2px; width: 0; z-index: 60;
-  background: var(--cyan); box-shadow: 0 0 12px var(--cyan);
-}
-
 /* ─────────── cursor: crosshair reticle ─────────── */
 #cursor, #cursor-ring { position: fixed; top: 0; left: 0; z-index: 90; pointer-events: none; will-change: transform; }
 #cursor { width: 5px; height: 5px; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
@@ -3413,8 +3408,7 @@ html.t-forest #cursor-ring { border-color: rgba(242, 242, 233, 0.3); }
 #intro.consult-zero-live .intro__foot,
 #intro.consult-zero-live .intro__bar,
 body:has(#intro.consult-zero-live) .nav,
-body:has(#intro.consult-zero-live) .hud,
-body:has(#intro.consult-zero-live) #progress { opacity:0 !important; pointer-events:none !important; }
+body:has(#intro.consult-zero-live) .hud { opacity:0 !important; pointer-events:none !important; }
 @media (min-width:761px) {
   .consult-zero__hand-stage { --film-width:100%; }
   .consult-film__shot,
@@ -4162,10 +4156,6 @@ html.entry-pending body {
   pointer-events: none;
 }
 
-/* Black-hole beat active: the global scroll progress bar stays out of frame
-   (it re-appeared the moment consult-zero-live dropped — a cyan stripe over
-   the hole). It returns with the rest of the site chrome via --site-in. */
-html.beat-live #progress { opacity: 0 !important; pointer-events: none !important; }
 
 /* ── Black-hole portal wall (sealed module port) ─────────────────────────
    The wrap's CSS starfield is the fail-open fallback; the canvas only adds
@@ -4286,6 +4276,11 @@ html.beat-live #progress { opacity: 0 !important; pointer-events: none !importan
   transition: opacity 320ms ease;
 }
 .bh-hold.is-off { opacity: 0; }
+/* D-078: during the burn (wrap .bg) it rides the hole the way the hole does —
+   under the paper, and only as the sky plate lifts. Scroll-driven, so no
+   transition: reverse scroll restores the same opacity at the same place. */
+.intro__portalwrap.bg .bh-hold { opacity: var(--bill-sky, 1); transition: none; }
+.intro__portalwrap.bg .bh-hold.is-off { opacity: 0; }
 /* slow idle pulse on the outer glow only (opacity = compositor) */
 .bh-hold::before {
   content: "";
@@ -5576,8 +5571,7 @@ html.is-in-world .world-host { opacity: 1; visibility: visible; }
    behind a full-screen scene means a stray wheel event lands you somewhere
    else entirely when you fly back out. */
 html.is-in-world, html.is-falling { overflow: hidden; }
-html.is-in-world .nav,
-html.is-in-world #progress { opacity: 0; pointer-events: none; }
+html.is-in-world .nav { opacity: 0; pointer-events: none; }
 
 /* The fall's own darkness. Above the black hole, below the world, so it can
    cover the swap in both directions. */
@@ -5592,8 +5586,10 @@ html.is-in-world #progress { opacity: 0; pointer-events: none; }
 html.is-falling .world-fall__veil { pointer-events: auto; }
 
 /* The way back out. Fixed, always reachable — the world's own exits close
-   things WITHIN the world; this one leaves it. */
-#world-exit {
+   things WITHIN the world; this one leaves it. The ship's "← Leave the Ship"
+   (D-078) is the same control for the Endurance room, so they share it. */
+#world-exit,
+.finale-ship-exit {
   position: fixed;
   top: 14px;
   left: 50%;
@@ -5613,8 +5609,10 @@ html.is-falling .world-fall__veil { pointer-events: auto; }
   visibility: hidden;
   transition: opacity 300ms ease 400ms;
 }
-html.is-in-world #world-exit { opacity: 1; visibility: visible; }
-#world-exit:hover { border-color: #fff; }
+html.is-in-world #world-exit,
+html.finale-inside .finale-ship-exit { opacity: 1; visibility: visible; }
+#world-exit:hover,
+.finale-ship-exit:hover { border-color: #fff; }
 
 /* Projects, beside Contact at the black hole. Inherits every bit of
    .finale-cta's behaviour — position, transition, the --in / --gone states —

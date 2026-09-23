@@ -8,8 +8,10 @@ import { idleGate } from "./gl/visible.js";
 import { mountDiag } from "./modules/diag.js";
 import { createPreloader } from "./modules/preloader.js";
 import { observeAssetReadiness, prepareUpcomingAssets } from "./modules/assetReadiness.js";
+import { createSectionNav } from "./modules/sectionNav.js";
 import "./styles/preload-optimized.css";
 import "./styles/responsive-optimized.css";
+import "./styles/scroll-ruler.css";
 import { splitAll } from "./modules/splitText.js";
 import { initScramble } from "./modules/scramble.js";
 import { createIntro } from "./modules/intro.js";
@@ -433,12 +435,6 @@ function boot() {
     }
   }
 
-  const progress = $("#progress");
-  ScrollTrigger.create({
-    start: 0, end: "max",
-    onUpdate: (self) => { progress.style.width = self.progress * 100 + "%"; },
-  });
-
   // fonts load hone ke baad refresh — warna trigger positions galat baithte hain
   document.fonts?.ready.then(() => ScrollTrigger.refresh());
 
@@ -493,12 +489,6 @@ function boot() {
        hai — pehle nahi, warna nav black hole ke upar tairta dikhta. */
     const siteIn = beatOn ? handoff * ssStep((beat.local - 0.84) / 0.13) : handoff;
     document.documentElement.style.setProperty("--site-in", siteIn.toFixed(3));
-    /* #progress cyan bar consult-zero-live hatte hi wapas aa jaata tha —
-       black hole ke upar ek stripe. Beat ke dauraan use bhi rokna hai. */
-    document.documentElement.classList.toggle(
-      "beat-live",
-      beatOn && beat.local > 0.001 && beat.local < 0.96
-    );
     if (nav) nav.style.pointerEvents = siteIn > 0.5 ? "" : "none";
     if (beatOn) {
       /* Franklin gate REMOVED from the main flow (Yash, 6 Aug 16:18 MCQ):
@@ -518,9 +508,11 @@ function boot() {
   /* THE ENTRANCE. Created BEFORE the intro so it is already covering the
      screen while the scenes build — the whole point is that none of the
      warm-up is ever seen. See modules/preloader.js. */
+  let sectionNav = null;   // the BZ navbar (D-078), built right after the intro
   const preload = createPreloader({
     onReveal: (ms) => {
       lenis?.start();
+      sectionNav?.reveal();
       unsubscribeAssets(); startupAssets.release();
       console.info(`[preload] revealed after ${ms}ms (${preload.state.reason})`);
     },
@@ -531,8 +523,17 @@ function boot() {
     preload.set(total ? Math.min(0.72, completed / total * 0.72) : 0);
   });
 
-  const intro = createIntro({ onProgress: onIntroProgress });
+  const intro = createIntro({
+    onProgress: onIntroProgress,
+    // "Skip intro" is the navbar's -25 BZ jump (D-078)
+    onSkip: () => sectionNav?.go("s4"),
+  });
   liveIntro = intro;   // the production-safe bridge (see its declaration)
+  sectionNav = createSectionNav({ intro, lenis });
+  if (sectionNav) {
+    gsap.ticker.add(sectionNav.tick);
+    if (preload.revealed) sectionNav.reveal();
+  }
 
   /* Warm every shader behind the entrance, then reveal. Guarded and capped:
      the preloader reveals on its own timer regardless, so a warm-up that

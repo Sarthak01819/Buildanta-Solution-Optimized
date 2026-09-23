@@ -1,0 +1,452 @@
+/* ═══════════════════════════════════════════════
+   SCROLL RULER — styles for src/modules/scrollRuler.js
+   A port of the Zero reference ruler (why.zero.university, zeromirror.zip).
+   Every size, alpha, gap and timing is the reference's; rules keep the
+   reference's ORDER too, because some outcomes depend on it (the indicator's
+   `background .4s` transition beats the shared `opacity .25s` one, so it
+   fades out on hover-nav but snaps back — as in the reference).
+
+   Ours, not the reference's:
+     · bz- class names, no ids; .bz-ink = the reference's .nav-black;
+     · "DM Mono" for PP Supply Mono (already loaded by the page), pinned to
+       weight 400 / line-height normal — this site's body is 300 / 1.6, the
+       reference's body set neither;
+     · spinners pinned to content-box — the reference had no border-box
+       reset, this site does, and the reference geometry assumes content-box;
+     · fixed positioning (the reference sat inside an absolute HUD), the
+       .is-hidden fade, the phone toggle button and the ink phone menu.
+   ═══════════════════════════════════════════════ */
+
+/* ─────────── desktop ruler ─────────── */
+
+.bz-ruler {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 520;
+  width: 300px;              /* = RULER_W in scrollRuler.js */
+  height: 60px;
+  transform: translate(-50%);
+  pointer-events: auto;
+  font-weight: 400;
+  line-height: normal;
+  -webkit-mask-image: linear-gradient(90deg, #0000 0%, #000 8% 92%, #0000 100%);
+  mask-image: linear-gradient(90deg, #0000 0%, #000 8% 92%, #0000 100%);
+  transition: opacity .6s, visibility 0s;
+}
+.bz-ruler.is-hover-nav {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.bz-ruler.is-hover-nav .bz-ruler__track,
+.bz-ruler.is-hover-nav .bz-ruler__indicator {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+.bz-ruler__track,
+.bz-ruler__indicator { transition: opacity .25s; }
+
+.bz-ruler__track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  will-change: transform;
+}
+.bz-ruler__tick {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  width: 12px;               /* = TICK_GAP */
+  height: 100%;
+}
+.bz-ruler__line {
+  width: 1px;
+  background: #ffffff59;
+  transform-origin: top;
+  will-change: transform;
+  transition: background .4s;
+}
+.bz-ruler__tick--minor .bz-ruler__line { height: 9px; }   /* = MINOR_H */
+.bz-ruler__tick--major .bz-ruler__line {
+  height: 18px;                                            /* = PEAK_H */
+  background: #fff9;
+}
+.bz-ruler__label {
+  margin-top: 3px;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #fff9;
+  transition: color .4s;
+}
+.bz-ruler__indicator {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 18px;
+  background: #ffffffe6;
+  pointer-events: none;
+  transform: translate(-50%);
+  transition: background .4s;
+}
+
+.bz-ink .bz-ruler__line { background: #0003; }
+.bz-ink .bz-ruler__tick--major .bz-ruler__line { background: #0006; }
+.bz-ink .bz-ruler__label { color: #00000073; }
+.bz-ink .bz-ruler__indicator { background: #000000b3; }
+
+/* hover / keyboard-focus nav */
+.bz-ruler__nav {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: flex;
+  flex-direction: row;
+  gap: 26px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%);
+  transition: opacity .25s;
+}
+.bz-ruler.is-hover-nav .bz-ruler__nav {
+  opacity: 1;
+  pointer-events: auto;
+}
+.bz-ruler__nav-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 2px;
+  border: none;
+  background: 0 0;
+  color: #ffffffb3;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color .2s;
+}
+.bz-ruler__nav-btn:hover,
+.bz-ruler__nav-btn:focus-visible { color: #fff; }
+.bz-ruler__nav-btn:disabled {
+  cursor: default;
+  opacity: .55;
+}
+.bz-ruler__nav-btn.is-static {
+  cursor: default;
+  pointer-events: none;
+  opacity: .5;
+}
+.bz-ruler__nav-btn.is-static:hover { color: inherit; }
+.bz-ruler__nav-label {
+  pointer-events: none;
+  white-space: nowrap;
+}
+.bz-ruler__nav-line {
+  width: 28px;
+  height: 1px;
+  background: #ffffff8c;
+  pointer-events: none;
+  transition: width .2s, background .2s;
+}
+.bz-ruler__nav-btn:hover .bz-ruler__nav-line,
+.bz-ruler__nav-btn:focus-visible .bz-ruler__nav-line {
+  width: 40px;
+  background: #fff;
+}
+.bz-ruler__nav-btn.is-active { color: #fff; }
+.bz-ruler__nav-btn.is-active .bz-ruler__nav-line {
+  width: 40px;
+  height: 2px;
+  background: #fff;
+}
+/* Paused until loading: five hidden spinners would otherwise spin forever. */
+.bz-ruler__nav-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: content-box;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  margin-left: -7px;
+  border: 1.5px solid #ffffff4d;
+  border-top-color: #fff;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: .7s linear infinite bz-ruler-spin;
+  animation-play-state: paused;
+}
+.bz-ruler__nav-btn.is-loading .bz-ruler__nav-spinner {
+  opacity: 1;
+  animation-play-state: running;
+}
+.bz-ruler__nav-btn.is-loading .bz-ruler__nav-line { opacity: 0; }
+
+@keyframes bz-ruler-spin { to { transform: rotate(360deg); } }
+
+.bz-ink .bz-ruler__nav-btn { color: #0009; }
+.bz-ink .bz-ruler__nav-btn:hover,
+.bz-ink .bz-ruler__nav-btn:focus-visible,
+.bz-ink .bz-ruler__nav-btn.is-active { color: #000; }
+.bz-ink .bz-ruler__nav-line { background: #0006; }
+.bz-ink .bz-ruler__nav-btn:hover .bz-ruler__nav-line,
+.bz-ink .bz-ruler__nav-btn:focus-visible .bz-ruler__nav-line,
+.bz-ink .bz-ruler__nav-btn.is-active .bz-ruler__nav-line { background: #000; }
+.bz-ink .bz-ruler__nav-spinner { border-color: #000 #0000004d #0000004d; }
+
+/* ─────────── phone timeline ─────────── */
+/* Only ever built under the mobile query, so the reference's
+   (max-width:768px) overrides (full width, flexing bars) are the base. */
+
+.bz-mtl {
+  position: fixed;
+  /* Right-hand slot, like the reference's hud-right-group: the intro's
+     "BUILDANTA SOLUTIONS" wordmark owns the top-left ~200px on phones. */
+  top: 14px;
+  right: 16px;
+  z-index: 520;
+  width: min(170px, calc(100vw - 220px));
+  height: 42px;
+  pointer-events: auto;
+  font-weight: 400;
+  line-height: normal;
+  transition: opacity .6s, visibility 0s;
+}
+/* = the reference's .mobile-timeline, as a real button filling the slot */
+.bz-mtl__toggle {
+  contain: content;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: 0 0;
+  color: inherit;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.bz-mtl__bars {
+  display: flex;
+  flex: auto;
+  align-items: center;
+  gap: 3px;
+}
+.bz-mtl__bar {
+  flex: 1 1 0;
+  width: auto;
+  height: 2px;
+  border-radius: 1px;
+  background: #ffffff40;
+  overflow: hidden;
+  transition: background .4s;
+}
+.bz-mtl__fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #fffffff2;
+  transform-origin: 0;
+  transform: scaleX(0);
+  will-change: transform;
+  transition: background .4s;
+}
+.bz-mtl__count {
+  width: 7ch;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: #ffffffd9;
+  transition: color .4s;
+}
+
+.bz-ink .bz-mtl__bar { background: #0000002e; }
+.bz-ink .bz-mtl__fill { background: #000000bf; }
+.bz-ink .bz-mtl__count { color: #000000a6; }
+
+/* frosted section menu — on <body>, placed by JS under the timeline */
+.bz-mtl-menu {
+  position: fixed;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #00000052;
+  -webkit-backdrop-filter: saturate(120%) blur(12px);
+  backdrop-filter: saturate(120%) blur(12px);
+  font-weight: 400;
+  line-height: normal;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity .18s, transform .18s;
+}
+.bz-mtl-menu.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.bz-mtl-menu__item {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 2px;
+  border: none;
+  background: 0 0;
+  cursor: pointer;
+}
+.bz-mtl-menu__item::before {
+  content: "";
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: #ffffff40;
+  transition: background .2s, opacity .2s;
+}
+.bz-mtl-menu__label {
+  min-width: 6ch;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  color: #ffffffd9;
+  transition: color .2s;
+}
+.bz-mtl-menu__item.is-active::before { background: #fffffff2; }
+.bz-mtl-menu__item.is-active .bz-mtl-menu__label { color: #fff; }
+.bz-mtl-menu__item:disabled {
+  opacity: .55;
+  cursor: default;
+}
+.bz-mtl-menu__spinner {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  box-sizing: content-box;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border: 1.5px solid #ffffff4d;
+  border-top-color: #fff;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: .7s linear infinite bz-ruler-spin;
+  animation-play-state: paused;
+}
+.bz-mtl-menu__item.is-loading .bz-mtl-menu__spinner {
+  opacity: 1;
+  animation-play-state: running;
+}
+.bz-mtl-menu__item.is-loading::before { opacity: 0; }
+
+/* Ink menu — the reference had none (its menu stayed dark glass). Mirrored
+   frost, and every ink value lifted from the reference's own .nav-black
+   phone table (bar / fill / count / spinner). */
+.bz-mtl-menu.bz-ink { background: #ffffff52; }
+.bz-ink .bz-mtl-menu__item::before { background: #0000002e; }
+.bz-ink .bz-mtl-menu__label { color: #000000a6; }
+.bz-ink .bz-mtl-menu__item.is-active::before { background: #000000bf; }
+.bz-ink .bz-mtl-menu__item.is-active .bz-mtl-menu__label { color: #000; }
+.bz-ink .bz-mtl-menu__spinner { border-color: #000 #0000004d #0000004d; }
+
+/* ─────────── hidden (setVisible(false)) ─────────── */
+/* Fade first, then visibility:hidden so nothing is focusable or hit-testable;
+   JS also sets `inert` at once so the fade-out itself cannot take focus. */
+
+.bz-ruler.is-hidden,
+.bz-mtl.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .6s, visibility 0s linear .6s;
+}
+
+/* ─────────── jump curtain (showNavOverlay) ─────────── */
+
+.bz-nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+  opacity: 0;
+  pointer-events: all;
+  transition: opacity .6s;   /* = OVERLAY_FADE_MS */
+}
+.bz-nav-overlay__loader {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 120px;
+  height: 120px;
+}
+.bz-nav-overlay__spinner {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: 3px solid #0000001f;
+  border-top-color: #000c;
+  border-radius: 50%;
+  animation: .8s linear infinite bz-ruler-spin;
+}
+/* No logo image in this repo: a serif B stands in for the reference's
+   zero_icon.jpg. At 40px/1 Instrument Serif's capital lands with its own
+   centre 0.5px above the circle's and dead centre across (measured in
+   Chrome) — already optically centred, so no nudge. Re-measure if the
+   size or face changes. */
+.bz-nav-overlay__logo {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #1a6e48;
+  color: #fff;
+  font: 400 40px/1 "Instrument Serif", Georgia, serif;
+  user-select: none;
+}
+
+/* ─────────── reduced motion ─────────── */
+/* Behaviour unchanged — the tick bump is a pure function of progress. Only
+   the easing on tick / underline / fill changes and the menu's slide go. */
+
+@media (prefers-reduced-motion: reduce) {
+  .bz-ruler__line,
+  .bz-ruler__nav-line,
+  .bz-mtl__fill { transition: none; }
+  .bz-mtl-menu,
+  .bz-mtl-menu.is-open { transform: none; }
+}
