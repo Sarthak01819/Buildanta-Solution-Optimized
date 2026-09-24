@@ -356,6 +356,10 @@ export function createMirrBillBurn(canvas) {
 
   return {
     ready,
+    /** D-091: each note's burn progress (0 hidden), cheap enough per frame */
+    burnLevels() {
+      return burn ? burn.meshes.map((m) => (m.visible ? m.material.uniforms.uBurnProgress.value : 0)) : [];
+    },
     get state() {
       const heightFraction = stillHeightFraction(baseFov);
       return {

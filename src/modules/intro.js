@@ -67,6 +67,29 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
   }
   const topBar = root.querySelector(".intro__top");
   const footBar = root.querySelector(".intro__foot");
+  /* D-087: Skip intro + Sound live for the whole site, so they leave the foot
+     (whose layer, .intro__inner z1, sits under the camera / bill / portal
+     scenes) for their own layer on #intro, pinned to the exact spot they held. */
+  const controls = document.createElement("div");
+  controls.className = "intro__controls";
+  const footL = footBar?.querySelector(".intro__footL");
+  if (footL) {
+    root.append(controls);
+    // holds footL's slot in the foot's flex row, so the hint / counter stay put
+    const slot = document.createElement("span");
+    slot.setAttribute("aria-hidden", "true");
+    const place = () => {
+      if (footL.parentElement === controls) slot.replaceWith(footL);
+      const r = footL.getBoundingClientRect(), R = root.getBoundingClientRect();
+      controls.style.left = (r.left - R.left).toFixed(1) + "px";
+      controls.style.bottom = (R.bottom - r.bottom).toFixed(1) + "px";
+      slot.style.cssText = `display:block;flex:none;width:${r.width}px;height:${r.height}px`;
+      footL.replaceWith(slot);
+      controls.append(footL);
+    };
+    place();
+    addEventListener("resize", place, { passive: true });
+  }
   const bar = root.querySelector(".intro__bar");
   const marketExperience = root.querySelector(".market-experience");
   const filmStrip = root.querySelector(".market-film");
@@ -198,6 +221,7 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
   let ribbonPointerOn = false, ribbonHoverAt = 0;
   let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
   let lightBackdrop = false;       // is the BZ ruler over the pale meadow? (D-078)
+  let reelLanded;                  // plate parked in the reel gate (D-088)
   const BURN_START_P = 0.945;       // authored hand choreography is complete
   const burnTransition = { mode: "scroll", ready: false, failed: false };
   let burnScene = null, burnPending = false, burnDisposed = false;
@@ -729,6 +753,14 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
         detent = 1 + (OVERSHOOT / HUMP_PEAK) * Math.sin(Math.PI * t) * (1 - t);
       } else detent = 1;
       const scrollTravel = (idx + detent) / slots;
+      /* D-088: which plate is PARKED in the gate (null while one slides), for
+         the reel's landing sound. Only from SEO's arrival to IoT's landing;
+         undefined outside, so re-entering the reel starts fresh. */
+      reelLanded = !reduced && p >= 0.61 && p < 0.69
+        // "landed" = ARRIVED, a hair early to cover audio output latency
+        // (client, 24 Sep): ~92 % of the snap's slide forward (frac .50),
+        // the mirror reversing (.36)
+        ? (frac < 0.36 ? idx : frac >= 0.50 ? idx + 1 : null) : undefined;
       /* reduced motion parks the whole transport on plate 4 at the SOURCE, so
          the strip and the spools park with the ribbon instead of travelling
          under it - the old `reduced ? 4` guards sat only on filmPos and the
@@ -1716,9 +1748,15 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
       : 1;
     const introChromeOp = String((1 - handoff) * marketChromeFade);
     topBar.style.opacity = introChromeOp;
-    footBar.style.opacity = introChromeOp;
     bar.style.opacity = introChromeOp;
-    footBar.style.pointerEvents = handoff > 0.5 ? "none" : "";
+    /* D-087: Skip intro + Sound stay on screen for the whole site; only the
+       rest of the foot (hint, act counter, backing gradient) leaves with the
+       intro chrome. Their ink follows what is behind them: the act's own
+       theme ink while the acts' chrome is up, else dark over the pale meadow
+       and light over everything else (camera, bill, space, black hole). */
+    footBar.style.setProperty("--foot-chrome", introChromeOp);
+    controls.dataset.ink = Number(introChromeOp) > 0.5 && !root.classList.contains("consult-zero-live")
+      ? "theme" : lightBackdrop ? "dark" : "light";
 
     onProgress?.(p, handoff, { enabled: beatEnabled, local: beatLocal });
   }
@@ -2469,6 +2507,11 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
     get raw() { return lastRaw; },
     get totalScrollLength() { return totalScrollLength; },
     get lightBackdrop() { return lightBackdrop; },
+    get reelLanded() { return reelLanded; },
+    /** D-091: per-note burn progress while the bill beat is on screen */
+    billBurnLevels() {
+      return burnScene && progress >= BURN_START_P && progress < 1 ? burnScene.burnLevels() : [];
+    },
     get portalRiding() { return portalState === "riding"; },
     rawForBillTransition: (local) => rawForP(BURN_START_P + Math.max(0, Math.min(1, local)) * (1 - BURN_START_P)),
     get billTransition() {

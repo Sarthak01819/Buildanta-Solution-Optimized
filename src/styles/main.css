@@ -3385,7 +3385,9 @@ em.coral-italic {
 .consult-zero__capital-line,
 .consult-zero__hud { display:none !important; }
 #intro.consult-zero-live .intro__top,
-#intro.consult-zero-live .intro__foot,
+#intro.consult-zero-live .intro__foot::before,
+#intro.consult-zero-live .intro__hint,
+#intro.consult-zero-live .intro__count,
 #intro.consult-zero-live .intro__bar,
 body:has(#intro.consult-zero-live) .nav,
 body:has(#intro.consult-zero-live) .hud { opacity:0 !important; pointer-events:none !important; }
@@ -6181,3 +6183,20 @@ canvas.market-camera3d {
 html, body { cursor: var(--cur-arrow); }
 a[href], button:not(:disabled), [role="button"], label[for], summary, select { cursor: var(--cur-hand); }
 input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"] { cursor: var(--cur-text); }
+
+/* ── D-087: Skip intro + Sound, throughout the site ─────────────────────────
+   The foot stays; its hint / counter / backing fade with the intro chrome
+   (--foot-chrome, written by intro.js). Above the bill, portal and black hole
+   layers. data-ink = theme | light | dark picks the controls' colour. */
+.intro__controls { position: absolute; z-index: 45; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.intro__foot::before, .intro__hint, .intro__count { opacity: var(--foot-chrome, 1); }
+.intro__hint[data-on="true"] { opacity: var(--foot-chrome, 1); }
+.intro__controls[data-ink="light"] .intro__skip,
+.intro__controls[data-ink="light"] .intro__sound { color: rgba(255, 255, 255, .78); }
+.intro__controls[data-ink="light"] .intro__skip:hover { color: #fff; border-bottom-color: #fff; }
+.intro__controls[data-ink="light"] .intro__sound:hover { color: #fff; border-color: rgba(255, 255, 255, .35); }
+.intro__controls[data-ink="dark"] .intro__skip,
+.intro__controls[data-ink="dark"] .intro__sound { color: rgba(18, 22, 18, .78); }
+.intro__controls[data-ink="dark"] .intro__skip:hover { color: #111; border-bottom-color: #111; }
+.intro__controls[data-ink="dark"] .intro__sound:hover { color: #111; border-color: rgba(0, 0, 0, .3); }
+.intro__skip, .intro__sound { transition: color .5s ease, border-color .35s ease; }

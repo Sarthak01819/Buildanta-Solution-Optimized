@@ -286,7 +286,11 @@ export function createZeroStageAudio() {
     ambientLevel += (target - ambientLevel) * blend;
     ambient.volume = Math.max(0, Math.min(0.55, ambientLevel));
     ensureAmbient();
-    if (target === 0 && ambientLevel < 0.002 && !ambient.paused) ambient.pause();
+    /* D-092: never while the gesture's silent priming play() is in flight —
+       pausing it rejected that play(), the ambient channel stayed locked, and
+       with one ENTER click and wheel-only scrolling after it the whole stage
+       (ambient + hand-entry + whoosh) never armed. */
+    if (target === 0 && ambientLevel < 0.002 && !ambient.paused && !channels[0].pending) ambient.pause();
   }
 
   const snapshot = () => ({

@@ -19,7 +19,9 @@ const FADE_IN = 3;
 const FADE_OUT = 4;
 const LEAVE = 2;
 
-export function createIntroScore() {
+/* D-086: the same player serves -75 BZ with a second cut of the track
+   ("/assets/reel-score.mp3" = 1:24.5–2:00), so `src` is a parameter. */
+export function createIntroScore({ src = SRC, volume = VOLUME } = {}) {
   let ctx = null, master = null, buffer = null;
   let active = false;          // is the visitor inside -100 BZ?
   let muted = false;
@@ -27,7 +29,7 @@ export function createIntroScore() {
   let playing = false;
   let cycle = null;            // { src, gain } of the running pass
   let nextTimer = 0;
-  const loading = fetch(SRC)
+  const loading = fetch(src)
     .then((r) => r.arrayBuffer())
     .catch(() => null);
 
@@ -38,8 +40,8 @@ export function createIntroScore() {
     src.connect(gain).connect(master);
     const len = buffer.duration;
     gain.gain.setValueAtTime(0.0001, at);
-    gain.gain.linearRampToValueAtTime(VOLUME, at + FADE_IN);
-    gain.gain.setValueAtTime(VOLUME, at + len - FADE_OUT);
+    gain.gain.linearRampToValueAtTime(volume, at + FADE_IN);
+    gain.gain.setValueAtTime(volume, at + len - FADE_OUT);
     gain.gain.linearRampToValueAtTime(0.0001, at + len);
     src.start(at);
     src.stop(at + len);
@@ -115,7 +117,7 @@ export function createIntroScore() {
       duck.gain.cancelScheduledValues(now);
       duck.gain.setValueAtTime(duck.gain.value, now);
       // client, 24 Sep: 8 % during We code (never a boost over the base)
-      duck.gain.linearRampToValueAtTime(on ? Math.min(1, DUCK_VOLUME / VOLUME) : 1, now + 1.5);
+      duck.gain.linearRampToValueAtTime(on ? Math.min(1, DUCK_VOLUME / volume) : 1, now + 1.5);
     },
     get muted() { return muted; },
     /** 0..1 loudness of what is actually heard (after mute / fades) */

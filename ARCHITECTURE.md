@@ -473,6 +473,25 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-092 — Hands audio never armed (bug fix)
+- `zeroStageAudio.js` arms only when all 3 channels (ambient, hand-entry, whoosh) unlock from a trusted gesture. Its per-frame `tick()` paused the ambient element while the ENTER click's silent priming `play()` was still pending, rejecting it → ambient stayed locked → stage never armed. Previously a later click re-armed it; since D-079 visitors click ENTER once and then only wheel-scroll, so the hands were silent. `tick()` now skips that pause while `channels[0].pending`. Verified: armed right after ENTER; at the meadow ambient playing and fading up, hand-entry cue fired.
+
+### D-091 — The bill burn gets the reference's own crackle
+- **Date:** 2026-09-24. `public/assets/money-burn.wav` = zeromirror's `assets/audio/fx_money-burn.mp3` (1.4 s loop, WAV for a seamless seam). Played exactly as the reference's bill stage does (read from its bundle): one looping voice per note, level 0.05 × 4·o·(1−o) of that note's `uBurnProgress`, started at o > .001, stopped at .95; random start offset per voice. `mirrBillBurn.burnLevels()` → `intro.billBurnLevels()` (only while p ∈ [.945, 1)) → `src/modules/moneyBurnSound.js`. Scroll-driven, so reverse re-lights it; Sound button mutes it. Verified: 10 notes report progress through the beat, no page errors.
+
+### D-090 — Reel sound softened (onset kept sharp)
+- `reel-tick.wav` re-rendered from `art-source/audio/reelscrollaudio-original.mp3` (5.538–6.5 s, then the decoded 27 ms of lead silence trimmed — onset now ≈1 ms): `atrim 0.027, highpass=70, lowpass=5500, equalizer 3.2 kHz -7 dB, highshelf 7 kHz -8 dB, +3 dB, alimiter 0.8 (1 ms attack)`. No compressor / echo / fade — they would blunt the onset the sync depends on.
+
+### D-089 — Reel sound fast-forwards with scroll speed
+- **Date:** 2026-09-24. `reelTickSound.js`: playbackRate follows |Lenis velocity| live — ≤ 25 px/frame = 1×, rising linearly to 2× at 110 px/frame (tape-style, pitch rises; zero added latency). Constants `CALM_V` / `FAST_V` / `MAX_RATE`.
+
+### D-088 — Reel landing sound
+- **Date:** 2026-09-24 (working tree). `public/assets/reel-tick.wav` = 'reelscrollaudio' 00:05.538–00:06.5 (38 ms of leading silence trimmed, cut on the measured onset; WAV to avoid MP3 priming), 30 %, fired the moment a plate ARRIVES in the reel gate (~92 % of the snap — a hair early for output latency — frac ≥ .50 forward / < .36 reverse); no fades anywhere, a new hit hard-cuts the last (SEO … IoT), forward and reverse; a new landing restarts it (30 ms release). `intro.reelLanded` = the detent's parked plate (frac < .34 → idx, ≥ .66 → idx+1, else null) inside p .61–.69, undefined outside so re-entry starts fresh. Measured sequence forward: SEO@.610, AEO@.638, ADS@.646, SOCIAL@.650, CONTENT@.656, WEBSITE@.660, SOFTWARE@.664, CRM@.670, IoT@.678; reverse mirrors it. `src/modules/reelTickSound.js`; Sound button mutes it.
+
+### D-086 / D-087 — -75 BZ score; Skip intro + Sound throughout
+- **D-086 (24 Sep):** `public/assets/reel-score.mp3` = 'Mystery' 1:24.5–2:00 (35.5 s), looped in -75 BZ (the camera reel) at 40 % via a second `createIntroScore({ src, volume })`, same 3 s in / 4 s out loop fades, 2 s leave; Sound button mutes both, EQ reads the louder.
+- **D-087 (24 Sep):** `.intro__footL` (Skip intro + Sound) moves at boot into `.intro__controls` on #intro (z 45, above camera / bill / portal / black-hole layers), pinned to its original spot, with a same-size slot left in the foot so the hint and counter don't shift. `data-ink`: the act's theme ink while the intro chrome is up, `dark` over the pale meadow (`lightBackdrop`), `light` elsewhere. Skip is a no-op from -25 BZ on. Checked at act 1, camera, meadow, bill, wall, 0 BZ.
+
 ### D-085 — We code globe sound, scroll-driven; the score ducks under it
 - **Date:** 2026-09-24 (working tree). `public/assets/wecode-globe.mp3` (client-supplied, cut to 00:00–00:30) loops from the We code reveal (p .240) to the We market handover (p .425); level = scroll position, 4 % → 50 % linearly, holds when scrolling stops, falls on scroll-back; loop fades 2 s / 2 s; leaving fades 1.2 s. The -100 BZ score ducks to 20 % (1.5 s) while it plays and returns after. `src/modules/weCodeSound.js`; `introScore.setDuck()`; Sound button mutes it. No page errors scrolling through.
 
