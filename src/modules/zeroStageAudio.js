@@ -344,6 +344,15 @@ export function createZeroStageAudio() {
     dispose,
     get armed() { return armed; },
     get state() { return snapshot(); },
+    /** D-095: EQ proxy — these are plain <audio> elements (no Web Audio graph
+        to meter), so report what is audibly on: the ambient's live volume
+        (0..0.55) and a playing cue, scaled onto the bars' 0..1. */
+    level() {
+      let v = ambient.paused ? 0 : ambient.volume;
+      if (!handEntry.paused) v = Math.max(v, 0.7);
+      if (!whoosh.paused) v = Math.max(v, 0.6);
+      return v;
+    },
   };
 
   /* Read-only DEV telemetry gives the visual verifier deterministic facts

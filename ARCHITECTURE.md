@@ -473,6 +473,16 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-096 — Reel tick: predictive latency compensation
+- The tick and the plates share one scroll number, but the ear hears the tick late by the device's output latency — measured 56 ms output + 10 ms base on this Windows machine (+ ~1 frame). `reelTickSound.update` now takes the raw plate position (`intro.reelPos`, `reelSlots`), smooths its speed (plates/s), projects it ahead by `outputLatency + baseLatency + 1/60 s`, and applies the same landing rule there — so each hit starts early by exactly the delay it will suffer, forward or reverse, scaling with scroll speed (at rest, prediction = actual). No page errors on a wheel pass through the reel.
+
+### D-094 / D-095 — Sound button + EQ bars cover every section
+- **D-094:** the Sound button (and "Enter without sound") now also mutes the finale score (`music.setMuted`), which plays at 0 BZ / world / ship.
+- **D-095:** `src/modules/audioMeter.js` — an AnalyserNode inserted before the destination of every Web Audio sound (hero particles, We code globe, reel tick, bill burn, portal) plus the finale score; the hands stage (plain `<audio>` elements) reports a live-volume proxy. `soundLevel` = the loudest of all, so the bars move wherever anything is heard. Verified bars moving in We code and the hands stage, no page errors.
+
+### D-093 — The TAP & HOLD wall's sound
+- **Date:** 2026-09-24 (working tree). Three client files (originals in `art-source/audio/`), each ~1–3 min, so cut for their jobs and softened (`lowpass 9 kHz, highshelf 6 kHz -3 dB`): `portal-horizon.mp3` = Event Horizon 0:05–0:35 with a 2 s cross-faded seam (30 s loop), 20 %, on from p ≥ .955 (hole visible through the burn) until ENTER (`intro.portalAmbience`), fade in τ 1 s / out τ .6 s; (the hold's Collapse Tension sound was built, then REMOVED at the client's request the same day); `portal-bloom.mp3` = Portal Bloom 0:00–0:06 with 3 s tail fade, 40 %, once on `bh:enter`. `src/modules/portalSounds.js`. Verified the whole wall → hold → armed → ENTER path.
+
 ### D-092 — Hands audio never armed (bug fix)
 - `zeroStageAudio.js` arms only when all 3 channels (ambient, hand-entry, whoosh) unlock from a trusted gesture. Its per-frame `tick()` paused the ambient element while the ENTER click's silent priming `play()` was still pending, rejecting it → ambient stayed locked → stage never armed. Previously a later click re-armed it; since D-079 visitors click ENTER once and then only wheel-scroll, so the hands were silent. `tick()` now skips that pause while `channels[0].pending`. Verified: armed right after ENTER; at the meadow ambient playing and fading up, hand-entry cue fired.
 

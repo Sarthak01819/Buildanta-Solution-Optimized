@@ -222,6 +222,7 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
   let lastRaw = 0;                 // last applied scroll raw, for onReady re-application
   let lightBackdrop = false;       // is the BZ ruler over the pale meadow? (D-078)
   let reelLanded;                  // plate parked in the reel gate (D-088)
+  let reelPos, reelSlots = 8;      // raw plate position in the reel (D-096)
   const BURN_START_P = 0.945;       // authored hand choreography is complete
   const burnTransition = { mode: "scroll", ready: false, failed: false };
   let burnScene = null, burnPending = false, burnDisposed = false;
@@ -756,6 +757,10 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
       /* D-088: which plate is PARKED in the gate (null while one slides), for
          the reel's landing sound. Only from SEO's arrival to IoT's landing;
          undefined outside, so re-entering the reel starts fresh. */
+      /* D-096: the raw plate position too, so the landing sound can PREDICT
+         the arrival and fire early by the audio device's output latency. */
+      reelPos = !reduced && p >= 0.61 && p < 0.69 ? posScroll : undefined;
+      reelSlots = slots;
       reelLanded = !reduced && p >= 0.61 && p < 0.69
         // "landed" = ARRIVED, a hair early to cover audio output latency
         // (client, 24 Sep): ~92 % of the snap's slide forward (frac .50),
@@ -2508,6 +2513,12 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
     get totalScrollLength() { return totalScrollLength; },
     get lightBackdrop() { return lightBackdrop; },
     get reelLanded() { return reelLanded; },
+    get reelPos() { return reelPos; },
+    get reelSlots() { return reelSlots; },
+    /** D-095: the hands stage's audible level, for the EQ bars */
+    zeroStageLevel: () => zeroStageAudio?.level?.() ?? 0,
+    /** D-093: the wall's ambience — from the hole showing through the burn to ENTER */
+    get portalAmbience() { return portalOn && !enteredOnce && progress >= 0.955 ? 1 : 0; },
     /** D-091: per-note burn progress while the bill beat is on screen */
     billBurnLevels() {
       return burnScene && progress >= BURN_START_P && progress < 1 ? burnScene.burnLevels() : [];

@@ -8,6 +8,7 @@
  * back and it falls. Each 30 s pass dips out over its last 2 s and rises in
  * over its first 2 s. While it plays, the -100 BZ score ducks to 20 %.
  */
+import { createMeter } from "./audioMeter.js";
 const SRC = "/assets/wecode-globe.mp3";   // already trimmed to 30 s
 export const WECODE_P0 = 0.240;
 export const WECODE_P1 = 0.425;
@@ -18,7 +19,7 @@ const LEAVE = 1.2;
 
 export function createWeCodeSound() {
   let ctx = null, level = null, master = null, buffer = null;
-  let playing = false, cycle = null, nextTimer = 0, muted = false;
+  let playing = false, cycle = null, nextTimer = 0, muted = false, meter = null;
   const loading = fetch(SRC).then((r) => r.arrayBuffer()).catch(() => null);
 
   function startCycle(at) {
@@ -66,7 +67,8 @@ export function createWeCodeSound() {
       master = ctx.createGain();     // the Sound button
       level.gain.value = MIN_VOLUME;
       master.gain.value = muted ? 0 : 1;
-      level.connect(master).connect(ctx.destination);
+      meter = createMeter(ctx);
+      level.connect(master).connect(meter.node);
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) ctx.suspend(); else ctx.resume();
       });
@@ -74,6 +76,7 @@ export function createWeCodeSound() {
       if (!raw) return;
       try { buffer = await ctx.decodeAudioData(raw); } catch { /* no sound */ }
     },
+    level() { return meter ? meter.level() : 0; },
     /** per frame: the intro's timeline progress p, and the Sound button */
     update(p, isMuted) {
       const inside = p >= WECODE_P0 && p <= WECODE_P1;

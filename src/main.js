@@ -14,6 +14,7 @@ import { createHeroParticleSound } from "./modules/heroParticleSound.js";
 import { createWeCodeSound } from "./modules/weCodeSound.js";
 import { createReelTickSound } from "./modules/reelTickSound.js";
 import { createMoneyBurnSound } from "./modules/moneyBurnSound.js";
+import { createPortalSounds } from "./modules/portalSounds.js";
 import "./styles/preload-optimized.css";
 import "./styles/responsive-optimized.css";
 import "./styles/scroll-ruler.css";
@@ -520,13 +521,16 @@ function boot() {
   const weCodeSound = createWeCodeSound();          // D-085
   const reelTick = createReelTickSound();           // D-088
   const moneyBurn = createMoneyBurnSound();         // D-091
+  // the TAP & HOLD wall: horizon ambience, hold tension, ENTER bloom (D-093)
+  const portalSounds = createPortalSounds({ getAmbience: () => liveIntro?.portalAmbience ?? 0 });
   const preload = createPreloader({
     // the loader's ENTER is the gesture that lets the score play (D-079)
     // "Enter without sound" arrives muted; the Sound button can still unmute
     onEnter: (withSound) => {
       introScore.setMuted(!withSound);
       reelScore.setMuted(!withSound);
-      introScore.unlock(); reelScore.unlock(); heroParticles.unlock(); weCodeSound.unlock(); reelTick.unlock(); moneyBurn.unlock();
+      liveIntro?.music?.setMuted(!withSound);
+      introScore.unlock(); reelScore.unlock(); heroParticles.unlock(); weCodeSound.unlock(); reelTick.unlock(); moneyBurn.unlock(); portalSounds.unlock();
       paintSound();
     },
     onReveal: (ms) => {
@@ -547,7 +551,12 @@ function boot() {
     // "Skip intro" is the navbar's -25 BZ jump (D-078)
     // Skip intro: only while there is still intro to skip (before -25 BZ)
     onSkip: () => { if (intro.sectionIndexAt(intro.raw) < 3) sectionNav?.go("s4"); },
-    soundLevel: () => Math.max(introScore.level(), reelScore.level()),
+    // every sound on the site drives the EQ bars; they follow the loudest (D-095)
+    soundLevel: () => Math.max(
+      introScore.level(), reelScore.level(), liveIntro?.music?.level() ?? 0,
+      heroParticles.level(), weCodeSound.level(), reelTick.level(), moneyBurn.level(),
+      portalSounds.level(), liveIntro?.zeroStageLevel?.() ?? 0,
+    ),
   });
   liveIntro = intro;   // the production-safe bridge (see its declaration)
   sectionNav = createSectionNav({ intro, lenis });
@@ -560,7 +569,9 @@ function boot() {
     if (soundLabel) soundLabel.textContent = introScore.muted ? "Sound off" : "Sound";
   };
   soundBtn?.addEventListener("click", () => {
-    introScore.setMuted(!introScore.muted); reelScore.setMuted(introScore.muted); paintSound();
+    introScore.setMuted(!introScore.muted); reelScore.setMuted(introScore.muted);
+    liveIntro?.music?.setMuted(introScore.muted);   // the 0 BZ finale score too
+    paintSound();
   });
   paintSound();
   // the -100 BZ score (D-079): plays while the visitor is inside -100 BZ
@@ -572,9 +583,10 @@ function boot() {
   // We code globe: volume by scroll, and the score ducks while it plays (D-085)
   gsap.ticker.add(() => introScore.setDuck(weCodeSound.update(intro.progress, introScore.muted)));
   // reel plates: a landing sound each time one parks in the gate (D-088)
-  gsap.ticker.add(() => reelTick.update(intro.reelLanded, introScore.muted, lenis?.velocity ?? 0));
+  gsap.ticker.add(() => reelTick.update(intro.reelLanded, introScore.muted, lenis?.velocity ?? 0, intro.reelPos, intro.reelSlots));
   // bill burn: the reference's crackle, one voice per burning note (D-091)
   gsap.ticker.add(() => moneyBurn.update(intro.billBurnLevels(), introScore.muted));
+  gsap.ticker.add(() => portalSounds.update(introScore.muted));
   // particle texture sound: only while the hero orb is on screen (it hands
   // off to We code over p .200 → .245, the same curve intro.js fades it on)
   gsap.ticker.add(() => {

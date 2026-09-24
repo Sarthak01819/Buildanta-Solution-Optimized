@@ -64,6 +64,7 @@ export function createMusic() {
      The score steps away then — the film has its own sound — and rises again,
      the same 6s swell, the next time they come through the door. */
   let away = false;
+  let analyser = null, levels = null;
 
   /** Called at ENTER. Starts silent and rises — the ride does the swelling. */
   async function enter() {
@@ -86,7 +87,12 @@ export function createMusic() {
       tone.type = "lowpass";
       tone.frequency.value = 20000;        // wide open by default
       master.connect(tone);
-      tone.connect(ctx.destination);
+      // the Sound button's EQ bars read what is heard here (D-094)
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      levels = new Uint8Array(analyser.frequencyBinCount);
+      tone.connect(analyser);
+      analyser.connect(ctx.destination);
 
       const buf = await load();
       src = ctx.createBufferSource();
@@ -137,8 +143,18 @@ export function createMusic() {
     ramp(master.gain, 0.0001, 1.2);
   }
 
+  /** 0..1 loudness actually heard (same curve as introScore.level) */
+  function level() {
+    if (!analyser || ctx.state !== "running") return 0;
+    analyser.getByteTimeDomainData(levels);
+    let sum = 0;
+    for (let i = 0; i < levels.length; i++) { const v = (levels[i] - 128) / 128; sum += v * v; }
+    return Math.min(1, Math.sqrt(Math.sqrt(sum / levels.length)) * 1.6);
+  }
+
   return {
     enter,
+    level,
     leave,
     setScene,
     setMuted,

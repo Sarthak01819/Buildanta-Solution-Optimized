@@ -7,11 +7,12 @@
  * Pure function of scroll, like the burn itself, so reverse scroll re-lights it.
  * WAV so the 1.4 s loop has no MP3 priming gap at the seam.
  */
+import { createMeter } from "./audioMeter.js";
 const SRC = "/assets/money-burn.wav";
 const VOLUME = 0.05;   // the reference's own per-note level
 
 export function createMoneyBurnSound() {
-  let ctx = null, master = null, buffer = null;
+  let ctx = null, master = null, buffer = null, meter = null;
   const voices = [];   // per note: { src, g } or null
   const loading = fetch(SRC).then((r) => r.arrayBuffer()).catch(() => null);
 
@@ -30,13 +31,15 @@ export function createMoneyBurnSound() {
       if (!AC) return;
       ctx = new AC();
       master = ctx.createGain();
-      master.connect(ctx.destination);
+      meter = createMeter(ctx);
+      master.connect(meter.node);
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) ctx.suspend(); else ctx.resume();
       });
       const raw = await loading;
       if (raw) try { buffer = await ctx.decodeAudioData(raw); } catch { /* none */ }
     },
+    level() { return meter ? meter.level() : 0; },
     /** per frame: intro.billBurnLevels() and the Sound button */
     update(levels, muted) {
       if (!ctx || !buffer) return;

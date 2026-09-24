@@ -11,6 +11,7 @@
  *
  * Tweak the level here: BASE_VOLUME (0 %) and MAX_VOLUME (30 %), both absolute.
  */
+import { createMeter } from "./audioMeter.js";
 const SRC = "/assets/hero-particles.mp3";
 const BASE_VOLUME = 0;        // slow cursor = silent; only speed brings it in (client, 24 Sep: 0 %)
 const MAX_VOLUME = 0.30;      // fast cursor raises it up to this (30 %)
@@ -21,7 +22,7 @@ export function createHeroParticleSound() {
   const audio = new Audio(SRC);
   audio.loop = true;
   audio.preload = "auto";
-  let ctx = null, gain = null;
+  let ctx = null, gain = null, meter = null;
   let lastMove = -1e9, lastX = 0, lastY = 0, lastT = 0, speed = 0;
   let quietSince = 0;
 
@@ -46,11 +47,13 @@ export function createHeroParticleSound() {
       ctx = new AC();
       gain = ctx.createGain();
       gain.gain.value = 0;
-      ctx.createMediaElementSource(audio).connect(gain).connect(ctx.destination);
+      meter = createMeter(ctx);
+      ctx.createMediaElementSource(audio).connect(gain).connect(meter.node);
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) ctx.suspend(); else ctx.resume();
       });
     },
+    level() { return meter ? meter.level() : 0; },
     /**
      * Per frame. presence 0..1 = how much of the particle orb is on screen;
      * muted = the bottom-left Sound button.
