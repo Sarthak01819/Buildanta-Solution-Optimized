@@ -13,7 +13,8 @@
  * accurate, and never drift against the loop.
  */
 const SRC = "/assets/intro-score.mp3";   // already trimmed to 83 s
-const VOLUME = 0.55;
+const VOLUME = 0.10;   // client, 24 Sep: 10 %
+const DUCK_VOLUME = 0.08;   // under the We code globe sound (D-085)
 const FADE_IN = 3;
 const FADE_OUT = 4;
 const LEAVE = 2;
@@ -22,7 +23,7 @@ export function createIntroScore() {
   let ctx = null, master = null, buffer = null;
   let active = false;          // is the visitor inside -100 BZ?
   let muted = false;
-  let analyser = null, levels = null;
+  let analyser = null, levels = null, duck = null, ducked = false;
   let playing = false;
   let cycle = null;            // { src, gain } of the running pass
   let nextTimer = 0;
@@ -87,7 +88,9 @@ export function createIntroScore() {
       analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
       levels = new Uint8Array(analyser.frequencyBinCount);
-      master.connect(analyser);
+      // D-085: the We code globe ducks the score to 20 % (of 55 %)
+      duck = ctx.createGain();
+      master.connect(duck).connect(analyser);
       analyser.connect(ctx.destination);
       const raw = await loading;
       if (!raw) return;
@@ -102,6 +105,17 @@ export function createIntroScore() {
       master.gain.cancelScheduledValues(now);
       master.gain.setValueAtTime(master.gain.value, now);
       master.gain.linearRampToValueAtTime(muted ? 0.0001 : 1, now + 0.4);
+    },
+    get muted() { return muted; },
+    /** D-085: while We code's globe plays the score sits at DUCK_VOLUME (1.5 s ease) */
+    setDuck(on) {
+      if (on === ducked || !duck) return;
+      ducked = on;
+      const now = ctx.currentTime;
+      duck.gain.cancelScheduledValues(now);
+      duck.gain.setValueAtTime(duck.gain.value, now);
+      // client, 24 Sep: 8 % during We code (never a boost over the base)
+      duck.gain.linearRampToValueAtTime(on ? Math.min(1, DUCK_VOLUME / VOLUME) : 1, now + 1.5);
     },
     get muted() { return muted; },
     /** 0..1 loudness of what is actually heard (after mute / fades) */

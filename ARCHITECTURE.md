@@ -473,6 +473,9 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-085 — We code globe sound, scroll-driven; the score ducks under it
+- **Date:** 2026-09-24 (working tree). `public/assets/wecode-globe.mp3` (client-supplied, cut to 00:00–00:30) loops from the We code reveal (p .240) to the We market handover (p .425); level = scroll position, 4 % → 50 % linearly, holds when scrolling stops, falls on scroll-back; loop fades 2 s / 2 s; leaving fades 1.2 s. The -100 BZ score ducks to 20 % (1.5 s) while it plays and returns after. `src/modules/weCodeSound.js`; `introScore.setDuck()`; Sound button mutes it. No page errors scrolling through.
+
 ### D-084 — Particle sound softened ("so it doesn't hurt the ears")
 - `public/assets/hero-particles.mp3` re-rendered from `art-source/audio/hero-particles-original.mp3`: pass 2 (client: "smoother"): `highpass=80, lowpass=4500 ×2, equalizer 3 kHz -8 dB, highshelf 6 kHz -9 dB, acompressor -26 dB 4:1 (30/400 ms), aecho 0.8:0.6:40:0.25 (a touch of room to round transients), volume +7 dB, alimiter 0.6` — mean ≈ first pass, peaks lower. Attack of the in-page fade slowed 0.1 → 0.3 s time constant.
 

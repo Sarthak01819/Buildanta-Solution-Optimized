@@ -6,14 +6,14 @@
  * -100 BZ score, only while the cursor is stirring the hero's particle orb —
  * from the first frame until the orb hands off to We code (p .200 → .245).
  * It fades in when the cursor moves, rises with cursor speed (never more than
- * MAX_BOOST above the base), and fades out ~0.5 s after the cursor stops;
+ * MAX_VOLUME), and fades out ~0.5 s after the cursor stops;
  * then it PAUSES, so the next stir resumes where it left off.
  *
- * Tweak the level here: BASE_VOLUME (client: "8 % for now, I'll edit it").
+ * Tweak the level here: BASE_VOLUME (0 %) and MAX_VOLUME (30 %), both absolute.
  */
 const SRC = "/assets/hero-particles.mp3";
-const BASE_VOLUME = 0.08;     // while the cursor moves
-const MAX_BOOST = 0.5;        // speed can raise it by at most +50 % (→ 12 %)
+const BASE_VOLUME = 0;        // slow cursor = silent; only speed brings it in (client, 24 Sep: 0 %)
+const MAX_VOLUME = 0.30;      // fast cursor raises it up to this (30 %)
 const SPEED_FULL = 2.5;       // px/ms of cursor speed that earns the full boost
 const STILL_MS = 500;         // no movement for this long = stopped
 
@@ -60,8 +60,8 @@ export function createHeroParticleSound() {
       const now = performance.now();
       const moving = now - lastMove < STILL_MS;
       if (!moving) speed *= 0.9;
-      const boost = 1 + MAX_BOOST * Math.min(1, speed / SPEED_FULL);
-      const target = moving && !muted ? BASE_VOLUME * boost * presence : 0;
+      const level = BASE_VOLUME + (MAX_VOLUME - BASE_VOLUME) * Math.min(1, speed / SPEED_FULL);
+      const target = moving && !muted ? level * presence : 0;
       // soft in, gentle out — a fast attack read as a jab in the ear (D-084)
       gain.gain.setTargetAtTime(target, ctx.currentTime, target > gain.gain.value ? 0.3 : 0.35);
       if (target > 0) {

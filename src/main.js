@@ -11,6 +11,7 @@ import { observeAssetReadiness, prepareUpcomingAssets } from "./modules/assetRea
 import { createSectionNav } from "./modules/sectionNav.js";
 import { createIntroScore } from "./modules/introScore.js";
 import { createHeroParticleSound } from "./modules/heroParticleSound.js";
+import { createWeCodeSound } from "./modules/weCodeSound.js";
 import "./styles/preload-optimized.css";
 import "./styles/responsive-optimized.css";
 import "./styles/scroll-ruler.css";
@@ -512,12 +513,13 @@ function boot() {
   let sectionNav = null;   // the BZ navbar (D-078), built right after the intro
   const introScore = createIntroScore();
   const heroParticles = createHeroParticleSound();   // D-082
+  const weCodeSound = createWeCodeSound();          // D-085
   const preload = createPreloader({
     // the loader's ENTER is the gesture that lets the score play (D-079)
     // "Enter without sound" arrives muted; the Sound button can still unmute
     onEnter: (withSound) => {
       introScore.setMuted(!withSound);
-      introScore.unlock(); heroParticles.unlock();
+      introScore.unlock(); heroParticles.unlock(); weCodeSound.unlock();
       paintSound();
     },
     onReveal: (ms) => {
@@ -553,6 +555,8 @@ function boot() {
   paintSound();
   // the -100 BZ score (D-079): plays while the visitor is inside -100 BZ
   gsap.ticker.add(() => introScore.setActive(intro.sectionIndexAt(intro.raw) === 0));
+  // We code globe: volume by scroll, and the score ducks while it plays (D-085)
+  gsap.ticker.add(() => introScore.setDuck(weCodeSound.update(intro.progress, introScore.muted)));
   // particle texture sound: only while the hero orb is on screen (it hands
   // off to We code over p .200 → .245, the same curve intro.js fades it on)
   gsap.ticker.add(() => {
