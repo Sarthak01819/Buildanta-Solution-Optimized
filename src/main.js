@@ -691,6 +691,16 @@ function boot() {
          something that was playing all along. */
       liveIntro?.music?.setScene("world");
       host.hidden = false;
+      /* D-097: always TRY the full WebGL world (client, 24 Sep). The ported
+         world decides Lite from localStorage 'world-lite', and with nothing
+         stored falls back to a weak-device guess (deviceMemory <= 4 or
+         cores <= 4) — which Brave's fingerprint protection trips (it reported
+         deviceMemory 4 on a machine that ran the 3D world fine), and its fps
+         governor PERSISTS '1' on one slow visit, pinning the flat grid forever.
+         Writing '0' before each mount means: try 3D every time; the governor
+         may still demote to Lite during a genuinely slow visit, for that visit
+         only. Host-side on purpose — src/world/ is a port, not edited here. */
+      try { localStorage.setItem("world-lite", "0"); } catch { /* storage blocked: world uses its own default */ }
       // Injected rather than written into index.html: the world owns the shape
       // of its own markup, and a hand-copied duplicate here would drift the
       // moment either side renamed an id — with a silent null as the symptom.

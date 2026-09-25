@@ -1699,6 +1699,10 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
       // Preserve the notes-only ending after removing the epilogue. Derive
       // the cut from timeline position, so reverse restores the same state.
       consultHand?.setWorldCut(p >= NOTE_DEPARTURE_P);
+      /* D-098: no cursor from the bill's arrival through the TAP & HOLD wall
+         (client, 25 Sep) — until ENTER; the Skip / Sound controls and the BZ
+         ruler keep theirs (main.css). */
+      document.documentElement.classList.toggle("bill-cursorless", p >= BURN_START_P && !enteredOnce);
     }
 
     /* har act ka text apni khidki se */

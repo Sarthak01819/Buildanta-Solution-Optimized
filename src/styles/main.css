@@ -6200,3 +6200,14 @@ input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type
 .intro__controls[data-ink="dark"] .intro__skip:hover { color: #111; border-bottom-color: #111; }
 .intro__controls[data-ink="dark"] .intro__sound:hover { color: #111; border-color: rgba(0, 0, 0, .3); }
 .intro__skip, .intro__sound { transition: color .5s ease, border-color .35s ease; }
+
+/* D-098: on the TAP & HOLD wall the hole IS the cursor (it follows the
+   pointer), so the arrow is hidden across the wall — ENTER included. The
+   Skip / Sound controls and the BZ ruler sit in their own layers and keep
+   their cursors. Only while the wall is live (.on), not behind the burn. */
+.intro__portalwrap.on,
+.intro__portalwrap.on * { cursor: none !important; }
+/* …and from the bill's arrival to the wall (html.bill-cursorless, intro.js) */
+html.bill-cursorless body,
+html.bill-cursorless #intro,
+html.bill-cursorless #intro *:not(.intro__controls):not(.intro__controls *) { cursor: none !important; }

@@ -68,6 +68,9 @@ export function createPortalHoldButton(portalWrap, { reduced = false } = {}) {
     lastC = c;
     const s = c.toFixed(3);
     fill.style.strokeDashoffset = (1 - c).toFixed(3);   // pathLength=1 ring
+    // at 100 % draw it solid: a dash exactly the path's length can leave a
+    // hairline gap at the start point (D-099)
+    fill.style.strokeDasharray = c >= 0.999 ? "none" : "";
     // a zero-length dash still paints its round cap as a dot at 12 o'clock
     fill.style.opacity = c > 0 ? "1" : "0";
     el.style.setProperty("--bh-hold-c", s);
@@ -102,7 +105,11 @@ export function createPortalHoldButton(portalWrap, { reduced = false } = {}) {
     const shown = SHOWN.has(s.phase);
     setOff(!shown);
     setHold(shown && (s.down === true || s.phase === "winding" || s.phase === "collapsing"));
-    setProgress(shown ? clamp(s.c || 0, 0, 1) : 0);
+    /* D-099: once the door arms, the ring stays FULL while the button fades
+       out — resetting it to 0 there made the hold look like it never
+       completed. It only empties when the hole re-grows (idle / blast). */
+    const done = s.phase === "armed" || s.phase === "entering";
+    setProgress(shown ? clamp(s.c || 0, 0, 1) : done ? 1 : 0);
     schedule();
   }
   const schedule = () => { if (!raf && !dead) raf = requestAnimationFrame(frame); };
