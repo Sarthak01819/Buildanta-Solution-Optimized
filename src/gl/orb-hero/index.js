@@ -46,6 +46,7 @@ import { fsVert, compositeFrag } from './shaders/post.glsl.js';
 import { Quality } from './quality.js';
 import { pointer } from './pointer.js';
 import { easeInOutQuad, clamp01 } from './curves.js';
+import { prepareFrame } from '../prepareAsync.js';
 
 /**
  * Buildanta re-skin of the measured Blue Yard palette.
@@ -380,7 +381,7 @@ export function createOrbHero(canvas, opts = {}) {
   applySize(true);
   quality.start();
 
-  return {
+  const api = {
     ok: true,
     variant,
     worldX: () => orb.position.x - camera.position.x,
@@ -548,9 +549,13 @@ export function createOrbHero(canvas, opts = {}) {
       applySize(true);
     },
 
+    /** Resolves once every shader is compiled (D-109); never rejects. */
+    get ready() { return ready; },
+
     /** Driven by the site's gsap.ticker, in SECONDS, same as createScene. */
     render(elapsed) {
       if (idle) return; // handed off — see setOpacity
+      if (!prepared) return; // D-109: shaders still compiling in the background
       applySize(false);
 
       const dt = lastElapsed === null ? 1 / 60 : Math.min(Math.max(elapsed - lastElapsed, 0), 1 / 20);
@@ -599,6 +604,18 @@ export function createOrbHero(canvas, opts = {}) {
       renderer.dispose();
     },
   };
+
+  /* D-109: compile everything off the main thread before the first draw.
+     TWO frames: each swaps every ping-pong target an odd-or-even number of
+     times per frame, and a frame that draws nothing must not leave the
+     particles reading an unwritten texture — two frames swap each pair back. */
+  let prepared = true;
+  const ready = prepareFrame(renderer, () => api.render(0), 2).then(() => {
+    prepared = true;
+    lastElapsed = null;
+  });
+  prepared = false;
+  return api;
 }
 
 /**

@@ -480,6 +480,33 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-110 — Sound button now mutes the WE SCALE hands stage
+- **Date:** 2026-09-26 (client report). The hands stage plays plain `<audio>` elements (`zeroStageAudio.js`), and neither the Sound button nor "Enter without sound" ever reached them. Its only link to the button was the EQ meter. Added `setMuted` there: it sets `.muted` on the three tracks, leaving play/pause and the gesture-unlock logic untouched, and `level()` reads 0 while muted. `intro.setZeroStageMuted` is called from both the Sound button and the loader's ENTER handler in main.js. Verified in WE SCALE: Sound off → level 0 while the ambient plays; Sound on → 0.33.
+
+### D-109 — Shaders compile in the background; transition logo on transforms
+- **Date:** 2026-09-26. Measured on the PRODUCTION build (`buildanta-dist` launch entry, port 5321), not dev. A CPU profile showed that most of the loader's blocked time was three waiting on the driver the first time a material was drawn (`getUniforms`, ~3.9 s), not the warm-up loop itself (~0.7 s).
+- **`src/gl/prepareAsync.js`:**
+  - `prepareFrame(renderer, frame, times)` runs a module's normal frame with `renderer.render` swapped for `compileAsync`, so every pass compiles against its real render target without blocking. ⚠️ Ping-pong state still swaps; run an even number of frames.
+  - `uploadTextures(renderer, scene)` decodes each image off-thread, then calls `initTexture`, one per task. Desktop only (phone memory).
+- **Where:**
+  - orb-hero: prepares 2 frames at creation and draws nothing until ready; `intro.warm` waits for it (capped at 4 s).
+  - zeroSourceHand: `prepare()`, used by the warm stops.
+  - zeroMirrorStage warm: `img.decode()` before `initTexture`.
+  - blackhole `gl.js`: compile/link only started; `settlePrograms` polls `KHR_parallel_shader_compile`, then runs the same checks (a failure still rejects `createBlackhole`).
+  - marketCamera: `ready` and the first draw now wait for `compileAsync` + `uploadTextures`. Drawing straight after `compileAsync` had blocked on it.
+- **Transition logo:** the "Buildanta Solutions" unmask is now two transforms. The lock-up shifts by half the word's width while the text slides out of the word box, the same motion as the old `width` animation, which ran on the main thread.
+- **Result (prod, this machine, Docker running):**
+
+  | Measure | Before | After |
+  |---|---|---|
+  | Loader blocked time | 8.0 s | 2.3 s |
+  | Loader worst frame | 5.6 s | 0.7 s |
+  | Loader total | 12.8 s | 6.8 s |
+  | Logo frames over 34 ms | 9 over 4 jumps | 0 |
+
+  Visually unchanged: orb, camera iris, -50 BZ start frame (compared against the old build).
+- **Left:** single GPU-side stalls (no long task) still occur in some jumps, under the white slats.
+
 ### D-108 — Loader: progress bar and % removed
 - **Date:** 2026-09-25 (client). The bar is gone, markup and CSS. `.preload__pct` stays in the DOM with `hidden`, still updated, because `verify-preparation-optimized` and `verify-quality-optimized` read the loading progress from it. The phase line ("Loading scene assets" / "Ready") and ENTER are unchanged.
 

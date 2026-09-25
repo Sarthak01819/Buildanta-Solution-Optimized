@@ -9,6 +9,7 @@ const inertAudio = () => ({
   setProgress() {},
   tick() {},
   dispose() {},
+  setMuted() {},
   get armed() { return false; },
   get state() {
     return {
@@ -34,6 +35,7 @@ export function createZeroStageAudio() {
   const reducedMotion = typeof matchMedia === "function" && matchMedia(REDUCED_MOTION).matches;
   if (reducedMotion || typeof Audio !== "function") return inertAudio();
 
+  let muted = false;
   const ambient = new Audio(AMBIENT_URL);
   const handEntry = new Audio(HAND_ENTRY_URL);
   const whoosh = new Audio(WHOOSH_URL);
@@ -344,10 +346,17 @@ export function createZeroStageAudio() {
     dispose,
     get armed() { return armed; },
     get state() { return snapshot(); },
+    /** D-110: the Sound button. `.muted` silences the elements without
+        touching play/pause or the unlock logic, so the stage keeps its timing. */
+    setMuted(m) {
+      muted = !!m;
+      for (const { track } of channels) track.muted = muted;
+    },
     /** D-095: EQ proxy — these are plain <audio> elements (no Web Audio graph
         to meter), so report what is audibly on: the ambient's live volume
         (0..0.55) and a playing cue, scaled onto the bars' 0..1. */
     level() {
+      if (muted) return 0;
       let v = ambient.paused ? 0 : ambient.volume;
       if (!handEntry.paused) v = Math.max(v, 0.7);
       if (!whoosh.paused) v = Math.max(v, 0.6);

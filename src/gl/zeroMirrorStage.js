@@ -2468,6 +2468,12 @@ export function createZeroMirrorStage(renderer, options = {}) {
       // scroll-frame burst. No resolution, format, mip or filtering changes.
       for (const texture of ownedTextures) {
         if (disposed) return;
+        // D-109: decode off the main thread first — an undecoded <img> is
+        // decoded synchronously inside the upload (measured ~0.5 s here).
+        if (typeof texture.image?.decode === "function") {
+          await texture.image.decode().catch(() => {});
+          if (disposed) return;
+        }
         renderer.initTexture(texture);
         await new Promise((resolve) => setTimeout(resolve, 0));
       }

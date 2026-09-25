@@ -1,4 +1,5 @@
 import { createZeroMirrorStage } from "./zeroMirrorStage.js";
+import { prepareFrame } from "./prepareAsync.js";
 
 const clamp01 = (value) => Math.max(0, Math.min(1, value));
 
@@ -64,6 +65,9 @@ export function createZeroSourceHand(canvas, renderer, options, handPixelRatio) 
   const api = {
     setProgress,
     render,
+    /* D-109: the warm-up's frame, compiled in the background instead of drawn
+       — its first draw waited ~0.4 s on variants the stage's own warm() misses. */
+    prepare: (time = 0) => prepareFrame(renderer, () => render(time)),
     resize,
     // This flag affects only the archived scene in ConsultHand.
     setWorldCut() {},

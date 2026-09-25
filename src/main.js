@@ -530,6 +530,7 @@ function boot() {
       introScore.setMuted(!withSound);
       reelScore.setMuted(!withSound);
       liveIntro?.music?.setMuted(!withSound);
+      liveIntro?.setZeroStageMuted?.(!withSound);   // D-110
       introScore.unlock(); reelScore.unlock(); heroParticles.unlock(); weCodeSound.unlock(); reelTick.unlock(); moneyBurn.unlock(); portalSounds.unlock();
       paintSound();
     },
@@ -571,6 +572,7 @@ function boot() {
   soundBtn?.addEventListener("click", () => {
     introScore.setMuted(!introScore.muted); reelScore.setMuted(introScore.muted);
     liveIntro?.music?.setMuted(introScore.muted);   // the 0 BZ finale score too
+    liveIntro?.setZeroStageMuted?.(introScore.muted);   // D-110: WE SCALE hands stage
     paintSound();
   });
   paintSound();

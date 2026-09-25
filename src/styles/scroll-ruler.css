@@ -422,11 +422,11 @@
   display: grid; place-items: center;
   pointer-events: none;
 }
-.bz-pt__mask { overflow: hidden; padding: 4px 2px; }
+.bz-pt__mask { overflow: hidden; padding: 4px 2px; will-change: transform; }
 .bz-pt__inner { display: flex; align-items: center; gap: 12px; will-change: transform; }
 .bz-pt__mark { width: 44px; height: 44px; display: block; }
 .bz-pt__word {
-  display: inline-flex; justify-content: flex-end;   /* unmasks from its right end, as the reference */
+  display: inline-flex;   /* unmasks from its right end, as the reference (D-109: by transform) */
   overflow: hidden; white-space: nowrap;
   font: 600 21px/1 "Inter", system-ui, sans-serif; letter-spacing: -0.01em;
   color: #0b3158;

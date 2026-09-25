@@ -3,7 +3,7 @@
 // Everything time-dependent takes an explicit clock so renderAt(ms) is exact.
 
 import { CONFIG, SHADER_V } from './config.js';
-import { createGL, compileProgram, makeTarget, disposeTarget, drawFullscreen } from './gl.js';
+import { createGL, compileProgram, settlePrograms, makeTarget, disposeTarget, drawFullscreen } from './gl.js';
 import { createUniformCache } from './uniformCache.js';
 
 const D2R = Math.PI / 180;
@@ -35,6 +35,7 @@ export async function createBlackhole(canvas, opts = {}) {
   const pDown = compileProgram(gl, vert, downF, 'down');
   const pUp = compileProgram(gl, vert, upF, 'up');
   const pComp = compileProgram(gl, vert, compF, 'composite');
+  await settlePrograms(gl, [pScene, pPre, pDown, pUp, pComp]);   // D-109
 
   // ---- render targets -----------------------------------------------------
   // Allocated here and ONLY here. Callers resize through size(), which is

@@ -2448,6 +2448,12 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
          get a word in. Checking the clock between steps is the only cap that
          actually caps. Whatever is not warmed in the budget simply compiles
          later, exactly as it did before — the site is never worse for it. */
+      /* D-109: the orb compiles its shaders in the background from the moment
+         it is created and draws nothing until they are ready. Wait for that
+         here (capped — an optimisation, never a gate) so the reveal shows it. */
+      if (orbHero.ok && orbHero.ready) {
+        await Promise.race([orbHero.ready, new Promise((r) => setTimeout(r, 4000))]);
+      }
       const started = performance.now();
       const stops = [0.0, 0.08, 0.16, 0.30, 0.50, 0.66, 0.80, 0.92];
       for (let i = 0; i < stops.length; i++) {
@@ -2463,7 +2469,9 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
           projector?.render(i * 0.016);
           consultHand?.setProgress?.(p, 1, USE_ZERO_MIRROR
             ? { progress: reduced ? 0.95 : p, opacity: 1 } : null);
-          consultHand?.render(i * 0.016);
+          // D-109: compiled in the background where the hand supports it
+          if (consultHand?.prepare) await consultHand.prepare(i * 0.016);
+          else consultHand?.render(i * 0.016);
         } catch (e) {
           console.info("[preload] warm step skipped:", e?.message || e);
         }
@@ -2531,6 +2539,8 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
     get reelSlots() { return reelSlots; },
     /** D-095: the hands stage's audible level, for the EQ bars */
     zeroStageLevel: () => zeroStageAudio?.level?.() ?? 0,
+    /** D-110: the Sound button reaches the WE SCALE hands stage too */
+    setZeroStageMuted: (m) => zeroStageAudio?.setMuted?.(m),
     /** D-093: the wall's ambience — from the hole showing through the burn to ENTER */
     get portalAmbience() { return portalOn && !enteredOnce && progress >= 0.955 ? 1 : 0; },
     /** D-091: per-note burn progress while the bill beat is on screen */

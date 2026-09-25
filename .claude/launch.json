@@ -25,6 +25,13 @@
       "port": 5303
     },
     {
+      "//": "The production build (run `npm run build` first), for measuring what visitors get.",
+      "name": "buildanta-dist",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "preview", "--port", "5321", "--strictPort"],
+      "port": 5321
+    },
+    {
       "name": "buildanta-cms",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

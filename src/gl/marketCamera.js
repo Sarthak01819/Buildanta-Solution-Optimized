@@ -45,6 +45,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 import { wantsAA } from "./msaa.js";
+import { uploadTextures } from "./prepareAsync.js";
 
 /* ⚠️ IMPORTED, not a public/ path (20 Aug 08:30). Cloudflare Pages serves
    /assets/* with `cache-control: immutable, max-age=31536000`, so a FIXED
@@ -1191,18 +1192,25 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
       if (mx) { rimR = mx; rimZ = mz; }
     }
     rig.add(model);
-    ready = true;
     // Prepare the unchanged PBR materials while the preceding Code act is
     // visible. Fetch/compile work no longer lands on the camera entry frame.
-    renderer.compileAsync(scene, camera).catch((error) => {
-      console.info('[marketCamera] asynchronous warm-up skipped:', error?.message || error);
-    });
-    render(0);
-    /* The site's handler is SCROLL-driven: if the page sits still while the
-       GLB loads (a programmatic jump, a slow network), every ready-gated
-       write upstream (lens centre, reel anchors) stays stale until the next
-       scroll. Hand control back once so the caller can re-apply its state. */
-    if (onReady) onReady();
+    // D-109: `ready` (and the first draw) now WAIT for the compile and the
+    // texture uploads — drawing straight after compileAsync blocked on it.
+    Promise.resolve()
+      .then(() => renderer.compileAsync(scene, camera))
+      .catch((error) => {
+        console.info('[marketCamera] asynchronous warm-up skipped:', error?.message || error);
+      })
+      .then(() => uploadTextures(renderer, scene))
+      .finally(() => {
+        ready = true;
+        render(0);
+        /* The site's handler is SCROLL-driven: if the page sits still while the
+           GLB loads (a programmatic jump, a slow network), every ready-gated
+           write upstream (lens centre, reel anchors) stays stale until the next
+           scroll. Hand control back once so the caller can re-apply its state. */
+        if (onReady) onReady();
+      });
   }, undefined, (e) => console.warn("[marketCamera]", e?.message || e));
 
   /* Canvas covers the act; the frame rect does the moving. dpr 2 on fine

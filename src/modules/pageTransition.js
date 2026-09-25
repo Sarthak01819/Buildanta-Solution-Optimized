@@ -74,10 +74,24 @@ export function showPageTransition() {
   const inner = lock.querySelector(".bz-pt__inner");
   const mark = lock.querySelector(".bz-pt__mark");
   const word = lock.querySelector(".bz-pt__word");
+  const text = word.firstElementChild;
+  const mask = lock.querySelector(".bz-pt__mask");
   const still = reducedMotion();
-  // hidden until the panel is whole: mark at scale 0, the words fully masked
+  /* D-109: the unmask is two TRANSFORMS, not a width animation (width runs
+     on the main thread and stuttered whenever the page was busy). Same
+     motion: the words slide in from behind the word box's left edge (the
+     right end shows first), and the whole lock-up slides left by half the
+     word's width so it stays centred — exactly what the growing width did. */
   const wordW = word.scrollWidth;
-  if (!still) { mark.style.transform = "scale(0)"; word.style.width = "0px"; }
+  const shift = [{ transform: `translateX(${wordW / 2}px)` }, { transform: "translateX(0)" }];
+  const reveal = [{ transform: "translateX(-100%)" }, { transform: "translateX(0)" }];
+  // hidden until the panel is whole: mark at scale 0, the words fully masked
+  if (!still) {
+    text.style.display = "inline-block";
+    mark.style.transform = "scale(0)";
+    mask.style.transform = shift[0].transform;
+    text.style.transform = reveal[0].transform;
+  }
 
   const entry = { shown: null, hiding: null };
   let logoIn = Promise.resolve();
@@ -96,8 +110,8 @@ export function showPageTransition() {
     logoIn = still ? Promise.resolve() : (async () => {
       await mark.animate([{ transform: "scale(0)" }, { transform: "scale(1.08)", offset: 0.7 }, { transform: "scale(1)" }],
         { duration: 380, easing: "cubic-bezier(.34,1.56,.64,1)", fill: "both" }).finished;
-      await word.animate([{ width: "0px" }, { width: `${wordW}px` }],
-        { duration: 620, easing: EASE, fill: "forwards" }).finished;
+      const timing = { duration: 620, easing: EASE, fill: "forwards" };
+      await Promise.all([mask.animate(shift, timing).finished, text.animate(reveal, timing).finished]);
     })();
     return logoIn;
   };

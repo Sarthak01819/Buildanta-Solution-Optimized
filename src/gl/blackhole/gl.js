@@ -19,34 +19,58 @@ export function createGL(canvas) {
   return { gl, hdr: !!floatOK };
 }
 
+/* D-109: compile/link are only STARTED here. Asking for their status right
+   away made the page wait for the driver (~0.45 s for the black hole's five
+   programs, during the loader). `settlePrograms` waits for them without
+   blocking, then runs the same checks — so a failure still throws from
+   createBlackhole, exactly as before. */
 export function compileProgram(gl, vertSrc, fragSrc, label) {
   const make = (type, src) => {
     const s = gl.createShader(type);
     gl.shaderSource(s, src);
     gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-      const log = gl.getShaderInfoLog(s);
-      throw new Error(`[${label}] shader compile failed:\n${log}`);
-    }
     return s;
   };
   const p = gl.createProgram();
-  gl.attachShader(p, make(gl.VERTEX_SHADER, vertSrc));
-  gl.attachShader(p, make(gl.FRAGMENT_SHADER, fragSrc));
+  const vs = make(gl.VERTEX_SHADER, vertSrc);
+  const fs = make(gl.FRAGMENT_SHADER, fragSrc);
+  gl.attachShader(p, vs);
+  gl.attachShader(p, fs);
   gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
-    throw new Error(`[${label}] link failed: ${gl.getProgramInfoLog(p)}`);
-  }
   // Cache uniform locations on first use.
   const locs = {};
   return {
     prog: p,
+    check() {
+      for (const s of [vs, fs]) {
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+          throw new Error(`[${label}] shader compile failed:\n${gl.getShaderInfoLog(s)}`);
+        }
+      }
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+        throw new Error(`[${label}] link failed: ${gl.getProgramInfoLog(p)}`);
+      }
+    },
     use() { gl.useProgram(p); },
     loc(name) {
       if (!(name in locs)) locs[name] = gl.getUniformLocation(p, name);
       return locs[name];
     },
   };
+}
+
+/** Waits (polling, never blocking) until every program has finished
+ *  compiling, then checks each; throws like compileProgram used to. */
+export async function settlePrograms(gl, programs) {
+  const ext = gl.getExtension('KHR_parallel_shader_compile');
+  if (ext) {
+    const started = performance.now();
+    while (programs.some((q) => !gl.getProgramParameter(q.prog, ext.COMPLETION_STATUS_KHR))) {
+      if (gl.isContextLost() || performance.now() - started > 10000) break;
+      await new Promise((r) => setTimeout(r, 16));
+    }
+  }
+  programs.forEach((q) => q.check());
 }
 
 // One HDR render target. Created once per size — resizing goes through the
