@@ -10,7 +10,6 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2304060a'/%3E%3Cpath d='M18 14h17c9 0 14 4 14 11 0 5-3 8-7 9 6 1 9 5 9 11 0 8-6 13-16 13H18V14zm12 17h5c3 0 5-2 5-4s-2-4-5-4h-5v8zm0 18h6c4 0 6-2 6-5s-2-5-6-5h-6v10z' fill='%2354f0a5'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="preload" as="image" href="/assets/entry-franklin-macro.png" fetchpriority="high" />
   <!-- Instrument Serif for editorial type + DM Mono for interface text -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=JetBrains+Mono:wght@300;400;500&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/src/styles/main.css" />
@@ -29,7 +28,7 @@
   <section class="entry-gate" data-entry-gate role="dialog" aria-modal="true" aria-labelledby="entry-gate-label" aria-describedby="entry-gate-status" aria-hidden="true" tabindex="-1">
     <span class="sr-only" id="entry-gate-label">Buildanta automatic entry</span>
     <div class="entry-gate__macro" aria-hidden="true">
-      <img class="entry-gate__macro-base" src="/assets/entry-franklin-macro.png" alt="" fetchpriority="high" decoding="async" draggable="false" />
+      <img class="entry-gate__macro-base" data-src="/assets/entry-franklin-macro.png" alt="" decoding="async" draggable="false" />
     </div>
     <div class="entry-gate__tone" aria-hidden="true"></div>
     <div class="entry-gate__scan" aria-hidden="true"></div>
@@ -255,8 +254,8 @@
              depth: statue behind, glowing world in front. -->
         <img class="consult-zero__statue" src="/assets/consult-shot-profile.webp" alt="" />
         <canvas class="consult-zero__hand-canvas" aria-hidden="true"></canvas>
-        <img class="consult-zero__cash-bundle consult-zero__cash-bundle--top" src="/assets/cash-bundle-premium.webp" alt="" />
-        <img class="consult-zero__cash-bundle consult-zero__cash-bundle--bottom" src="/assets/cash-bundle-premium.webp" alt="" />
+        <img class="consult-zero__cash-bundle consult-zero__cash-bundle--top" src="/assets/cash-bundle-premium.webp" alt="" loading="lazy" />
+        <img class="consult-zero__cash-bundle consult-zero__cash-bundle--bottom" src="/assets/cash-bundle-premium.webp" alt="" loading="lazy" />
         <div class="consult-zero__opening-copy">
           <span>WE</span>
           <strong>SCALE.</strong>

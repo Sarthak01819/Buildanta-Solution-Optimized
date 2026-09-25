@@ -40,6 +40,9 @@ import {
 } from "three";
 import { SERVICES } from "../modules/services.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+/* D-106: the model is meshopt-compressed (3.6 → 1.2 MB, original in
+   art-source/market-camera-original.glb); the decoder ships with three. */
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 import { wantsAA } from "./msaa.js";
 
@@ -934,7 +937,7 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
     filmAlpha: 0,           // the strip's opacity envelope
   };
 
-  new GLTFLoader().load(MODEL, (gltf) => {
+  new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(MODEL, (gltf) => {
     const model = gltf.scene;
     /* ⚠️ THE CREASE ANGLE IS THE CHAMFER'S LIFE OR DEATH (20 Aug 08:55).
        The GLB ships faceted normals, so this pass decides what gets smoothed.

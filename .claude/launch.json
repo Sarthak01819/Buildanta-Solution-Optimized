@@ -4,15 +4,36 @@
     {
       "name": "buildanta",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "//": "Dedicated review port. Three other sessions already hold 5173-5175 from this same folder, and vite silently walks UP the port range when one is taken - so a preview aimed at 5173 can show another session's build. strictPort makes this one fail loudly instead of drifting.",
       "name": "buildanta-review",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5303", "--strictPort"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5303",
+        "--strictPort"
+      ],
       "port": 5303
+    },
+    {
+      "name": "buildanta-cms",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "../buildanta-cms/admin",
+        "run",
+        "dev"
+      ],
+      "port": 5300
     }
   ]
 }

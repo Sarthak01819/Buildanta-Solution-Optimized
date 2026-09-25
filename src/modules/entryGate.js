@@ -46,8 +46,17 @@ export function createEntryGate({ lenis, ScrollTrigger, intro, onComplete, reduc
   let restored = false;
   let gateListenersAttached = false;
 
-  // Decode the original engraving while the fixed layer is hidden.
-  macroImage?.decode?.().catch(() => {});
+  /* D-106: the engraving (1.3 MB) is only fetched when this gate can show —
+     it did ship as a high-priority preload for every visitor while only the
+     reduced-motion path ever uses the gate. index.html carries it as
+     data-src; reduced motion loads it up front (decoded while hidden, as
+     before), everyone else only if the gate is ever shown. */
+  const loadMacro = () => {
+    if (!macroImage || macroImage.getAttribute("src")) return;
+    macroImage.src = macroImage.dataset.src;
+    macroImage.decode?.().catch(() => {});
+  };
+  if (reduced) loadMacro();
   gsap.set(root, { opacity: 0, visibility: "visible", pointerEvents: "none" });
 
   // The pin spacer leaves roughly one viewport between ScrollTrigger's end
@@ -110,6 +119,7 @@ export function createEntryGate({ lenis, ScrollTrigger, intro, onComplete, reduc
     revealTimeline = null;
     dissolveTimeline = null;
 
+    loadMacro();
     root.classList.add("is-active");
     root.classList.remove("is-entering");
     root.setAttribute("aria-hidden", "false");

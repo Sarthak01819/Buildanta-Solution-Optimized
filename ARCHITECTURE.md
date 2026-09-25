@@ -28,6 +28,13 @@ flowchart TD
 
 ## Changing the words
 
+**On this machine (since 25 Sep 2026):** the CMS is Yash's original Supabase
+admin (handed over as `Buildanta-Projects-Admin.zip`), kept at
+github.com/Sarthak01819/buildanta-cms and cloned NEXT TO this repo as
+`../buildanta-cms`. Read its `HANDOVER.md` first. Needs Docker Desktop running;
+the Supabase CLI runs via `npx supabase`. The `buildanta-cms` entry in
+`.claude/launch.json` starts the admin on 5300. It never ships with the site.
+
 Nothing here is edited by hand. The loop is:
 
 1. Edit in the admin — `cd ~/claude code/buildanta-cms/admin && npm run dev` → **localhost:5300**
@@ -472,6 +479,15 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔑 What actually moved the clasp from fist to handshake:** (1) curls redistributed proximal→distal (a fist is MCP-heavy; a wrap extends at the MCP and hooks the distals); (2) 12–20° WRIST FLEXION at the clasp only — the ref's hand drops steeper than its forearm line, putting the knuckle row top-center; (3) web-to-web wrist offsets, but only to 0.058/0.065 — closer buries the human hand; (4) keyed thumb bone scale (1.0 approach → 0.85 clasp) applied BEFORE the solver sweep — solving full-size then scaling buries the tip in the shell; (5) matcap surgery is a legit judged surface: floor lift, emerald mid pull with peak exemption, painted sheet lobes, and a saturation floor (chrome = R,B creeping toward G).
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
+
+### D-106 — Download-size fixes (first load ~26 MB → ~17 MB)
+- **Date:** 2026-09-25. From a production download audit. Originals of every re-encoded file are kept in `art-source/`.
+- **Camera model** `src/assets/market-camera.glb` 3.64 → 1.93 MB (~0.8 MB over the wire): EXT_meshopt_compression WITHOUT quantization; `marketCamera.js` sets `MeshoptDecoder`. 🔴 Do NOT quantize it (gltf-transform `meshopt` CLI default): quantized positions are rescaled, and the iris shader's discard radius reads raw object-space `position` (9–70 mm), so the whole blade field vanished — a plain grey lens. Verified the violet iris at p .59.
+- **Intro music** `public/assets/intro-score.mp3` 2.6 → 0.95 MB: 96 kbps, first 83 s, cover art and tags stripped.
+- **Meadow (0 BZ)** sky / clouds / land PNG → WebP (4.1 → 0.8 MB); `zeroMirrorStage.js` imports `.webp?url`.
+- **Entry gate** Franklin macro (1.34 MB): preload removed, `data-src`, loaded by `entryGate.js` only when the gate reveals (or at init under reduced motion).
+- **Hidden cash bundles** (0.71 MB): `loading="lazy"`.
+- **Starfield downloaded twice** (1.4 MB extra): the wall's CSS backdrop fetched it plainly, the portal module again with `crossOrigin` (a CORS request the browser won't share with the plain one). The portal module (sealed until now — edited with Sarthak's authority, 25 Sep) sets `crossOrigin` only for another origin. Verified: one request, `__bhp.ready`, no errors.
 
 ### D-105 — "← Back to World" in the Projects open-card view
 - **Date:** 2026-09-25 (working tree). The world already had its own open-card back control (`.world-details__close`, "← Back to the world", z 60, top centre) — hidden under the site's "← Leave the world" (z 530) at the same spot. Host-side (src/world is a port): main.css moves it top-left (left 24 / top 14, z 535) in the Leave pill's exact look and font; main.js relabels it "← Back to World" whenever `html.world-open` appears. Verified: visible and on top at 24,14 with a card open; click closes the card, stays in the world; Leave stays top-centre.

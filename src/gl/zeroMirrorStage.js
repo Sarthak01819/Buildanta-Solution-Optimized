@@ -63,9 +63,9 @@ import MATCAP_URL from "../assets/zero-stage/matcap-hand.webp?url";
 import HUMAN_HANDS_ATLAS_URL from "../assets/zero-stage/human_hands.ktx2?url";
 import SPC_ATLAS_URL from "../assets/zero-stage/shards-petals-coins.ktx2?url";
 import GARDEN_ATLAS_URL from "../assets/zero-stage/garden-godrays.ktx2?url";
-import LANDSCAPE_SKY_URL from "../assets/zero-stage/landscape/sky.png?url";
-import LANDSCAPE_CLOUDS_URL from "../assets/zero-stage/landscape/clouds.png?url";
-import LANDSCAPE_LAND_URL from "../assets/zero-stage/landscape/land.png?url";
+import LANDSCAPE_SKY_URL from "../assets/zero-stage/landscape/sky.webp?url";
+import LANDSCAPE_CLOUDS_URL from "../assets/zero-stage/landscape/clouds.webp?url";
+import LANDSCAPE_LAND_URL from "../assets/zero-stage/landscape/land.webp?url";
 import MEET_FISTBUMP_URL from "../assets/meet-fistbump.glb?url";
 import { COIN_LOGOS, createCoinLogoTexture } from "./coinLogos.js";
 

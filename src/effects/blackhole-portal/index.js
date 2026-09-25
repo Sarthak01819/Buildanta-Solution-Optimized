@@ -200,10 +200,14 @@ export class BlackholePortal {
     const bail = (e) => { dbg.err = String((e && e.message) || e); canvas.remove(); };
 
     const img = new Image();
-    img.crossOrigin = 'Anonymous';
+    const src = opts.starfieldUrl || '/assets/starfield.jpg';
+    /* CORS mode only for another origin (WebGL needs it there). Same-origin it
+       made the browser fetch the starfield a SECOND time, beside the backdrop's
+       plain CSS copy of the same file (D-106, Sarthak 25 Sep). */
+    if (new URL(src, location.href).origin !== location.origin) img.crossOrigin = 'Anonymous';
     img.onload = () => { if (!self.dead) { try { start(); } catch (e) { bail(e); } } };
     img.onerror = () => { if (!self.dead) bail(new Error('starfield failed to load')); };
-    img.src = opts.starfieldUrl || '/assets/starfield.jpg';
+    img.src = src;
 
     let onLost = null, onRestored = null;
     let portalClose = () => {};
