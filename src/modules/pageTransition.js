@@ -85,22 +85,34 @@ export function showPageTransition() {
   entry.shown = (async () => {
     if (still) { slats.flat().forEach((s) => { s.style.transform = "scaleX(1)"; }); }
     else await runSlats(slats, 0, 1);
-    // the lock-up: mark pops, then slides left as the words unmask
+    return handle;
+  })();
+
+  // the lock-up: mark pops, then slides left as the words unmask
+  let branded = false;
+  const brand = () => {
+    if (branded) return logoIn;
+    branded = true;
     logoIn = still ? Promise.resolve() : (async () => {
       await mark.animate([{ transform: "scale(0)" }, { transform: "scale(1.08)", offset: 0.7 }, { transform: "scale(1)" }],
         { duration: 380, easing: "cubic-bezier(.34,1.56,.64,1)", fill: "both" }).finished;
       await word.animate([{ width: "0px" }, { width: `${wordW}px` }],
         { duration: 620, easing: EASE, fill: "forwards" }).finished;
     })();
-    return handle;
-  })();
+    return logoIn;
+  };
 
   const handle = {
+    /* D-107: called once the jump's heavy first frames are over. The seek
+       (scroll + ScrollTrigger + the destination's first renders) stalls the
+       page for up to ~0.8 s; started together, the logo stuttered through it.
+       Under the whole white panel the stall is invisible. */
+    brand,
     hide() {
       if (!entry.hiding) {
         entry.hiding = (async () => {
           await entry.shown;
-          await logoIn;
+          await brand();
           if (!still) {
             await new Promise((r) => setTimeout(r, 260));     // a beat of hold, as in the reference
             await inner.animate([{ transform: "translateY(0)" }, { transform: "translateY(110%)" }],

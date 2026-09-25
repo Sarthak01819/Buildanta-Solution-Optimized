@@ -10,8 +10,8 @@
  * a real `.intro__titleMark .char`, measured for rect, font and colour, and
  * lands on that rect. Re-measured when fonts land and on resize.
  * Paced like the reference (~3.2 s from the moment the letters first show,
- * ASSEMBLY_MS) but never ahead of the real loading progress; the loader shows
- * ENTER only once `complete`.
+ * ASSEMBLY_MS), on the compositor (D-107); the loader shows ENTER only once
+ * `complete` AND loading has finished.
  */
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -24,17 +24,36 @@ export function createLoaderAssembly(host) {
   layer.setAttribute("aria-hidden", "true");
   host.append(layer);
 
-  let letters = null;      // [{ el, target:{x,y}, start:{x,y}, t0, t1 }]
-  let lastP = 0;
-  let shownAt = 0;         // first frame the letters were on screen
-  let a = 0;               // assembly progress actually drawn
+  /* D-107: the letters run as Web Animations on the COMPOSITOR, on the clock.
+     They used to be moved from JS every frame and held to the load %, and the
+     loader is exactly when the main thread is blocked (shader warm-up: long
+     tasks up to ~1.9 s), so they froze and jumped. ENTER still waits for 100 %. */
+  let letters = null;      // [{ el, anim }]
+  let shownAt = 0;         // when the assembly started (kept across re-measures)
+
+  // the L path, sampled: leg 1 across (first 55 %), leg 2 down/up (last 55 %)
+  const STEPS = 24;
+  function pathFrames(dx0, dy0) {
+    const f = [];
+    for (let s = 0; s <= STEPS; s++) {
+      const k = s / STEPS;
+      const dx = dx0 * (1 - ease(clamp01(k / 0.55)));
+      const dy = dy0 * (1 - ease(clamp01((k - 0.45) / 0.55)));
+      f.push({ transform: `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0)` });
+    }
+    return f;
+  }
 
   function measure() {
     const chars = [...document.querySelectorAll("#intro .intro__titleMark .char")]
       .filter((c) => c.textContent.trim());
     if (!chars.length) return false;
     const vw = innerWidth, vh = innerHeight;
+    letters?.forEach((L) => L.anim?.cancel());
     layer.textContent = "";
+    if (!shownAt) shownAt = performance.now();
+    const elapsed = performance.now() - shownAt;
+    const still = reduced();
     const n = chars.length;
     // deterministic scatter around the edges — neighbours in the word never
     // start next to each other (a stride through the ring)
@@ -65,29 +84,20 @@ export function createLoaderAssembly(host) {
       };
       // left-to-right, overlapping windows, like the reference
       const t0 = 0.06 + (i / Math.max(1, n - 1)) * 0.5;
-      return { el, target: { x: r.left, y: r.top }, start, t0, t1: t0 + 0.4 };
+      if (still) return { el, anim: null };
+      const anim = el.animate(pathFrames(start.x - r.left, start.y - r.top), {
+        duration: 0.4 * ASSEMBLY_MS, delay: t0 * ASSEMBLY_MS, fill: "both",
+      });
+      anim.currentTime = elapsed;   // a re-measure continues, never restarts
+      return { el, anim };
     });
     host.style.setProperty("--title-bottom", `${Math.round(bottom)}px`);
-    update(lastP, true);
     return true;
   }
 
-  function update(p, force = false) {
-    lastP = p;
-    if (!letters && !measure()) return;
-    if (!force && !letters) return;
-    if (!shownAt) shownAt = performance.now();
-    const still = reduced();
-    a = still ? 1 : Math.min((performance.now() - shownAt) / ASSEMBLY_MS, p);
-    for (const L of letters) {
-      const k = clamp01((a - L.t0) / (L.t1 - L.t0));
-      // leg 1 across (first 55 %), leg 2 down/up (last 55 %) — an L, not a diagonal
-      const kx = ease(clamp01(k / 0.55));
-      const ky = ease(clamp01((k - 0.45) / 0.55));
-      const dx = (L.start.x - L.target.x) * (1 - kx);
-      const dy = (L.start.y - L.target.y) * (1 - ky);
-      L.el.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0)`;
-    }
+  // Cheap per frame: only builds the letters once the title exists.
+  function update() {
+    if (!letters) measure();
   }
 
   const remeasure = () => { letters = null; measure(); };
@@ -97,7 +107,9 @@ export function createLoaderAssembly(host) {
   return {
     update,
     /** every letter has landed */
-    get complete() { return !letters || a >= 0.97; },
-    dispose() { removeEventListener("resize", remeasure); layer.remove(); },
+    get complete() {
+      return !letters || letters.every((L) => !L.anim || L.anim.playState === "finished");
+    },
+    dispose() { removeEventListener("resize", remeasure); letters?.forEach((L) => L.anim?.cancel()); layer.remove(); },
   };
 }

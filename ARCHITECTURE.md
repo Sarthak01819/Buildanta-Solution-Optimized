@@ -480,6 +480,15 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-108 — Loader: progress bar and % removed
+- **Date:** 2026-09-25 (client). The bar is gone, markup and CSS. `.preload__pct` stays in the DOM with `hidden`, still updated, because `verify-preparation-optimized` and `verify-quality-optimized` read the loading progress from it. The phase line ("Loading scene assets" / "Ready") and ENTER are unchanged.
+
+### D-107 — Loader letters + page transition de-lagged
+- **Date:** 2026-09-25. Measured first (Playwright, rAF gaps + long tasks). The loader sits on top of the shader warm-up, which blocks the main thread on purpose (14 long tasks, worst ~1.9 s, one 2.7 s frame). The jump's destination stalls the page for ~0.6 s after the seek, partly GPU-side (300–400 ms frames with no long task).
+- **Loader (`loaderAssemble.js`):** the letters were moved from JS each frame and held to the load %, so they froze and jumped with the warm-up. They are now Web Animations (the sampled L path, 24 keyframes) on the compositor, on the 3.2 s clock. ENTER still waits for 100 %. A re-measure (fonts, resize) continues the animation, it doesn't restart it. Landing error 0.02 px.
+- **Transition (`pageTransition.js` + `sectionNav.go`):** the logo started together with the seek and stuttered through it. `showPageTransition` no longer starts it; `handle.brand()` does, and `go()` calls it after `calmFrames()` (300 ms with no frame over 34 ms, capped at 2 s). The white panel is still during the stall. `hide()` brands if nobody did. Logo frames over 34 ms went from 4 per jump to 0–1.
+- **Left:** occasional one-off GPU stalls (first texture uploads of the destination) can still land anywhere in a jump. Fixing those means warming each section's textures, not the animation.
+
 ### D-106 — Download-size fixes (first load ~26 MB → ~17 MB)
 - **Date:** 2026-09-25. From a production download audit. Originals of every re-encoded file are kept in `art-source/`.
 - **Camera model** `src/assets/market-camera.glb` 3.64 → 1.93 MB (~0.8 MB over the wire): EXT_meshopt_compression WITHOUT quantization; `marketCamera.js` sets `MeshoptDecoder`. 🔴 Do NOT quantize it (gltf-transform `meshopt` CLI default): quantized positions are rescaled, and the iris shader's discard radius reads raw object-space `position` (9–70 mm), so the whole blade field vanished — a plain grey lens. Verified the violet iris at p .59.

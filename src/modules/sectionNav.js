@@ -127,6 +127,20 @@ export function createSectionNav({ intro, lenis }) {
     : (addEventListener("scroll", backstop, { passive: true }),
       () => removeEventListener("scroll", backstop));
 
+  /** Resolves after 300 ms with no frame over 34 ms (or 2 s, whichever first).
+   *  The stalls come in bursts with short calm gaps, so a few good frames
+   *  are not enough. */
+  const calmFrames = () => new Promise((res) => {
+    const t0 = performance.now();
+    let last = t0, calmSince = t0;
+    const step = (t) => {
+      if (t - last > 34) calmSince = t;
+      last = t;
+      if (t - calmSince >= 300 || t - t0 > 2000) res(); else requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+
   /* ── the jump ── */
   async function go(id) {
     const index = ids.indexOf(id);
@@ -136,6 +150,12 @@ export function createSectionNav({ intro, lenis }) {
       const overlay = await showPageTransition();   // D-103: ZettaJoule-style
       try {
         await intro.goToSection(id);
+        // D-107: the destination's first renders stall the page (up to ~0.4 s
+        // frames, some GPU-side) for ~0.6 s after the jump. The panel stays a
+        // still white sheet through that, and the logo starts once frames
+        // are calm — started earlier, it stuttered through every jump.
+        await calmFrames();
+        overlay.brand();
         floorIndex = index;
       } finally {
         await overlay.hide();

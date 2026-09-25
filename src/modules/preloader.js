@@ -52,8 +52,9 @@ export function createPreloader({ onReveal, onEnter } = {}) {
     // the small wordmark retired — the hero title's own letters assemble now
     '<div class="preload__panel"></div>' +
     '<div class="preload__in">' +
-    '<div class="preload__bar"><i></i></div>' +
-    '<div class="preload__pct">0</div>' +
+    // D-108: bar and % removed from view (client). The % stays in the DOM,
+    // hidden, because the verify tools read loading progress from it.
+    '<div class="preload__pct" hidden>0</div>' +
     '<div class="preload__enters" hidden>' +
     '<button type="button" class="preload__enter preload__enter--sound"><span class="preload__enter-roll"><span class="preload__enter-label">Enter</span><span class="preload__enter-label" aria-hidden="true">Enter</span></span></button>' +
     '<button type="button" class="preload__enter preload__enter--mute"><span class="preload__enter-roll"><span class="preload__enter-label">Enter without sound</span><span class="preload__enter-label" aria-hidden="true">Enter without sound</span></span></button>' +
@@ -61,7 +62,6 @@ export function createPreloader({ onReveal, onEnter } = {}) {
     '<div class="preload__phase">Loading scene assets</div>' +
     '</div>';
 
-  const bar = el.querySelector('.preload__bar i');
   const pct = el.querySelector('.preload__pct');
   const phase = el.querySelector('.preload__phase');
   let revealReason = null;
@@ -90,7 +90,6 @@ export function createPreloader({ onReveal, onEnter } = {}) {
 
   const paint = () => {
     const shownPct = Math.round(progress * 100);
-    if (bar) bar.style.transform = `scaleX(${progress.toFixed(3)})`;
     if (pct) pct.textContent = String(shownPct);
     assembly.update(progress);
   };
