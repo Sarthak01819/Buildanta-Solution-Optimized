@@ -50,3 +50,33 @@
 body .preload, body .preload * { cursor: var(--cur-arrow); }
 /* the button's inner label spans too, or they fall back to the arrow */
 body .preload .preload__enter, body .preload .preload__enter * { cursor: var(--cur-hand); }
+
+/* ── D-102: ARIO-style entry ─────────────────────────────────────────────
+   The pink now lives on a panel (a soft radial gradient in ARIO's pattern:
+   bright corners, deeper centre) so it can WIPE DOWN from the top on ENTER
+   while the assembled letters stay exactly over the real hero title. The
+   counter / buttons sit just below where the title lands (--title-bottom). */
+.preload { background: transparent; }
+.preload__panel {
+  position: absolute; inset: 0; z-index: 0;
+  background:
+    radial-gradient(120% 95% at 50% 58%, #f0a08c 0%, #f6b3a3 42%, #fbd3c8 78%, #fde6df 100%);
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 1.1s cubic-bezier(.76, 0, .24, 1);
+}
+.preload--wiping { pointer-events: none; }
+.preload--wiping .preload__panel { clip-path: inset(100% 0 0 0); }
+.preload__letters { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.preload__letter {
+  position: absolute; display: inline-block; white-space: pre; text-align: left;
+  will-change: transform;
+}
+.preload__in {
+  position: absolute; left: 0; right: 0; z-index: 2;
+  top: calc(var(--title-bottom, 60vh) + 34px);
+  transition: opacity .35s ease;
+}
+.preload--wiping .preload__in { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .preload__panel { transition: clip-path .01s linear; }
+}

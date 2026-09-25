@@ -109,6 +109,8 @@ export function createPortalHoldButton(portalWrap, { reduced = false } = {}) {
        out — resetting it to 0 there made the hold look like it never
        completed. It only empties when the hole re-grows (idle / blast). */
     const done = s.phase === "armed" || s.phase === "entering";
+    // D-100: the cursor returns once ENTER is up (main.css keys off this)
+    document.documentElement.classList.toggle("portal-armed", done);
     setProgress(shown ? clamp(s.c || 0, 0, 1) : done ? 1 : 0);
     schedule();
   }
@@ -120,6 +122,7 @@ export function createPortalHoldButton(portalWrap, { reduced = false } = {}) {
     destroy() {
       if (dead) return;
       dead = true;
+      document.documentElement.classList.remove("portal-armed");
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
       el.remove();

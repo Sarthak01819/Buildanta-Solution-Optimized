@@ -473,6 +473,13 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-097…D-102 — Projects 3D fix, cursor, ring, Skip, ARIO-style loader
+- **D-097:** host writes localStorage `world-lite`='0' before each world mount (Brave's deviceMemory 4 tripped the ported world's weak-device guess; its fps governor persisted Lite).
+- **D-098 / D-100:** cursor hidden from the bill's arrival through the TAP & HOLD wall (`html.bill-cursorless`, portal wrap `.on`), back once ENTER is armed (`html.portal-armed`, hand on the door); Skip / Sound / ruler keep theirs.
+- **D-099:** hold ring stays full while the door arms; drawn solid (`stroke-dasharray: none`) at 100 %.
+- **D-101:** Skip intro hidden at 0 BZ (`.intro__controls.is-past-intro`).
+- **D-102:** loader after the client's ARIO reference: `src/modules/loaderAssemble.js` copies each real `.intro__titleMark .char` (rect, font, colour), scatters the copies round the screen edges and moves each on an L path (across, then down/up), left to right with overlapping windows, over ~3.2 s from first show (never ahead of load progress); ENTER appears when complete; on ENTER the pink radial-gradient panel wipes down (clip-path, 1.1 s) while the letters stay over the identical real title (measured landing error 0.02 px). Small loader wordmark retired; counter / buttons sit under the title (`--title-bottom`).
+
 ### D-096 — Reel tick: predictive latency compensation
 - The tick and the plates share one scroll number, but the ear hears the tick late by the device's output latency — measured 56 ms output + 10 ms base on this Windows machine (+ ~1 frame). `reelTickSound.update` now takes the raw plate position (`intro.reelPos`, `reelSlots`), smooths its speed (plates/s), projects it ahead by `outputLatency + baseLatency + 1/60 s`, and applies the same landing rule there — so each hit starts early by exactly the delay it will suffer, forward or reverse, scaling with scroll speed (at rest, prediction = actual). No page errors on a wheel pass through the reel.
 

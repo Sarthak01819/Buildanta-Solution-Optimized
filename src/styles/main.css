@@ -6205,9 +6205,16 @@ input:not([type="button"]):not([type="submit"]):not([type="checkbox"]):not([type
    pointer), so the arrow is hidden across the wall — ENTER included. The
    Skip / Sound controls and the BZ ruler sit in their own layers and keep
    their cursors. Only while the wall is live (.on), not behind the burn. */
-.intro__portalwrap.on,
-.intro__portalwrap.on * { cursor: none !important; }
+html:not(.portal-armed) .intro__portalwrap.on,
+html:not(.portal-armed) .intro__portalwrap.on * { cursor: none !important; }
 /* …and from the bill's arrival to the wall (html.bill-cursorless, intro.js) */
-html.bill-cursorless body,
-html.bill-cursorless #intro,
-html.bill-cursorless #intro *:not(.intro__controls):not(.intro__controls *) { cursor: none !important; }
+html.bill-cursorless:not(.portal-armed) body,
+html.bill-cursorless:not(.portal-armed) #intro,
+html.bill-cursorless:not(.portal-armed) #intro *:not(.intro__controls):not(.intro__controls *) { cursor: none !important; }
+/* D-100: once ENTER is up the cursor comes back — the hand on the door */
+html.portal-armed .bh-portal,
+html.portal-armed .bh-portal * { cursor: var(--cur-hand) !important; }
+
+/* D-101: Skip intro leaves at 0 BZ (after ENTER); Sound stays where it is */
+.intro__controls .intro__skip { transition: color .5s ease, border-color .35s ease, opacity .4s ease, visibility 0s; }
+.intro__controls.is-past-intro .intro__skip { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .4s ease, visibility 0s .4s; }

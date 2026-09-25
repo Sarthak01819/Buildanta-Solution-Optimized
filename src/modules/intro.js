@@ -1766,6 +1766,8 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
     footBar.style.setProperty("--foot-chrome", introChromeOp);
     controls.dataset.ink = Number(introChromeOp) > 0.5 && !root.classList.contains("consult-zero-live")
       ? "theme" : lightBackdrop ? "dark" : "light";
+    // D-101: nothing left to skip once through the door — hidden at 0 BZ
+    controls.classList.toggle("is-past-intro", enteredOnce);
 
     onProgress?.(p, handoff, { enabled: beatEnabled, local: beatLocal });
   }

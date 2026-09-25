@@ -30,6 +30,7 @@
  * budgeted and its promise chain always settles (partial on failures), so
  * loading still cannot hang forever.
  */
+import { createLoaderAssembly } from './loaderAssemble.js';
 
 /* ⚠️ A MINIMUM, NOT A DELAY FOR ITS OWN SAKE. Yash: "even if the loader
    updates in less than one second, at least it should take two seconds to
@@ -47,8 +48,10 @@ export function createPreloader({ onReveal, onEnter } = {}) {
   el.setAttribute('role', 'status');
   el.setAttribute('aria-live', 'polite');
   el.innerHTML =
+    // D-102: a pink gradient panel (the part that wipes away) under the UI;
+    // the small wordmark retired — the hero title's own letters assemble now
+    '<div class="preload__panel"></div>' +
     '<div class="preload__in">' +
-    '<div class="preload__mark">BUILDANTA <b>SOLUTIONS</b></div>' +
     '<div class="preload__bar"><i></i></div>' +
     '<div class="preload__pct">0</div>' +
     '<div class="preload__enters" hidden>' +
@@ -68,6 +71,7 @@ export function createPreloader({ onReveal, onEnter } = {}) {
 
   /* Mounted immediately — it is the entrance now, not a fallback. */
   document.body.appendChild(el);
+  const assembly = createLoaderAssembly(el);
   shown = true;
   requestAnimationFrame(() => el.classList.add('preload--on'));
 
@@ -88,6 +92,7 @@ export function createPreloader({ onReveal, onEnter } = {}) {
     const shownPct = Math.round(progress * 100);
     if (bar) bar.style.transform = `scaleX(${progress.toFixed(3)})`;
     if (pct) pct.textContent = String(shownPct);
+    assembly.update(progress);
   };
 
   const api = {
@@ -98,7 +103,7 @@ export function createPreloader({ onReveal, onEnter } = {}) {
     },
     phase(label) { if (!done) phase.textContent = label; },
     /** Reveal the site. Safe to call twice; the second call does nothing. */
-    reveal(reason = 'ready') {
+    async reveal(reason = 'ready') {
       if (done) return;
       /* D-079: ENTER only ever appears once loading has really finished
          (client's call, 23 Sep) — the old reveal cap is gone. 'partial'
@@ -116,6 +121,7 @@ export function createPreloader({ onReveal, onEnter } = {}) {
         : reason === 'partial' ? 'Some assets are unavailable' : 'Finishing in the background';
       paint();
       const finish = () => {
+        assembly.dispose();
         el.remove();
         onReveal?.(Math.round(performance.now() - t0));
       };
@@ -123,15 +129,21 @@ export function createPreloader({ onReveal, onEnter } = {}) {
       /* D-079: the entrance waits for ENTER. It is the gesture browsers
          require before sound, so the -100 BZ score can start with the site.
          Shown at 100 % only. */
+      // D-102: ENTER waits for the word to finish assembling
+      const assembled = () => new Promise((res) => {
+        const step = () => { assembly.update(1); if (assembly.complete) res(); else requestAnimationFrame(step); };
+        step();
+      });
+      await assembled();
       const enters = el.querySelector('.preload__enters');
       enters.hidden = false;
       requestAnimationFrame(() => enters.classList.add('preload__enters--on'));
       const go = (withSound) => {
         enters.querySelectorAll('button').forEach((b) => { b.disabled = true; });
         onEnter?.(withSound);
-        el.classList.add('preload--gone');
+        el.classList.add('preload--wiping');   // D-102: the panel wipes down; the letters stay
         /* matches the CSS transition; also fires if the transition never does */
-        setTimeout(finish, 1220);
+        setTimeout(finish, 1150);   // = the panel wipe (1.1 s)
       };
       const sound = enters.querySelector('.preload__enter--sound');
       sound.addEventListener('click', () => go(true), { once: true });
