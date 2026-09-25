@@ -473,6 +473,9 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-103 — ZettaJoule-style page transition for BZ navbar jumps
+- **Date:** 2026-09-25 (working tree). Replaces the white spinner + green "B" curtain. `src/modules/pageTransition.js` (same `{ hide() }` contract, used by `sectionNav.go` and Skip intro): COVER = 4 horizontal bands × 16 (9 on phones) white vertical slats growing scaleX 0→1, bands 1/3 from the right, 2/4 from the left, staggered; LOGO = client's Buildanta mark (`public/assets/brand/buildanta-logo.webp`, original in `art-source/`) pops in, then slides left as "Buildanta Solutions" (Inter 600, #0b3158) unmasks from its right end; the jump runs under the panel; REVEAL = lock-up slides down out of its mask, slats shrink band by band so the destination shows through the gaps. Old `showNavOverlay` + CSS removed; verify-section-nav selector → `.bz-pt`. Checked by video: sequence as the reference, jump ~4.1 s, no errors.
+
 ### D-097…D-102 — Projects 3D fix, cursor, ring, Skip, ARIO-style loader
 - **D-097:** host writes localStorage `world-lite`='0' before each world mount (Brave's deviceMemory 4 tripped the ported world's weak-device guess; its fps governor persisted Lite).
 - **D-098 / D-100:** cursor hidden from the bill's arrival through the TAP & HOLD wall (`html.bill-cursorless`, portal wrap `.on`), back once ENTER is armed (`html.portal-armed`, hand on the door); Skip / Sound / ruler keep theirs.

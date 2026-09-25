@@ -11,13 +11,14 @@
  *     touch, and a scroll-position backstop for anything else (scrollbar
  *     drag, iOS momentum). The floor is STICKY: it only rises as the visitor
  *     moves forward, and only a navbar jump lowers it. Forward is free;
- *   · runs a navbar jump under the reference's white overlay: fade in, let
+ *   · runs a navbar jump under the page transition (pageTransition.js): cover, let
  *     the intro put the door in the right state and move the scroll, wait
  *     for the destination to draw, fade out.
  * The ruler steps aside inside the Projects world and the ship, where the
  * top centre belongs to "← Leave the world" / "← Leave the Ship".
  */
-import { createScrollRuler, showNavOverlay } from "./scrollRuler.js";
+import { createScrollRuler } from "./scrollRuler.js";
+import { showPageTransition } from "./pageTransition.js";
 
 /* The reference spaces minor ticks every 10 of ITS scroll units; one native
    viewport-height of ours is ~35 of those (the pacing D-076 measured), so
@@ -132,7 +133,7 @@ export function createSectionNav({ intro, lenis }) {
     if (busy || index < 0) return;
     busy = true;
     try {
-      const overlay = await showNavOverlay();
+      const overlay = await showPageTransition();   // D-103: ZettaJoule-style
       try {
         await intro.goToSection(id);
         floorIndex = index;

@@ -22,7 +22,7 @@
  *     setVisible(bool)         .6 s fade; hidden = inert, then visibility:hidden
  *     dispose()
  *   }
- *   showNavOverlay() → Promise<{ hide(): Promise<void> }>
+ *   (the jump curtain moved to pageTransition.js, D-103)
  *
  * Desktop vs phone follows matchMedia(mobileQuery) and is REBUILT when it
  * flips — the two are different DOM, not a CSS swap — re-applying the last
@@ -43,7 +43,6 @@ const PEAK_H = 18;        // sv — minor line under the indicator / major line
 const BZ_START = 100;     // uv — phone counter at the first section
 const BZ_STEP = 25;       // dv — counter drop per section
 const FILL_Q = 128;       // fv — phone fill quantisation (steps per bar)
-const OVERLAY_FADE_MS = 600;
 
 const mk = (tag, cls) => {
   const n = document.createElement(tag);
@@ -51,7 +50,6 @@ const mk = (tag, cls) => {
   return n;
 };
 const clamp01 = (v) => (v > 1 ? 1 : v > 0 ? v : 0); // also maps NaN → 0
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Mouse clicks focus a button in Chrome; only a KEYBOARD focus may hold the
 // hover nav open, or it would stick open after the pointer leaves.
@@ -616,46 +614,4 @@ export function createScrollRuler({
       variant = null;
     },
   };
-}
-
-// One curtain at a time: a second call while it is up (or still fading in)
-// gets the same handle; a call while it fades out waits and raises a new one.
-let curtain = null;
-
-export function showNavOverlay() {
-  if (curtain) {
-    return curtain.hiding ? curtain.hiding.then(showNavOverlay) : curtain.shown;
-  }
-
-  const node = mk("div", "bz-nav-overlay");
-  const loader = mk("div", "bz-nav-overlay__loader");
-  const spinner = mk("span", "bz-nav-overlay__spinner");
-  spinner.setAttribute("aria-hidden", "true");
-  const logo = mk("div", "bz-nav-overlay__logo");
-  logo.setAttribute("aria-hidden", "true");
-  logo.textContent = "B";
-  loader.append(spinner, logo);
-  node.appendChild(loader);
-  document.body.appendChild(node);
-  void node.offsetHeight; // commit opacity 0 first, or the fade-in is skipped
-  node.style.opacity = "1";
-
-  const entry = { hiding: null, shown: null };
-  const handle = {
-    hide() {
-      if (!entry.hiding) {
-        entry.hiding = (async () => {
-          await entry.shown; // never cut the fade-in short
-          node.style.opacity = "0";
-          await wait(OVERLAY_FADE_MS);
-          node.remove();
-          if (curtain === entry) curtain = null;
-        })();
-      }
-      return entry.hiding;
-    },
-  };
-  entry.shown = wait(OVERLAY_FADE_MS).then(() => handle);
-  curtain = entry;
-  return entry.shown;
 }

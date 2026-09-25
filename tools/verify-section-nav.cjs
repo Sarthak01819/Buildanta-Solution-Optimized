@@ -151,10 +151,10 @@ function pageHelpers() {
       finaleInside: html.contains('finale-inside'), inWorld: html.contains('is-in-world'),
       flight: window.__finale ? window.__finale.state().flight : null,
       worldFall: window.__worldFall ? window.__worldFall.state : null,
-      overlay: Boolean(document.querySelector('.bz-nav-overlay')),
+      overlay: Boolean(document.querySelector('.bz-pt')),
     };
   };
-  /* Records every .bz-nav-overlay (added, how long it lived, what it looked
+  /* Records every .bz-pt (added, how long it lived, what it looked
      like) and every element that gains .is-loading. A MutationObserver, so a
      600 ms overlay cannot slip between two polls. */
   const watch = {
@@ -185,8 +185,8 @@ function pageHelpers() {
           if (m.type === 'childList') {
             for (const n of m.addedNodes) {
               if (n.nodeType !== 1) continue;
-              if (n.matches('.bz-nav-overlay')) track(n);
-              else n.querySelectorAll('.bz-nav-overlay').forEach(track);
+              if (n.matches('.bz-pt')) track(n);
+              else n.querySelectorAll('.bz-pt').forEach(track);
             }
           } else if (m.target.classList) {
             if (m.target.classList.contains('bz-nav-overlay')) track(m.target);
@@ -204,7 +204,7 @@ function pageHelpers() {
       return {
         log: this.log.map((r) => ({ ...r, ms: r.t1 == null ? null : Math.round(r.t1 - r.t0), peakOpacity: Math.round(r.peakOpacity * 1000) / 1000 })),
         loading: this.loading.slice(0, 6),
-        present: Boolean(document.querySelector('.bz-nav-overlay')),
+        present: Boolean(document.querySelector('.bz-pt')),
       };
     },
   };
@@ -298,7 +298,7 @@ const armWatch = (page) => page.evaluate(() => window.__snavT.watch.arm());
 const watchResult = (page) => page.evaluate(() => window.__snavT.watch.result());
 const waitIdle = (page, timeout = 15000) => until(page, () => {
   const s = window.__sectionNav && window.__sectionNav.state();
-  return Boolean(s) && !s.busy && !document.querySelector('.bz-nav-overlay');
+  return Boolean(s) && !s.busy && !document.querySelector('.bz-pt');
 }, timeout);
 const wallLive = (page, timeout = 20000) => until(page, () => {
   const s = window.__snavT.snap();
@@ -370,7 +370,7 @@ async function keyFocus(page) {
     await page.mouse.click(x, y);
     await sleep(page, 500);
     const after = await page.evaluate(() => ({ y: window.scrollY, stopped: Boolean(window.__buildanta.lenis && window.__buildanta.lenis.isStopped),
-      sheet: Boolean(document.querySelector('.service-sheet.on')), overlay: Boolean(document.querySelector('.bz-nav-overlay')) }));
+      sheet: Boolean(document.querySelector('.service-sheet.on')), overlay: Boolean(document.querySelector('.bz-pt')) }));
     if (Math.abs(after.y - before.y) <= 1 && !after.stopped && !after.sheet && !after.overlay) return { x, y, hit: before.hit };
     if (after.sheet) { await page.keyboard.press('Escape'); await sleep(page, 400); }
     await page.evaluate((yy) => window.__buildanta.lenis.scrollTo(yy, { immediate: true, force: true }), before.y);
@@ -503,7 +503,7 @@ function visCheck(c, label, r) {
 function overlayChecks(c, w, label) {
   (c.data.overlays = c.data.overlays || []).push({ label, ...w });
   const o = w.log[0];
-  c.check(`${label}: .bz-nav-overlay appeared`, Boolean(o),
+  c.check(`${label}: .bz-pt appeared`, Boolean(o),
     o ? `lived ${o.ms} ms, bg ${o.bg}, peak opacity ${o.peakOpacity}, text "${o.text}", spinner ${o.spinner}` : 'never seen');
   if (!o) return;
   if (!/^rgba?\(255, 255, 255/.test(o.bg)) c.warn(`${label}: overlay background ${o.bg} (contract: white)`);
@@ -1205,7 +1205,7 @@ async function skipSession(browser) {
       const t0 = Date.now();
       const landed = await until(page, () => {
         const s = window.__sectionNav && window.__sectionNav.state();
-        return Boolean(s) && s.activeId === 's4' && !s.busy && !document.querySelector('.bz-nav-overlay');
+        return Boolean(s) && s.activeId === 's4' && !s.busy && !document.querySelector('.bz-pt');
       }, 60000);
       const w = await watchResult(page);
       c.data.overlay = w;
@@ -1279,7 +1279,7 @@ async function phoneSession(browser) {
       const t0 = Date.now();
       const landed = await until(page, () => {
         const s = window.__sectionNav && window.__sectionNav.state();
-        return Boolean(s) && s.activeId === 's4' && !s.busy && !document.querySelector('.bz-nav-overlay');
+        return Boolean(s) && s.activeId === 's4' && !s.busy && !document.querySelector('.bz-pt');
       }, 60000);
       const w = await watchResult(page);
       overlayChecks(c, w, 'phone jump');

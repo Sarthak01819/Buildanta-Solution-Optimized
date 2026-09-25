@@ -389,55 +389,7 @@
   transition: opacity .6s, visibility 0s linear .6s;
 }
 
-/* ─────────── jump curtain (showNavOverlay) ─────────── */
-
-.bz-nav-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #fff;
-  opacity: 0;
-  pointer-events: all;
-  transition: opacity .6s;   /* = OVERLAY_FADE_MS */
-}
-.bz-nav-overlay__loader {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 120px;
-  height: 120px;
-}
-.bz-nav-overlay__spinner {
-  position: absolute;
-  inset: 0;
-  box-sizing: border-box;
-  border: 3px solid #0000001f;
-  border-top-color: #000c;
-  border-radius: 50%;
-  animation: .8s linear infinite bz-ruler-spin;
-}
-/* No logo image in this repo: a serif B stands in for the reference's
-   zero_icon.jpg. At 40px/1 Instrument Serif's capital lands with its own
-   centre 0.5px above the circle's and dead centre across (measured in
-   Chrome) — already optically centred, so no nudge. Re-measure if the
-   size or face changes. */
-.bz-nav-overlay__logo {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: #1a6e48;
-  color: #fff;
-  font: 400 40px/1 "Instrument Serif", Georgia, serif;
-  user-select: none;
-}
+/* (the white spinner curtain was replaced by the page transition, D-103 — see the end of this file) */
 
 /* ─────────── reduced motion ─────────── */
 /* Behaviour unchanged — the tick bump is a pure function of progress. Only
@@ -449,4 +401,37 @@
   .bz-mtl__fill { transition: none; }
   .bz-mtl-menu,
   .bz-mtl-menu.is-open { transform: none; }
+}
+
+/* ─────────── page transition (D-103, after ZettaJoule) ─────────── */
+.bz-pt {
+  position: fixed; inset: 0; z-index: 10000;
+  display: grid; grid-template-rows: repeat(4, 1fr);
+  pointer-events: all;
+}
+.bz-pt__band { display: flex; }
+.bz-pt__slat {
+  flex: 1 1 0; height: 100%;
+  background: #fff;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  margin-right: -1px;            /* no hairline seams between slats */
+}
+.bz-pt__lock {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  pointer-events: none;
+}
+.bz-pt__mask { overflow: hidden; padding: 4px 2px; }
+.bz-pt__inner { display: flex; align-items: center; gap: 12px; will-change: transform; }
+.bz-pt__mark { width: 44px; height: 44px; display: block; }
+.bz-pt__word {
+  display: inline-flex; justify-content: flex-end;   /* unmasks from its right end, as the reference */
+  overflow: hidden; white-space: nowrap;
+  font: 600 21px/1 "Inter", system-ui, sans-serif; letter-spacing: -0.01em;
+  color: #0b3158;
+}
+@media (max-width: 560px) {
+  .bz-pt__mark { width: 36px; height: 36px; }
+  .bz-pt__word { font-size: 17px; }
 }
