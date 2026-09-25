@@ -473,6 +473,9 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-105 — "← Back to World" in the Projects open-card view
+- **Date:** 2026-09-25 (working tree). The world already had its own open-card back control (`.world-details__close`, "← Back to the world", z 60, top centre) — hidden under the site's "← Leave the world" (z 530) at the same spot. Host-side (src/world is a port): main.css moves it top-left (left 24 / top 14, z 535) in the Leave pill's exact look and font; main.js relabels it "← Back to World" whenever `html.world-open` appears. Verified: visible and on top at 24,14 with a card open; click closes the card, stays in the world; Leave stays top-centre.
+
 ### D-104 — TAP & HOLD wall: ENTER button removed (switchable)
 - **Date:** 2026-09-25 (working tree). Client: remove ENTER, keep it restorable with one command. `PORTAL_ENTER_BUTTON = false` in `src/config.js`: `html.no-enter-button` hides `.bh-portal`; intro.js's tick clicks the (hidden) door the moment the hold arms, so the ride, flare and Portal Bloom run unchanged — a completed hold enters on its own. **Restore = set `PORTAL_ENTER_BUTTON = true`.** Sealed portal module untouched (note: it appends the door to `<body>`). Verified: hold → collapsing → entering, door never visible, lands on 0 BZ with the CTAs.
 

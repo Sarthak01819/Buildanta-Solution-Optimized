@@ -740,6 +740,26 @@ function boot() {
     fall.exit();
   });
 
+  /* D-105: the open-card view's way back is the world's own control, moved
+     top-left in main.css; relabelled to the client's wording whenever a card
+     opens (the world builds it lazily, so watch for the state, not the node). */
+  new MutationObserver(() => {
+    if (!document.documentElement.classList.contains("world-open")) return;
+    const back = document.querySelector(".world-details__close");
+    if (back && back.textContent !== "← Back to World") back.textContent = "← Back to World";
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+  // D-105: on a project page, "← Back to World" does what the (hidden) world
+  // link "← Back to the world" does — hand the click to it.
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest?.(".world-details__close")) return;
+    if (!document.documentElement.classList.contains("world-project")) return;
+    const worldBack = document.querySelector(".project__back");
+    if (!worldBack) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    worldBack.click();
+  }, true);
+
   window.__worldFall = fall;
 })();
 

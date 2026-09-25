@@ -6222,3 +6222,23 @@ html.portal-armed .bh-portal * { cursor: var(--cur-hand) !important; }
 /* D-104: PORTAL_ENTER_BUTTON = false (src/config.js) — the ENTER door is never
    seen; intro.js presses it the moment the hold arms. */
 html.no-enter-button .bh-portal { visibility: hidden !important; }
+
+/* D-105: the world's own "Back to the world" (open-card view) sat at top
+   centre UNDER "← Leave the world" (z 530 vs 60), so it could never be seen.
+   Host-side (src/world/ is a port): move it top-left, above everything, in
+   the Leave pill's exact look. Label set in main.js ("← Back to World"). */
+html.is-in-world .world-details__close {
+  left: 24px; top: 14px; transform: none; z-index: 535;
+  padding: 10px 18px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(8, 8, 8, 0.82);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  color: #fff; font-size: 0.86rem; font-weight: 300; letter-spacing: normal;
+  font-family: "JetBrains Mono", ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;   /* = #world-exit */
+}
+html.is-in-world .world-details__close:hover { border-color: #fff; }
+/* On the project page too: ours (top-left) is THE way back — the world's own
+   "← Back to the world" link there is hidden (client, 25 Sep); main.js hands
+   our click to it, so the behaviour is exactly the world's. */
+html.is-in-world.world-project .world-details__close { opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; }
+html.is-in-world .project__back { visibility: hidden !important; }
