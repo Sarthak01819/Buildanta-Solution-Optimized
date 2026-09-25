@@ -1,6 +1,6 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { INTRO, BRAND } from "../config.js";
+import { INTRO, BRAND, PORTAL_ENTER_BUTTON } from "../config.js";
 import { splitChars } from "./splitText.js";
 import { createSound } from "./sound.js";
 import { createMusic } from "./music.js";
@@ -1932,6 +1932,7 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
      dismissal is gone; only the BZ navbar leaves (resetDoor). LENIS landmine:
      stop on engage, start on EVERY exit path — ride, navbar jump, destroy. */
   const portalWrap = root.querySelector(".intro__portalwrap");
+  if (!PORTAL_ENTER_BUTTON) document.documentElement.classList.add("no-enter-button");   // D-104
   const whiteVeil = root.querySelector(".intro__whiteveil");
   const portalOn = beatEnabled && Boolean(portalWrap);
   // idle HOLD whisper replaced by the TAP & HOLD button, D-077
@@ -2162,6 +2163,13 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
     const dt = Math.min(0.05, Math.max(0, time - last));
     last = time;
 
+    /* D-104: with PORTAL_ENTER_BUTTON off the door is never shown — the
+       moment the hold arms it, press it for the visitor, so the ride, flare
+       and bloom run exactly as an ENTER click would. */
+    if (!PORTAL_ENTER_BUTTON && portalState === "active"
+        && window.__bhp?.ready && window.__bhp.state().phase === "armed") {
+      document.querySelector(".bh-portal")?.click();   // the module appends it to <body>
+    }
     corridor.render(time);
     orbHero?.render(time);            // no-ops once handed off (setOpacity 0)
     projector?.render(time);

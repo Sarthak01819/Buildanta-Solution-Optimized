@@ -187,6 +187,10 @@ large — ALWAYS do this before judging a hand in the tiny site frame; see D-049
     button:focus-visible` rule too. Unscoped, its `border-radius: 2px` squared
     the portal's ENTER circle (and every other site button's focus ring).
     Re-run the tool after any world CSS re-port.
+15. **The wall's ENTER button is OFF by a switch (D-104).** `PORTAL_ENTER_BUTTON`
+    in `src/config.js`: false = a completed hold enters on its own; true = the
+    original ENTER door is back. Nothing was deleted.
+
 
 ## 7. Open items Yash hasn't resolved yet
 

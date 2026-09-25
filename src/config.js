@@ -57,6 +57,12 @@ export const BRAND = {
  *                  Ghatane par intro tez lagta hai par acts ke beech ka
  *                  transition jaldi kat jaata hai.
  */
+/* D-104 (25 Sep 2026): the TAP & HOLD wall's ENTER button.
+   false = no button — a completed hold enters on its own (same ride, flare
+   and bloom sound). true = the original ENTER door comes back exactly as it
+   was. Nothing was deleted; this switch is the whole difference. */
+export const PORTAL_ENTER_BUTTON = false;
+
 export const INTRO = {
   scenes: true,            // station planes (false = sirf khaali corridor)
   themePerStep: true,      // har act ka palette usi image se aaya hai
