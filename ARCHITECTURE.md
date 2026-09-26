@@ -480,6 +480,12 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-112 — We market: the sub-line moved under the title
+- **Date:** 2026-09-26 (client, marked on a screenshot). "We connect search strategy…" moved from `.market-editorial__foot`, where it overlapped Skip intro / Sound, to a new `.market-editorial__sub` straight under "We market". It keeps the same DM Mono type, 5vh below the title. The foot keeps its rule line and "SCROLL INTO THIS SIGNAL CORE ↓", now right-aligned. No JS references either element. Verified at p .51: no errors.
+
+### D-111 — Corner brand, corner eyebrow and act counter removed from view
+- **Date:** 2026-09-26 (client, marked on screenshots). `.intro__top` (the top-left "Buildanta Solutions" and top-right "An engineering studio") and `.intro__count` ("01 / 04") get `visibility: hidden` in main.css. They are not deleted: intro.js writes the counter's text and fades the top bar's opacity, and `visibility` keeps the layout identical. The centred kicker and title, Skip, Sound and Scroll are unchanged. Verified at -100 BZ and We code: all three gone, no errors.
+
 ### D-110 — Sound button now mutes the WE SCALE hands stage
 - **Date:** 2026-09-26 (client report). The hands stage plays plain `<audio>` elements (`zeroStageAudio.js`), and neither the Sound button nor "Enter without sound" ever reached them. Its only link to the button was the EQ meter. Added `setMuted` there: it sets `.muted` on the three tracks, leaving play/pause and the gesture-unlock logic untouched, and `level()` reads 0 while muted. `intro.setZeroStageMuted` is called from both the Sound button and the loader's ENTER handler in main.js. Verified in WE SCALE: Sound off → level 0 while the ambient plays; Sound on → 0.33.
 
