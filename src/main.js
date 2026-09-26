@@ -404,8 +404,14 @@ function boot() {
      becomes the site's final surface. Only in finale mode — with the blue
      site restored, the room stays an ordinary section at the end of it. */
   {
+    /* D-114: EVERY phone gets the lite finale, not just weak ones. An Infinix
+       GT 10 Pro (8 GB, 8 cores) passed the old test, got the desktop ship
+       (~260 draw calls a frame at dpr 1.5) beside the black hole's raymarch,
+       and the GPU process died when Projects mounted the world on top —
+       white screen, sad-face canvas. */
     const lite = (navigator.deviceMemory && navigator.deviceMemory <= 4) ||
-                 (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+                 (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+                 matchMedia("(pointer: coarse)").matches;
     if (FINALE && roomSection) {
       /* Riding the portal lands on the site's own Gargantua beat — that is the
          black hole the visitor ends on, so that is where the Endurance orbits
@@ -436,6 +442,9 @@ function boot() {
         finale.setCursor((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);
       }, { passive: true });
       gsap.ticker.add((_t, dt) => finale.tick(Math.min(dt / 1000, 0.05)));
+      // D-115: the -100 BZ hero's Contact opens the room directly (no flight)
+      document.querySelector(".js-hero-contact")
+        ?.addEventListener("click", () => finale?.openDirect?.());
       addEventListener("pagehide", () => finale.dispose(), { once: true });
     }
   }
@@ -731,6 +740,12 @@ function boot() {
     if (!t) return;
     e.preventDefault();
     fall.enter();
+  });
+  // D-115: the -100 BZ hero's Projects opens the world directly (no fall)
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest?.(".js-hero-projects")) return;
+    e.preventDefault();
+    fall.enterDirect();
   });
   exitBtn.addEventListener("click", () => fall.exit());
   addEventListener("keydown", (e) => {

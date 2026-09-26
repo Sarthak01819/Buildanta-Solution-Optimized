@@ -12,12 +12,13 @@
  */
 import {
   ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BufferAttribute,
-  BufferGeometry, CatmullRomCurve3, Color, DirectionalLight, Group,
+  BufferGeometry, CatmullRomCurve3, Color, DirectionalLight, Group, Mesh,
   PerspectiveCamera, Points, PointsMaterial, PointLight, Scene, Vector3,
   WebGLRenderer,
 } from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { wantsAA } from "../msaa.js";
 
 const OMEGA = 0.14;                 // rad/s ≈ 37 px/s at the module ring
@@ -65,6 +66,45 @@ const smoothstep = (a, b, x) => {
   return k * k * (3 - 2 * k);
 };
 const ease = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
+
+/* D-114: the Endurance arrived as ~260 separate meshes — ~260 draw calls a
+   frame for one model, which (beside the black hole's raymarch and the
+   Projects world mounting) is what killed the GPU on a phone. Nothing inside
+   the model moves on its own (the whole ship spins as one group), so every
+   plain mesh is baked into the model's space and merged per material: same
+   geometry, same material objects (so the emissive "windows" still respond),
+   a handful of draws. Anything that cannot merge safely — skinned, morphing,
+   multi-material, or an attribute layout that differs — stays as it was. */
+function mergeByMaterial(root) {
+  root.updateMatrixWorld(true);
+  const inv = root.matrixWorld.clone().invert();
+  const groups = new Map();
+  root.traverse((o) => {
+    if (!o.isMesh || o.isSkinnedMesh || o.isInstancedMesh || Array.isArray(o.material)) return;
+    if (o.morphTargetInfluences?.length || !o.geometry?.attributes?.position) return;
+    const sig = o.material.uuid + "|" + Object.keys(o.geometry.attributes).sort().join(",") + "|" + (o.geometry.index ? "i" : "n");
+    if (!groups.has(sig)) groups.set(sig, []);
+    groups.get(sig).push(o);
+  });
+  const merged = [];
+  for (const meshes of groups.values()) {
+    if (meshes.length < 2) continue;
+    try {
+      const geos = meshes.map((m) => m.geometry.clone().applyMatrix4(inv.clone().multiply(m.matrixWorld)));
+      const geo = mergeGeometries(geos, false);
+      geos.forEach((g) => g.dispose());
+      if (!geo) continue;
+      const mesh = new Mesh(geo, meshes[0].material);
+      mesh.castShadow = meshes[0].castShadow;
+      mesh.receiveShadow = meshes[0].receiveShadow;
+      mesh.renderOrder = meshes[0].renderOrder;
+      merged.push(mesh);
+      for (const m of meshes) { m.parent.remove(m); m.geometry.dispose(); }
+    } catch { /* this group keeps its separate meshes */ }
+  }
+  merged.forEach((m) => root.add(m));
+  return root;
+}
 
 export function createShip(host, { reducedMotion = false, lite = false } = {}) {
   const canvas = document.createElement("canvas");
@@ -205,7 +245,7 @@ export function createShip(host, { reducedMotion = false, lite = false } = {}) {
           emissives.push(m);
         }
       });
-      spinGroup.add(gltf.scene);
+      spinGroup.add(mergeByMaterial(gltf.scene));
       ready = true;   // visibility is the owner's call, not the loader's
     }, undefined, () => { canvas.remove(); });
   }

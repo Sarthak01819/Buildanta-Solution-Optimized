@@ -480,6 +480,26 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-115 — Projects / Contact buttons on the -100 BZ hero
+- **Date:** 2026-09-26 (client, marked on a screenshot). `.intro__heroCtas` (index.html, in `.intro__inner`) holds Projects at the top left and Contact at the top right, styled `.hero-cta` in the hero's own palette: paper glass, ink type and border. On hover they use the loader ENTER buttons' motion (`preload-optimized.css`): an ink fill slides up while the label rolls down and a paper-coloured twin drops in, .5s cubic-bezier(.65,0,.35,1). On phones (≤560px) they sit at 58px, below the BZ ruler. intro.js fades them on the hero orb's curve (p .200→.245): -100 BZ only, then hidden and not clickable.
+- **Client's choice, "open directly":**
+  - **Projects:** `worldFall.enterDirect()` — a black veil, the world builds, the veil lifts; no beat, no dive. `exit()` on a direct visit drops the world under the veil and lifts it back onto the hero.
+  - **Contact:** `finaleRoom.openDirect()` plays only the arrival's tail (flight 0.6→1: the airlock bloom + room crossfade, 1.1 s). Leaving takes the same short way back to 0.6, then 0. The flight's black-hole/sky code is skipped while `direct`.
+- **Verified:** hero → Projects → world → Leave → hero; hero → Contact → room → Esc → hero; hidden at We code; no errors.
+
+### D-114 — Phone crash on Projects at 0 BZ: the Endurance was ~260 draws a frame
+- **Date:** 2026-09-26. **Report:** Infinix GT 10 Pro, Brave. Tapping PROJECTS at 0 BZ turned the page white with Chromium's sad-face canvas; Contact Us worked. **Measured** (phone emulation, draw calls counted per canvas):
+  - The finale ship drew ~263 calls a frame at rest and more during the fall.
+  - That ran beside the black hole's raymarch while the Projects world mounted its own context (11 WebGL contexts by then).
+  - The phone passed main.js's `lite` test (8 GB, 8 cores), so it got the desktop ship at dpr 1.5.
+- **Fix:**
+  - `ship.js` `mergeByMaterial`: plain meshes are baked into the model's space and merged per material, keeping the same material objects, so the emissive windows still respond. Skinned, morphing and multi-material meshes, or ones with mismatched attributes, are left alone. Result: **263 → ~16 draws a frame, on every device.**
+  - main.js: `lite` is now also true for `(pointer: coarse)`, so phones get the lite ship at dpr 1.
+- **Verified:** the desktop 0 BZ ship is visually identical before and after (side-by-side), with no errors. The fall into Projects completes in phone emulation. Not yet confirmed on the reporting phone.
+- **Noted, not changed:**
+  - `src/world/world-app.js`'s `supportsWebGL` probe creates a canvas context on every mount and never releases it. Fix it upstream in unseen-world.
+  - The "texSubImage2D: bad image data" / "Texture is immutable" console warnings predate D-109 (checked on f2636c3).
+
 ### D-113 — Favicon is the client's Buildanta logo
 - **Date:** 2026-09-26 (client). This replaces the inline green "B" SVG. Generated from `art-source/buildanta-logo-original.webp` (1072², white disc, transparent corners) into `public/`:
   - `favicon.ico` (16/32/48)

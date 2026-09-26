@@ -176,6 +176,25 @@ export function createWorldFall({ getBeat, onMountWorld, onUnmountWorld, reduced
     });
   }
 
+  /* D-115: the -100 BZ hero's Projects button — straight into the world.
+     No beat, no dive: a black veil covers the page while the world builds,
+     then lifts onto it. */
+  let direct = false;
+  function enterDirect() {
+    if (state === "falling" || state === "in") return;
+    direct = true;
+    beat = null;
+    state = "falling";
+    veil.style.transition = "opacity 380ms ease";
+    setVeil(1);
+    beginBuild();
+    const waitForWorld = () => {
+      if (worldReady) { veil.style.transition = ""; arrive(); return; }
+      raf = requestAnimationFrame(waitForWorld);
+    };
+    setTimeout(waitForWorld, 400);
+  }
+
   function arrive() {
     stop();
     setVeil(1);
@@ -204,6 +223,14 @@ export function createWorldFall({ getBeat, onMountWorld, onUnmountWorld, reduced
       veil.style.transition = "";
       document.documentElement.classList.remove("is-in-world");
       worldApi?.setPaused?.(true);
+      if (direct) {
+        // back to the hero: drop the world under the veil, then lift it
+        direct = false;
+        veil.style.transition = "opacity 620ms ease";
+        finishExit();
+        setTimeout(() => { if (veil) veil.style.transition = ""; }, 700);
+        return;
+      }
       if (reducedMotion) { finishExit(); return; }
       // Rise back out through the same scene, to exactly where it started —
       // the Endurance is still sitting there waiting.
@@ -229,6 +256,7 @@ export function createWorldFall({ getBeat, onMountWorld, onUnmountWorld, reduced
 
   return {
     enter,
+    enterDirect,
     exit,
     get state() { return state; },
     dispose() { stop(); beat?.setDive?.(false); beat = null; veil.remove(); veil = null; }

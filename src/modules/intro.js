@@ -66,6 +66,7 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
     ideaFx?.querySelector(sel)?.style.setProperty("display", "none");
   }
   const topBar = root.querySelector(".intro__top");
+  const heroCtas = root.querySelector("[data-hero-ctas]");
   const footBar = root.querySelector(".intro__foot");
   /* D-087: Skip intro + Sound live for the whole site, so they leave the foot
      (whose layer, .intro__inner z1, sits under the camera / bill / portal
@@ -1757,6 +1758,14 @@ export function createIntro({ onProgress, onSkip, soundLevel } = {}) {
       : 1;
     const introChromeOp = String((1 - handoff) * marketChromeFade);
     topBar.style.opacity = introChromeOp;
+    /* D-115: the hero's Projects / Contact leave with the hero orb
+       (p .200 -> .245, the curve the orb fades on) — -100 BZ only. */
+    if (heroCtas) {
+      const k = 1 - smoothstep((p - 0.2) / 0.045);
+      heroCtas.style.opacity = k.toFixed(3);
+      heroCtas.style.visibility = k > 0.001 ? "" : "hidden";
+      heroCtas.style.pointerEvents = k > 0.5 ? "" : "none";
+    }
     bar.style.opacity = introChromeOp;
     /* D-087: Skip intro + Sound stay on screen for the whole site; only the
        rest of the foot (hint, act counter, backing gradient) leaves with the

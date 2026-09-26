@@ -2167,6 +2167,52 @@ em.coral-italic {
    `visibility` keeps the layout exactly as it was. */
 .intro__top,
 .intro__count { visibility: hidden; }
+/* D-115: Projects (top-left) and Contact (top-right) on the -100 BZ hero, in
+   the 0 BZ .finale-cta look. intro.js fades them out as We code arrives. */
+.intro__heroCtas {
+  position: absolute; z-index: 2;
+  top: max(10px, calc(clamp(22px, 3.6vw, 52px) - 16px));
+  left: var(--pad); right: var(--pad);
+  display: flex; justify-content: space-between; pointer-events: none;
+}
+.hero-cta {
+  pointer-events: auto; cursor: var(--cur-hand);
+  padding: 13px 30px; border-radius: 999px;
+  /* the hero's own palette (client, 26 Sep): paper glass, ink type, brass on hover */
+  border: 1px solid color-mix(in srgb, var(--ink) 38%, transparent);
+  background: color-mix(in srgb, var(--paper) 42%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  color: var(--ink); font: inherit; font-size: 12px; font-weight: 500; letter-spacing: .18em;
+  text-transform: uppercase;
+  /* hover = the loader's ENTER buttons (preload-optimized.css): a fill slides
+     up from the bottom while the label rolls down and its twin drops in */
+  position: relative; overflow: hidden; isolation: isolate;
+}
+.hero-cta::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: var(--ink); transform: translateY(101%);
+  transition: transform .5s cubic-bezier(.65, 0, .35, 1);
+}
+.hero-cta__roll { display: grid; height: 1em; line-height: 1; overflow: hidden; }
+.hero-cta__label {
+  grid-area: 1 / 1; display: inline-flex; align-items: flex-end; height: 1em;
+  transition: transform .5s cubic-bezier(.65, 0, .35, 1);
+}
+.hero-cta__label + .hero-cta__label { color: var(--paper); transform: translateY(-120%); }
+.hero-cta:hover::before, .hero-cta:focus-visible::before { transform: none; }
+.hero-cta:hover .hero-cta__label, .hero-cta:focus-visible .hero-cta__label { transform: translateY(120%); }
+.hero-cta:hover .hero-cta__label + .hero-cta__label,
+.hero-cta:focus-visible .hero-cta__label + .hero-cta__label { transform: none; }
+.hero-cta:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+.hero-cta, .hero-cta * { cursor: var(--cur-hand); }
+@media (prefers-reduced-motion: reduce) {
+  .hero-cta::before, .hero-cta__label { transition: none; }
+}
+@media (max-width: 560px) {
+  /* phones: the BZ ruler sits top-right here, so the pair drops below it */
+  .intro__heroCtas { top: 58px; }
+  .hero-cta { padding: 10px 20px; font-size: 11px; letter-spacing: .14em; }
+}
 
 .intro__center { flex: 1; position: relative; }
 .intro__stage, .intro__title { position: absolute; inset: 0; }

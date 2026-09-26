@@ -141,7 +141,16 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
   /* 2.4 s read as a rewind, not a voyage back out; 7.6 s per the client
      (23 Sep 2026), slower than the world's 4.6 s rise. */
   const LEAVE_SECONDS = 7.6;
-  const leave = () => { if (flight > 0.0001) startFlight(0, LEAVE_SECONDS); };
+  /* D-115: the -100 BZ hero's Contact button opens the room DIRECTLY — no
+     black hole, no ship flight. It plays only the arrival's tail (the airlock
+     bloom + room crossfade, flight 0.6 -> 1) and leaves the same short way. */
+  const DIRECT_FROM = 0.6, DIRECT_SECONDS = 1.1;
+  let direct = false;
+  const leave = () => {
+    if (flight <= 0.0001) return;
+    if (direct) startFlight(DIRECT_FROM, DIRECT_SECONDS);
+    else startFlight(0, LEAVE_SECONDS);
+  };
   shipExit.addEventListener("click", leave);
   const onKey = (e) => {
     if (e.key === "Escape" && !roomSection.classList.contains("room--drawer")) leave();
@@ -249,9 +258,13 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
         /* Linear scrub, with a short ease-in only: Yash wants the first
            second to feel like leaving from rest. Everything after that is
            the reference's own rail shaping, untouched. */
-        const s = k * smoothstep(0, 0.10, k);
+        const s = direct ? smoothstep(0, 1, k) : k * smoothstep(0, 0.10, k);
         applyFlight(tweenFrom + (tweenTo - tweenFrom) * s);
-        if (k >= 1) tweening = false;
+        if (k >= 1) {
+          tweening = false;
+          // a direct visit ends back at the hero, outside the room entirely
+          if (direct && tweenTo <= DIRECT_FROM) { direct = false; applyFlight(0); }
+        }
       }
       // The model arrives asynchronously; keep visibility in sync every frame
       // rather than only on the portal's class change, or a ship that loads
@@ -268,7 +281,8 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
          that canvas by the camera's own turn makes the one far landmark in
          frame behave like a far landmark. transform only, so it composites. */
       const beatCanvas = blackholeHost.querySelector("canvas:not(.finale-ship):not(.finale-sky)");
-      const flying = flight > 0.0005;
+      // a direct visit never touches the black hole (it is not on screen)
+      const flying = flight > 0.0005 && !direct;
 
       if (flying && sky && !sky.retired) {
         /* The swap Yash chose: the moment the flight starts, the site's fixed
@@ -304,7 +318,15 @@ export function createFinaleRoom({ blackholeHost, roomSection, shaders, isLive,
         bgShifted = false;
       }
     },
-    state() { return { beatLive, flight, ship: ship?.state?.() ?? null }; },
+    /** D-115: open the contact room straight from the hero */
+    openDirect() {
+      if (flight > 0.0001) return;
+      direct = true;
+      applyFlight(DIRECT_FROM);
+      if (reduced) { applyFlight(1); return; }
+      startFlight(1, DIRECT_SECONDS);
+    },
+    state() { return { beatLive, flight, direct, ship: ship?.state?.() ?? null }; },
     dispose() {
       beatWatch.disconnect();
       removeEventListener("wheel", onWheel);
