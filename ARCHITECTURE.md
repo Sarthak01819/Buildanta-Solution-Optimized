@@ -480,6 +480,14 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-113 — Favicon is the client's Buildanta logo
+- **Date:** 2026-09-26 (client). This replaces the inline green "B" SVG. Generated from `art-source/buildanta-logo-original.webp` (1072², white disc, transparent corners) into `public/`:
+  - `favicon.ico` (16/32/48)
+  - `icon-192.png`
+  - `apple-touch-icon.png` (180, flattened onto white, because iOS paints transparency black)
+
+  Linked in index.html. All three are served with the right content types.
+
 ### D-112 — We market: the sub-line moved under the title
 - **Date:** 2026-09-26 (client, marked on a screenshot). "We connect search strategy…" moved from `.market-editorial__foot`, where it overlapped Skip intro / Sound, to a new `.market-editorial__sub` straight under "We market". It keeps the same DM Mono type, 5vh below the title. The foot keeps its rule line and "SCROLL INTO THIS SIGNAL CORE ↓", now right-aligned. No JS references either element. Verified at p .51: no errors.
 
