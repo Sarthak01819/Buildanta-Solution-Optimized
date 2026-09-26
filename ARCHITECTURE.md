@@ -480,6 +480,46 @@ world does not have a fallback: `content/world.json` is committed, so a fresh cl
 - **🔴 Judge oscillation is real:** the specular target bounced (tiny pings→rubber→chrome→matte) across rounds with each fresh pair re-measuring differently; treat single-round finish verdicts as direction, not gospel, and keep the numeric receipts.
 - **Site:** consultMeet.js gained a radial emerald wash plane behind the grip (additive, beat-faded). Suites green every round (verify-reverse 11/11). NOT deployed — renders to Yash for sign-off per his MCQ.
 
+### D-116 — Phone crash at 0 BZ fixed: a WebGL context budget (phones & tablets)
+- **Date:** 2026-09-26.
+- **Cause (confirmed from Chromium source by research, then reproduced here):**
+  - Chromium on Android allows **8** live WebGL contexts per page (desktop 16). A 9th kills the least-recently-flushed one, which shows as the "broken canvas": white plus an x_x icon.
+  - The site creates 9 at boot; the TAP & HOLD portal adds one, and Projects adds a probe plus the world.
+  - The Infinix recording showed the 0 BZ black-hole canvas evicted after the ride. Contact survived because its flight draws on the flight-sky canvas.
+  - Reproduce on desktop: Chrome `--max-active-webgl-contexts=8` + phone emulation (or `?ctxbudget` on desktop).
+- **Fix — `src/gl/contextBudget.js`, imported FIRST in main.js:**
+  - It wraps `getContext`, registers every context and, on `(pointer: coarse)` only, switches the three.js scenes of other parts of the film off/on with `WEBGL_lose_context` (lose frees the slot at once; three rebuilds on restore).
+  - Measured draw map, each scene kept one section either side of where it draws:
+
+    | Scene | Kept on in sections |
+    |---|---|
+    | corridor | s≤1 |
+    | orb | s0 |
+    | camera | s≤2 |
+    | hands | s1–3 |
+    | bill | s1–3 |
+    | ship | s≥3 |
+
+  - Raw-WebGL black holes (Gargantua beat, portal, contact-room window, flight sky) are never touched, because they cannot rebuild.
+  - A new context at a full budget first switches an idle scene off, so Chromium never picks a victim.
+  - Canvases detached from the page for 1.5 s are released for good: the world's `supportsWebGL` probe, and the world's canvas after Leave.
+  - `prepareFrame()` is capped at 6 s so a switched-off context can never hang a scene.
+- **Verified (8-context limit + Pixel 7 emulation):**
+  - wall → 0 BZ → Projects → Leave → navbar back to -75 and -100 → 0 BZ → Projects → Leave: **0 evictions**, no errors.
+  - Every scene redraws after a restore: orb, camera iris, WE SCALE hands, burning bills, black hole, ship, world.
+  - Desktop: budget inactive, unchanged. `npm run build` passes.
+- Client accepted the trade-offs: back-jumps may hold the white transition a little longer while a scene rebuilds, and a small stutter can land where a scene switches back on during a forward scroll.
+- **Restore trap (found on the client's phone):** three rebuilds only what it holds CPU data for. marketCamera's PMREM room is rendered on the GPU once, AND its materials hold `envMap` explicitly, so after a restore the camera came back dull and dark. marketCamera now regenerates the room on `webglcontextrestored` (next frame) and re-points every material that used the old one. Any new scene with a one-time GPU render must do the same. Verified lose→restore gives an identical camera.
+
+### D-117 — Touch fixes: cards open on tap; hero buttons tappable on phones
+- **Date:** 2026-09-26 (client, Infinix).
+- **World cards didn't open on a tap:**
+  - Cause: `src/world/world/interaction/open.js` opens the card under the HOVER, and hover is raycast only after a pointermove. A finger taps without moving, and a touch pointer also fires pointerleave on lift, which clears the hover (hover.js onLeave).
+  - Host-side fix in main.js, because src/world is a port. On a touch/pen press over `.world-surface` while `is-in-world`: hold the press, dispatch a pointermove there, wait 2 frames, replay the press (and the held release). pointerleave/out are swallowed while a replay is pending and for 400 ms after.
+  - **Fix upstream in unseen-world too.**
+  - Verified: a card opens on the first tap at phone size; a swipe still pans the world and opens nothing; desktop is unchanged.
+- **Hero Projects / Contact untappable on phones:** `.intro__title` (z 2, full-height, later in the DOM) sat over them. `.intro__heroCtas` is now z 5. Verified: touch taps open the world and the room.
+
 ### D-115 — Projects / Contact buttons on the -100 BZ hero
 - **Date:** 2026-09-26 (client, marked on a screenshot). `.intro__heroCtas` (index.html, in `.intro__inner`) holds Projects at the top left and Contact at the top right, styled `.hero-cta` in the hero's own palette: paper glass, ink type and border. On hover they use the loader ENTER buttons' motion (`preload-optimized.css`): an ink fill slides up while the label rolls down and a paper-coloured twin drops in, .5s cubic-bezier(.65,0,.35,1). On phones (≤560px) they sit at 58px, below the BZ ruler. intro.js fades them on the hero orb's curve (p .200→.245): -100 BZ only, then hidden and not clickable.
 - **Client's choice, "open directly":**

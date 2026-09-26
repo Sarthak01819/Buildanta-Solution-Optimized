@@ -1,3 +1,5 @@
+// D-116: FIRST — it must wrap getContext before any scene creates a context
+import { attachContextBudget } from "./gl/contextBudget.js";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
@@ -569,6 +571,7 @@ function boot() {
     ),
   });
   liveIntro = intro;   // the production-safe bridge (see its declaration)
+  attachContextBudget(() => intro.sectionIndexAt(intro.raw));   // D-116 (phones)
   sectionNav = createSectionNav({ intro, lenis });
   if (sectionNav) gsap.ticker.add(sectionNav.tick);
   // bottom-left Sound button = mute for the score (D-081)
@@ -741,6 +744,62 @@ function boot() {
     e.preventDefault();
     fall.enter();
   });
+  /* D-117: TAP TO OPEN A CARD ON TOUCH. The ported world opens the card under
+     its HOVER, and hover is only raycast after a pointermove — a mouse always
+     moves before it clicks, a finger tapping the glass does not, so on a phone
+     every tap found no card (world/interaction/open.js onDown reads
+     hover.cell). Host-side because src/world is a port: fix upstream in
+     unseen-world too. On a touch/pen press over the world surface we hold the
+     press, move the world's pointer there, let it raycast for two frames, then
+     replay the press (and the release, if it already happened). */
+  {
+    const synthetic = new WeakSet();
+    let held = null;           // { down, up } while the world raycasts
+    const replay = (type, src) => {
+      const ev = new PointerEvent(type, {
+        bubbles: true, cancelable: true, composed: true,
+        clientX: src.clientX, clientY: src.clientY, screenX: src.screenX, screenY: src.screenY,
+        pointerId: src.pointerId, pointerType: src.pointerType, isPrimary: src.isPrimary,
+        button: type === "pointermove" ? -1 : 0, buttons: type === "pointerup" ? 0 : 1,
+      });
+      synthetic.add(ev);
+      src.target.dispatchEvent(ev);
+    };
+    addEventListener("pointerdown", (e) => {
+      if (synthetic.has(e) || e.pointerType === "mouse") return;
+      if (!document.documentElement.classList.contains("is-in-world")) return;
+      if (!e.target?.classList?.contains("world-surface")) return;
+      e.stopImmediatePropagation();
+      held = { down: e, up: null };
+      replay("pointermove", e);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const h = held; held = null;
+        if (!h) return;
+        replay("pointerdown", h.down);
+        if (h.up) replay("pointerup", h.up);
+      }));
+    }, { capture: true });
+    addEventListener("pointerup", (e) => {
+      if (synthetic.has(e) || !held) return;
+      e.stopImmediatePropagation();
+      held.up = e;
+    }, { capture: true });
+    /* A touch pointer LEAVES the page the moment the finger lifts, and the
+       world's hover clears itself on pointerleave (hover.js onLeave) — so the
+       card it just found was gone before the replayed press arrived. Swallow
+       that leave while a tap is being replayed, and briefly after. */
+    let quietUntil = 0;
+    for (const type of ["pointerleave", "pointerout"]) {
+      addEventListener(type, (e) => {
+        if (e.pointerType === "mouse" || synthetic.has(e)) return;
+        if (held || performance.now() < quietUntil) e.stopImmediatePropagation();
+      }, { capture: true });
+    }
+    addEventListener("pointerdown", (e) => {
+      if (synthetic.has(e)) quietUntil = performance.now() + 400;
+    }, { capture: true });
+  }
+
   // D-115: the -100 BZ hero's Projects opens the world directly (no fall)
   document.addEventListener("click", (e) => {
     if (!e.target.closest?.(".js-hero-projects")) return;

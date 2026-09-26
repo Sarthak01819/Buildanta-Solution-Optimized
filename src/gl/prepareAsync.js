@@ -60,5 +60,10 @@ export function prepareFrame(renderer, drawFrame, times = 1) {
   } finally {
     renderer.render = render;
   }
-  return Promise.all(jobs).then(() => {}, () => {});
+  /* D-116: capped. On a context the phone budget has switched off, three's
+     readiness poll never completes — never let that hold a scene back. */
+  return Promise.race([
+    Promise.all(jobs),
+    new Promise((r) => setTimeout(r, 6000)),
+  ]).then(() => {}, () => {});
 }

@@ -776,6 +776,33 @@ export function mountMarketCamera(host, { reduced = false, onReady = null } = {}
      sheen and panel gradients, not as furniture from another site. */
   const pmrem = new PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(gradEnvScene(), 0.02).texture;
+  /* D-116: on phones the context budget switches this context off and back
+     on. three rebuilds everything it holds CPU data for, but this room is
+     rendered on the GPU once — a restored context lost it, and the camera
+     came back dull and dark (no metal sheen). Re-render it on every restore.
+     (three's own restore handler was registered first, so it runs first.) */
+  renderer.domElement.addEventListener("webglcontextrestored", () => {
+    // next frame: three's own rebuild has fully settled by then
+    requestAnimationFrame(() => {
+      try {
+        const again = new PMREMGenerator(renderer);
+        const env = again.fromScene(gradEnvScene(), 0.02).texture;
+        const old = scene.environment;
+        scene.environment = env;
+        again.dispose();
+        /* the materials hold envMap EXPLICITLY (see "envMap MUST be assigned
+           explicitly" below), so re-point every one that used the old room */
+        scene.traverse((o) => {
+          const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+          for (const m of mats) if (m.envMap === old) { m.envMap = env; m.needsUpdate = true; }
+        });
+        old?.dispose?.();
+        console.info("[marketCamera] environment rebuilt after context restore");
+      } catch (e) {
+        console.info("[marketCamera] environment rebuild skipped:", e?.message || e);
+      }
+    });
+  });
 
   const cx = (FRAME.left + FRAME.right) / 2;    // +51
   const cy = (FRAME.top + FRAME.bottom) / 2;    // -288.5
